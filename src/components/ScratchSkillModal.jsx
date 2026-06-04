@@ -32,8 +32,8 @@ export default function ScratchSkillModal({ onClose, onSubmit }) {
 
           <label style={{ fontSize: 12.5, fontWeight: 600, color: '#5b5547', display: 'block', margin: '16px 0 7px' }}>Description</label>
           <textarea value={desc} onChange={e => setDesc(e.target.value)}
-            placeholder="Describe what this skill does and when it should be used.&#10;&#10;For example: Qualifies inbound leads against the ICP and routes high-priority leads to the right sales representative. Use when a new lead is created or when a user asks to qualify, prioritize, or route a lead."
-            style={{ width: '100%', minHeight: 156, border: '1px solid #d8cfbb', borderRadius: 12, padding: '12px 14px', fontSize: 14, lineHeight: 1.5, color: '#3a3a36', background: '#fff', outline: 'none', resize: 'vertical', boxSizing: 'border-box', fontFamily: 'inherit' }}
+            placeholder="Describe what this skill does and when it should be used.&#10;&#10;For example: Qualifies inbound leads against the ICP and routes high-priority leads to the right sales representative.&#10;&#10;Use when a new lead is created or when a user asks to qualify, prioritize, or route a lead."
+            style={{ width: '100%', minHeight: 196, border: '1px solid #d8cfbb', borderRadius: 12, padding: '12px 14px', fontSize: 14, lineHeight: 1.5, color: '#3a3a36', background: '#fff', outline: 'none', resize: 'vertical', boxSizing: 'border-box', fontFamily: 'inherit' }}
             onFocus={e => e.target.style.borderColor = '#16341f'} onBlur={e => e.target.style.borderColor = '#d8cfbb'} />
         </div>
 
