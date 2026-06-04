@@ -276,7 +276,7 @@ export default function AIPanel({ onClose, context = 'graphs', buildMode = false
     <div style={{ height: '100%', display: 'flex', flexDirection: 'column', background: 'linear-gradient(180deg, #ffffff 0%, #ffffff 48%, #f4f9f4 78%, #eaf4ec 100%)', position: 'relative' }}>
       {/* ── Header ── */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '12px 12px 12px 18px', flexShrink: 0, borderBottom: '1px solid rgba(16,52,31,0.06)' }}>
-        <span style={{ flex: 1, fontFamily: 'var(--serif)', fontSize: 15.5, fontWeight: 500, color: '#1a1a1a' }}>AI FDE</span>
+        <span style={{ flex: 1 }} />
         <HeaderIconButton title="History" onClick={() => {}}>
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#5e685b" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="9" /><polyline points="12 7 12 12 15.5 14" /></svg>
         </HeaderIconButton>

@@ -1,13 +1,13 @@
 import { useState } from 'react'
 
 /* ── real brand logos via Simple Icons CDN, with graceful fallbacks ── */
-function ToolGlyph({ slug, name, size = 22 }) {
+function ToolGlyph({ slug, name, size = 22, icon = null }) {
   const [err, setErr] = useState(false)
   if (slug === '__builtin') {
     return (
-      <span style={{ width: size, height: size, borderRadius: 6, background: '#f5efe2', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        <svg width={size * 0.62} height={size * 0.62} viewBox="0 0 20 20" fill="none"><path d="M12.5 2.5a4 4 0 00-4.7 5.2l-4.9 4.9a1.6 1.6 0 102.3 2.3l4.9-4.9A4 4 0 1012.5 2.5z" stroke="#8a7648" strokeWidth="1.5" strokeLinejoin="round" /></svg>
-      </span>
+      <svg width={size} height={size} viewBox="0 0 20 20" fill="none" style={{ display: 'block' }}>
+        {icon || <path d="M12.5 2.5a4 4 0 00-4.7 5.2l-4.9 4.9a1.6 1.6 0 102.3 2.3l4.9-4.9A4 4 0 1012.5 2.5z" stroke="#8a7648" strokeWidth="1.5" strokeLinejoin="round" />}
+      </svg>
     )
   }
   if (slug === 'salesforce') {
@@ -152,7 +152,7 @@ export default function AddToolPanel({ onClose, onAdd }) {
   const pickAction = (ac) => { setAction(ac); setStep('config') }
   const addApp = () => { onAdd?.({ app, action }); onClose?.() }
   const toggleTool = (t) => setPicked(p => { const n = new Set(p); n.has(t.id) ? n.delete(t.id) : n.add(t.id); return n })
-  const addPicked = () => { if (!picked.size) return; TOOLS.filter(t => picked.has(t.id)).forEach(t => onAdd?.({ app: { name: 'Built-in tool', slug: '__builtin' }, action: { name: t.name }, builtin: true })); onClose?.() }
+  const addPicked = () => { if (!picked.size) return; TOOLS.filter(t => picked.has(t.id)).forEach(t => onAdd?.({ app: { name: 'Built-in tool', slug: '__builtin', icon: t.icon }, action: { name: t.name }, builtin: true })); onClose?.() }
 
   const title = tab === 'tools' ? 'Add a tool'
     : step === 'app' ? 'Add a tool'
@@ -160,7 +160,7 @@ export default function AddToolPanel({ onClose, onAdd }) {
 
   return (
     <div onMouseDown={onClose} style={{ position: 'fixed', inset: 0, zIndex: 80, background: 'rgba(28,24,18,0.30)', backdropFilter: 'blur(2px)', display: 'flex', justifyContent: 'flex-end' }}>
-      <div onMouseDown={e => e.stopPropagation()} style={{ width: 440, maxWidth: '94vw', height: '100%', background: '#FEFDFB', borderLeft: '1px solid #ece5d7', boxShadow: '-18px 0 60px rgba(40,32,18,0.22)', display: 'flex', flexDirection: 'column', animation: 'toolSlide .22s cubic-bezier(.4,0,.2,1)' }}>
+      <div onMouseDown={e => e.stopPropagation()} style={{ width: 520, maxWidth: '94vw', height: '100%', background: '#FEFDFB', borderLeft: '1px solid #ece5d7', boxShadow: '-18px 0 60px rgba(40,32,18,0.22)', display: 'flex', flexDirection: 'column', animation: 'toolSlide .22s cubic-bezier(.4,0,.2,1)' }}>
 
         {/* Header */}
         <div onMouseEnter={() => setHeaderHov(true)} onMouseLeave={() => setHeaderHov(false)}

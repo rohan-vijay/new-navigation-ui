@@ -183,7 +183,7 @@ export default function SkillCreate({ onBack, imported }) {
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                   {tools.map((t, i) => (
                     <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 11, padding: '9px 11px', border: '1px solid #eee7da', borderRadius: 10, background: '#fff' }}>
-                      <span style={{ width: 30, height: 30, borderRadius: 8, background: '#fff', border: '1px solid #eee7da', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}><ToolGlyph slug={t.app.slug} name={t.app.name} size={17} /></span>
+                      <span style={{ width: 30, height: 30, borderRadius: 8, background: '#fff', border: '1px solid #eee7da', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}><ToolGlyph slug={t.app.slug} name={t.app.name} icon={t.app.icon} size={17} /></span>
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <div style={{ fontSize: 12.5, fontWeight: 600, color: '#2a2620', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.action.name}</div>
                         <div style={{ fontSize: 11, color: '#9a917f' }}>{t.app.name}</div>
