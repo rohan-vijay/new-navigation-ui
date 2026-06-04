@@ -12,6 +12,26 @@ const STATUS_STYLE = {
   'Archived':    { fg: '#8a7d6a', border: '#e2dccf' },
 }
 
+/* Linear-style circular status icons — the icon IS the identity, no tile.
+   Draft = dotted ring · In Approval = half-filled progress ring ·
+   Live = filled check · Archived = filled cross. */
+const STATUS_ICON = {
+  'Draft':       { fg: '#5d6470', glyph: <circle cx="8" cy="8" r="5.6" stroke="#aab0ba" strokeWidth="1.6" strokeLinecap="round" strokeDasharray="0.2 2.95" fill="none" /> },
+  'In Approval': { fg: '#9a6f15', glyph: <g><circle cx="8" cy="8" r="5.6" stroke="#e1a32c" strokeWidth="1.6" fill="none" /><path d="M8 8 L8 3.6 A4.4 4.4 0 0 1 8 12.4 Z" fill="#e1a32c" /></g> },
+  'Live':        { fg: '#1f7a40', glyph: <g><circle cx="8" cy="8" r="6.2" fill="#22a35b" /><path d="M5.2 8.1l1.9 1.9 3.7-4.1" stroke="#fff" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></g> },
+  'Archived':    { fg: '#7a6f5c', glyph: <g><circle cx="8" cy="8" r="6.2" fill="#a59a87" /><path d="M5.8 5.8l4.4 4.4M10.2 5.8l-4.4 4.4" stroke="#fff" strokeWidth="1.4" strokeLinecap="round" /></g> },
+}
+
+function StatusBadge({ status }) {
+  const ic = STATUS_ICON[status] || STATUS_ICON['Draft']
+  return (
+    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, whiteSpace: 'nowrap' }}>
+      <svg width="19" height="19" viewBox="0 0 16 16" fill="none" style={{ flexShrink: 0, display: 'block' }}>{ic.glyph}</svg>
+      <span style={{ fontSize: 13, color: '#374151' }}>{status}</span>
+    </span>
+  )
+}
+
 const COLS = [
   { key: 'name',    label: 'Skill Name',   w: '24%' },
   { key: 'version', label: 'Version',      w: '11%' },
@@ -245,7 +265,6 @@ export default function SkillsPage({ tab = 'Skills', onTabChange, onCreate, onBu
             </thead>
             <tbody>
               {rows.map((s, i) => {
-                const st = STATUS_STYLE[s.status]
                 const last = i === rows.length - 1
                 const cell = { ...td, borderBottom: last ? 'none' : '1px solid #f1f2f1' }
                 return (
@@ -260,11 +279,9 @@ export default function SkillsPage({ tab = 'Skills', onTabChange, onCreate, onBu
                     <td style={cell}>
                       <span style={{ fontFamily: 'var(--mono)', fontSize: 11.5, color: '#8a7340', border: '1px solid #e7dcc1', background: '#faf5ea', padding: '2px 8px', borderRadius: 6 }}>{s.version}</span>
                     </td>
-                    {/* Status — outlined chip (color only) */}
+                    {/* Status — solid identity icon + label */}
                     <td style={cell}>
-                      <span style={{ display: 'inline-flex', alignItems: 'center', border: `1px solid ${st.border}`, color: st.fg, fontSize: 12, fontWeight: 500, padding: '3px 11px', borderRadius: 6, background: 'transparent', whiteSpace: 'nowrap' }}>
-                        {s.status}
-                      </span>
+                      <StatusBadge status={s.status} />
                     </td>
                     {/* Shared with (both densities) */}
                     <td style={cell}>

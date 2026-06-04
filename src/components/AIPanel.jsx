@@ -101,6 +101,28 @@ function runResponse(skill, input) {
   return `${head}\n\n**Result**\n\n• Interpreted the request and applied the skill's workflow end-to-end\n• Pulled the supporting context and ran the core logic\n• Produced a structured, CRM-ready output\n\nEverything matched the skill's expected format. Try another input to test a different case.`
 }
 
+// available models for the test runner — 3 Claude + 2 OpenAI
+const MODELS = [
+  { id: 'opus', name: 'Claude Opus 4.5', provider: 'claude' },
+  { id: 'sonnet', name: 'Claude Sonnet 4.5', provider: 'claude' },
+  { id: 'haiku', name: 'Claude Haiku 4.5', provider: 'claude' },
+  { id: 'gpt5', name: 'GPT-5', provider: 'openai' },
+  { id: 'gpt4o', name: 'GPT-4o', provider: 'openai' },
+]
+
+function ProviderIcon({ provider, size = 16 }) {
+  if (provider === 'openai') {
+    // ChatGPT / OpenAI mark (inline — CDN slug is unavailable)
+    return (
+      <svg width={size} height={size} viewBox="0 0 24 24" fill="#000" style={{ display: 'block' }}>
+        <path d="M22.2819 9.8211a5.9847 5.9847 0 0 0-.5157-4.9108 6.0462 6.0462 0 0 0-6.5098-2.9A6.0651 6.0651 0 0 0 4.9807 4.1818a5.9847 5.9847 0 0 0-3.9977 2.9 6.0462 6.0462 0 0 0 .7427 7.0966 5.98 5.98 0 0 0 .511 4.9107 6.051 6.051 0 0 0 6.5146 2.9001A5.9847 5.9847 0 0 0 13.2599 24a6.0557 6.0557 0 0 0 5.7718-4.2058 5.9894 5.9894 0 0 0 3.9977-2.9001 6.0557 6.0557 0 0 0-.7475-7.0729zm-9.022 12.6081a4.4755 4.4755 0 0 1-2.8764-1.0408l.1419-.0804 4.7783-2.7582a.7948.7948 0 0 0 .3927-.6813v-6.7369l2.02 1.1686a.071.071 0 0 1 .038.052v5.5826a4.504 4.504 0 0 1-4.4945 4.4944zm-9.6607-4.1254a4.4708 4.4708 0 0 1-.5346-3.0137l.1419.0852 4.783 2.7582a.7712.7712 0 0 0 .7806 0l5.8428-3.3685v2.3324a.0804.0804 0 0 1-.0332.0615L9.74 19.9502a4.4992 4.4992 0 0 1-6.1408-1.6464zM2.3408 7.8956a4.485 4.485 0 0 1 2.3655-1.9728V11.6a.7664.7664 0 0 0 .3879.6765l5.8144 3.3543-2.0201 1.1685a.0757.0757 0 0 1-.071 0l-4.8303-2.7865A4.504 4.504 0 0 1 2.3408 7.872zm16.5963 3.8558L13.1038 8.364 15.1192 7.2a.0757.0757 0 0 1 .071 0l4.8303 2.7913a4.4944 4.4944 0 0 1-.6765 8.1042v-5.6772a.79.79 0 0 0-.407-.667zm2.0107-3.0231l-.142-.0852-4.7735-2.7818a.7759.7759 0 0 0-.7854 0L9.409 9.2297V6.8974a.0662.0662 0 0 1 .0284-.0615l4.8303-2.7866a4.4992 4.4992 0 0 1 6.6802 4.66zM8.3065 12.863l-2.02-1.1638a.0804.0804 0 0 1-.038-.0567V6.0742a4.4992 4.4992 0 0 1 7.3757-3.4537l-.142.0805L8.704 5.459a.7948.7948 0 0 0-.3927.6813zm1.0976-2.3654l2.602-1.4998 2.6069 1.4998v2.9994l-2.5974 1.4997-2.6067-1.4997Z" />
+      </svg>
+    )
+  }
+  // Claude mark
+  return <img src="https://cdn.simpleicons.org/claude" width={size} height={size} alt="" style={{ display: 'block', objectFit: 'contain' }} />
+}
+
 // shared metrics so the colored backdrop and the transparent textarea wrap identically
 const RUN_TEXT = {
   fontSize: 14, lineHeight: 1.45, fontFamily: 'inherit', padding: 0, margin: 0,
@@ -122,6 +144,12 @@ export default function AIPanel({ onClose, context = 'graphs', buildMode = false
   const [typing, setTyping] = useState(false)
   const [slash, setSlash] = useState(null) // null | { start, end, items, active }
   const [tall, setTall] = useState(false)
+  const [model, setModel] = useState('sonnet')
+  const [modelOpen, setModelOpen] = useState(false)
+  const curModel = MODELS.find(m => m.id === model) || MODELS[0]
+  const [files, setFiles] = useState([])
+  const fileRef = useRef(null)
+  const onFiles = (e) => { const names = Array.from(e.target.files || []).map(f => f.name); if (names.length) setFiles(f => [...f, ...names]); e.target.value = '' }
   const [bPhase, setBPhase] = useState(buildMode && seed ? 'intro' : 'await') // await | questions | building | done
   const bottomRef = useRef(null)
   const taRef = useRef(null)
@@ -353,21 +381,17 @@ export default function AIPanel({ onClose, context = 'graphs', buildMode = false
         )}
       <div style={{ padding: '14px 18px 18px' }}>
         <div style={{
-          position: 'relative', display: 'flex', alignItems: tall ? 'flex-end' : 'center',
-          background: '#fff', border: '1px solid #e4ece4', borderRadius: 16, padding: '13px 15px',
+          position: 'relative', display: 'flex', flexDirection: 'column',
+          background: '#fff', border: '1px solid #e4ece4', borderRadius: 16, padding: '12px 14px 10px',
           boxShadow: '0 10px 30px rgba(16,52,31,0.14), 0 3px 8px rgba(16,52,31,0.08), 0 1px 2px rgba(0,0,0,0.04)',
         }}>
-          {!runMode && (
-            <button style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, marginRight: 10, display: 'flex' }}>
-              <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M9 3.5v11M3.5 9h11" stroke="#9097a0" strokeWidth="1.5" strokeLinecap="round" /></svg>
-            </button>
-          )}
+          {/* ── text area (defaults to ~2 lines) ── */}
           {runMode ? (
-            <div style={{ position: 'relative', flex: 1, minWidth: 0 }}>
-              <div aria-hidden style={{ ...RUN_TEXT, position: 'absolute', inset: 0, pointerEvents: 'none', color: '#374151' }}>
+            <div style={{ position: 'relative', width: '100%' }}>
+              <div aria-hidden style={{ ...RUN_TEXT, position: 'absolute', inset: 0, pointerEvents: 'none', color: '#374151', minHeight: 40 }}>
                 {highlightCommands(input)}
               </div>
-              <textarea ref={taRef} rows={1} value={input} autoFocus wrap="soft" spellCheck={false}
+              <textarea ref={taRef} rows={2} value={input} autoFocus wrap="soft" spellCheck={false}
                 onChange={e => { setInput(e.target.value); autoGrow(e.target); updateSlash(e.target) }}
                 onKeyUp={e => { if (['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(e.key)) updateSlash(e.target) }}
                 onClick={e => updateSlash(e.target)}
@@ -381,24 +405,78 @@ export default function AIPanel({ onClose, context = 'graphs', buildMode = false
                   }
                   if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(input) }
                 }}
-                style={{ ...RUN_TEXT, position: 'relative', width: '100%', display: 'block', border: 'none', outline: 'none', background: 'transparent', resize: 'none', color: 'transparent', caretColor: '#16341f' }} />
+                style={{ ...RUN_TEXT, position: 'relative', width: '100%', display: 'block', minHeight: 40, border: 'none', outline: 'none', background: 'transparent', resize: 'none', color: 'transparent', caretColor: '#16341f' }} />
             </div>
           ) : (
-            <textarea ref={taRef} rows={1} value={input}
+            <textarea ref={taRef} rows={2} value={input}
               onChange={e => { setInput(e.target.value); autoGrow(e.target) }}
               onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(input) } }}
               placeholder={started ? 'Reply to AI FDE...' : 'Ask about the current screen...'}
-              style={{ flex: 1, minWidth: 0, border: 'none', outline: 'none', fontSize: 14, color: '#374151', background: 'transparent', resize: 'none', fontFamily: 'inherit', lineHeight: 1.45, maxHeight: 120, overflowY: 'hidden', padding: 0 }} />
+              style={{ width: '100%', minHeight: 40, border: 'none', outline: 'none', fontSize: 14, color: '#374151', background: 'transparent', resize: 'none', fontFamily: 'inherit', lineHeight: 1.45, maxHeight: 120, overflowY: 'hidden', padding: 0 }} />
           )}
-          {(runMode ? input.replace(/^\s*\/[a-zA-Z0-9-]+\s*/, '').trim() : input.trim()) ? (
-            <button onClick={() => send(input)} style={{ background: 'var(--green-btn)', border: 'none', cursor: 'pointer', width: 30, height: 30, borderRadius: 9, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-              <svg width="15" height="15" viewBox="0 0 16 16" fill="none"><path d="M8 13V3M3.5 7.5L8 3l4.5 4.5" stroke="#fff" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" /></svg>
-            </button>
-          ) : (
-            <button style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, width: 30, height: 30, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <svg width="17" height="17" viewBox="0 0 16 16" fill="none"><rect x="6" y="2" width="4" height="7" rx="2" stroke="#9097a0" strokeWidth="1.3" /><path d="M4 7.5a4 4 0 008 0M8 11.5v2" stroke="#9097a0" strokeWidth="1.3" strokeLinecap="round" /></svg>
-            </button>
+
+          {/* ── attachment chips ── */}
+          {files.length > 0 && (
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 8 }}>
+              {files.map((n, i) => (
+                <span key={i} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, maxWidth: 180, padding: '4px 8px', background: '#f3f7f3', border: '1px solid #e1ece2', borderRadius: 8, fontSize: 12, color: '#3a4a3c' }}>
+                  <svg width="12" height="12" viewBox="0 0 16 16" fill="none" style={{ flexShrink: 0 }}><path d="M13 7.5l-5.2 5.2a3 3 0 01-4.3-4.3l5.6-5.6a2 2 0 012.9 2.9l-5.6 5.6a1 1 0 01-1.4-1.4l5-5" stroke="#7f9683" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" /></svg>
+                  <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{n}</span>
+                  <button onClick={() => setFiles(f => f.filter((_, j) => j !== i))} style={{ border: 'none', background: 'none', cursor: 'pointer', padding: 0, display: 'flex', color: '#9aa79c', flexShrink: 0 }}>
+                    <svg width="11" height="11" viewBox="0 0 12 12" fill="none"><path d="M3 3l6 6M9 3l-6 6" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" /></svg>
+                  </button>
+                </span>
+              ))}
+            </div>
           )}
+
+          {/* ── footer toolbar: upload (left) · model + mic/send (right) ── */}
+          <div style={{ display: 'flex', alignItems: 'center', marginTop: 8 }}>
+            <button onClick={() => fileRef.current?.click()} title="Attach files"
+              style={{ width: 30, height: 30, borderRadius: 8, border: '1px solid #e4ece4', background: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}
+              onMouseOver={e => e.currentTarget.style.background = '#f5f8f5'} onMouseOut={e => e.currentTarget.style.background = '#fff'}>
+              <svg width="16" height="16" viewBox="0 0 18 18" fill="none"><path d="M9 3.8v10.4M3.8 9h10.4" stroke="#6f7a73" strokeWidth="1.6" strokeLinecap="round" /></svg>
+            </button>
+            <input ref={fileRef} type="file" multiple onChange={onFiles} style={{ display: 'none' }} />
+
+            <div style={{ flex: 1 }} />
+
+            <div style={{ position: 'relative', flexShrink: 0, marginRight: 6 }}>
+              <button onClick={() => setModelOpen(o => !o)} title={`Model: ${curModel.name}`}
+                style={{ display: 'flex', alignItems: 'center', gap: 4, height: 30, padding: '0 7px', borderRadius: 8, border: '1px solid #e4ece4', background: modelOpen ? '#f1f6f1' : '#fff', cursor: 'pointer', flexShrink: 0 }}>
+                <ProviderIcon provider={curModel.provider} size={15} />
+                <svg width="9" height="9" viewBox="0 0 12 12" fill="none"><path d="M2.5 4.5L6 8l3.5-3.5" stroke="#8a9290" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg>
+              </button>
+              {modelOpen && (
+                <>
+                  <div onMouseDown={() => setModelOpen(false)} style={{ position: 'fixed', inset: 0, zIndex: 8 }} />
+                  <div style={{ position: 'absolute', right: 0, bottom: 'calc(100% + 8px)', zIndex: 9, width: 210, background: '#fff', border: '1px solid #e7efe8', borderRadius: 12, boxShadow: '0 16px 40px rgba(16,52,31,0.16), 0 3px 10px rgba(16,52,31,0.08)', padding: 5 }}>
+                    <div style={{ fontSize: 10.5, fontWeight: 600, letterSpacing: 0.3, textTransform: 'uppercase', color: '#9aa3a0', padding: '5px 9px 4px' }}>Model</div>
+                    {MODELS.map(m => (
+                      <div key={m.id} onMouseDown={e => { e.preventDefault(); setModel(m.id); setModelOpen(false) }}
+                        style={{ display: 'flex', alignItems: 'center', gap: 9, padding: '8px 9px', borderRadius: 8, cursor: 'pointer', background: m.id === model ? '#f1f6f1' : 'transparent' }}
+                        onMouseOver={e => { if (m.id !== model) e.currentTarget.style.background = '#f7faf7' }}
+                        onMouseOut={e => { if (m.id !== model) e.currentTarget.style.background = 'transparent' }}>
+                        <ProviderIcon provider={m.provider} size={16} />
+                        <span style={{ flex: 1, fontSize: 13, color: '#2f3a30' }}>{m.name}</span>
+                        {m.id === model && <svg width="13" height="13" viewBox="0 0 14 14" fill="none"><path d="M2.5 7.5l3 3 6-6.5" stroke="#1f7a3d" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" /></svg>}
+                      </div>
+                    ))}
+                  </div>
+                </>
+              )}
+            </div>
+
+            {(runMode ? input.replace(/^\s*\/[a-zA-Z0-9-]+\s*/, '').trim() : input.trim()) ? (
+              <button onClick={() => send(input)} style={{ background: 'var(--green-btn)', border: 'none', cursor: 'pointer', width: 30, height: 30, borderRadius: 9, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                <svg width="15" height="15" viewBox="0 0 16 16" fill="none"><path d="M8 13V3M3.5 7.5L8 3l4.5 4.5" stroke="#fff" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" /></svg>
+              </button>
+            ) : (
+              <button style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, width: 30, height: 30, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <svg width="17" height="17" viewBox="0 0 16 16" fill="none"><rect x="6" y="2" width="4" height="7" rx="2" stroke="#9097a0" strokeWidth="1.3" /><path d="M4 7.5a4 4 0 008 0M8 11.5v2" stroke="#9097a0" strokeWidth="1.3" strokeLinecap="round" /></svg>
+              </button>
+            )}
+          </div>
         </div>
       </div>
       </div>
