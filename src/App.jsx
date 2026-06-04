@@ -144,11 +144,12 @@ export default function App() {
         onToggleFde={() => setAiOpen(o => !o)} />
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, overflow: 'hidden' }}>
         <StatusBar aiOpen={aiOpen} onToggleAI={() => { setAiSide('right'); setLeftSession(false); setAiOpen(o => !o) }} />
-        <div style={{ flex: 1, display: 'flex', gap: 6, padding: `8px 8px 8px ${(aiOpen && aiSide === 'left') ? 8 : 0}px`, overflow: 'hidden' }}>
+        <div style={{ flex: 1, display: 'flex', gap: 0, padding: `8px 8px 8px ${(aiOpen && aiSide === 'left') ? 8 : 0}px`, overflow: 'hidden' }}>
           {/* AI FDE — LEFT dock (between sidebar and canvas) */}
           <div style={{
             position: 'relative', flexShrink: 0, overflow: 'hidden',
             width: (aiOpen && aiSide === 'left') ? 360 : 0, minWidth: (aiOpen && aiSide === 'left') ? 360 : 0,
+            marginRight: (aiOpen && aiSide === 'left') ? 6 : 0,
             transition: 'width .42s cubic-bezier(.22,1,.36,1), min-width .42s cubic-bezier(.22,1,.36,1)',
           }}>
             <div style={{ position: 'absolute', top: 0, right: 0, width: 360, height: '100%', background: '#fff', borderRadius: 14, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
@@ -171,6 +172,7 @@ export default function App() {
           <div style={{
             position: 'relative', flexShrink: 0, overflow: 'hidden',
             width: (aiOpen && aiSide === 'right') ? 360 : 0, minWidth: (aiOpen && aiSide === 'right') ? 360 : 0,
+            marginLeft: (aiOpen && aiSide === 'right') ? 6 : 0,
             transition: 'width .42s cubic-bezier(.22,1,.36,1), min-width .42s cubic-bezier(.22,1,.36,1)',
           }}>
             <div style={{ position: 'absolute', top: 0, right: 0, width: 360, height: '100%', background: '#fff', borderRadius: 14, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
