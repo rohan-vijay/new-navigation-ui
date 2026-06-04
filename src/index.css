@@ -1,0 +1,60 @@
+@import url('https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,500;0,600;0,700;1,400&family=JetBrains+Mono:wght@400;500;600&display=swap');
+
+/* ── Brand sans: ARS Maquette ─────────────────────── */
+@font-face {
+  font-family: 'ARS Maquette';
+  src: url('/fonts/ARSMaquettePro-Regular.woff2') format('woff2');
+  font-weight: 400; font-style: normal; font-display: swap;
+}
+@font-face {
+  font-family: 'ARS Maquette';
+  src: url('/fonts/ARSMaquettePro-Medium.woff2') format('woff2');
+  font-weight: 500; font-style: normal; font-display: swap;
+}
+@font-face {
+  font-family: 'ARS Maquette';
+  src: url('/fonts/ARSMaquettePro-SemiBold.woff2') format('woff2');
+  font-weight: 600; font-style: normal; font-display: swap;
+}
+@font-face {
+  font-family: 'ARS Maquette';
+  src: url('/fonts/ARSMaquettePro-Bold.woff2') format('woff2');
+  font-weight: 700; font-style: normal; font-display: swap;
+}
+
+:root {
+  --sans: 'ARS Maquette', -apple-system, BlinkMacSystemFont, 'Inter', sans-serif;
+  --serif: 'Lora', Georgia, 'Times New Roman', serif;
+  --mono: 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+
+  --green-frame: #0e2614;   /* dark green outer canvas — matches sidebar/header */
+  --green-sidebar: #0e2614;
+  --green-btn: #16341f;     /* dark green New graph / Publish button */
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: var(--sans);
+  background: var(--green-frame);
+  color: #1a1a1a;
+  overflow: hidden;
+  height: 100vh;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+#root { height: 100vh; display: flex; width: 100%; }
+
+button, input { font-family: inherit; }
+
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.15); border-radius: 4px; }
+.dark-scroll::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.12); }
+.no-scrollbar::-webkit-scrollbar { width: 0; height: 0; display: none; }
+.no-scrollbar { scrollbar-width: none; -ms-overflow-style: none; }
+
+@keyframes fdeBlink { 0%, 80%, 100% { opacity: 0.25; transform: translateY(0); } 40% { opacity: 1; transform: translateY(-2px); } }
+@keyframes fdeFadeUp { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes toolSlide { from { transform: translateX(28px); opacity: 0.4; } to { transform: translateX(0); opacity: 1; } }
