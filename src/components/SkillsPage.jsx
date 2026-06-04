@@ -16,10 +16,10 @@ const STATUS_STYLE = {
    Draft = dotted ring · In Approval = half-filled progress ring ·
    Live = filled check · Archived = filled cross. */
 const STATUS_ICON = {
-  'Draft':       { fg: '#5d6470', glyph: <circle cx="8" cy="8" r="5.6" stroke="#aab0ba" strokeWidth="1.6" strokeLinecap="round" strokeDasharray="0.2 2.95" fill="none" /> },
-  'In Approval': { fg: '#9a6f15', glyph: <g><circle cx="8" cy="8" r="5.6" stroke="#e1a32c" strokeWidth="1.6" fill="none" /><path d="M8 8 L8 3.6 A4.4 4.4 0 0 1 8 12.4 Z" fill="#e1a32c" /></g> },
-  'Live':        { fg: '#1f7a40', glyph: <g><circle cx="8" cy="8" r="6.2" fill="#22a35b" /><path d="M5.2 8.1l1.9 1.9 3.7-4.1" stroke="#fff" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></g> },
-  'Archived':    { fg: '#7a6f5c', glyph: <g><circle cx="8" cy="8" r="6.2" fill="#a59a87" /><path d="M5.8 5.8l4.4 4.4M10.2 5.8l-4.4 4.4" stroke="#fff" strokeWidth="1.4" strokeLinecap="round" /></g> },
+  'Draft':       { fg: '#5d6470', glyph: <circle cx="8" cy="8" r="5.6" stroke="#c2b6a3" strokeWidth="1.6" strokeLinecap="round" strokeDasharray="0.2 2.95" fill="none" /> },
+  'In Approval': { fg: '#9a6f15', glyph: <g><circle cx="8" cy="8" r="5.6" stroke="#bf9233" strokeWidth="1.6" fill="none" /><path d="M8 8 L8 3.6 A4.4 4.4 0 0 1 8 12.4 Z" fill="#bf9233" /></g> },
+  'Live':        { fg: '#1f7a40', glyph: <g><circle cx="8" cy="8" r="6.2" fill="#2f7d4c" /><path d="M5.2 8.1l1.9 1.9 3.7-4.1" stroke="#fff" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></g> },
+  'Archived':    { fg: '#7a6f5c', glyph: <g><circle cx="8" cy="8" r="6.2" fill="#a3957f" /><path d="M5.8 5.8l4.4 4.4M10.2 5.8l-4.4 4.4" stroke="#fff" strokeWidth="1.4" strokeLinecap="round" /></g> },
 }
 
 function StatusGlyph({ status, size = 19 }) {
@@ -314,7 +314,7 @@ export default function SkillsPage({ tab = 'Skills', onTabChange, onCreate, onBu
                     {/* Owner */}
                     <td style={cell}>
                       <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8, fontSize: 13, color: '#374151', maxWidth: '100%' }}>
-                        <span style={{ width: 24, height: 24, borderRadius: '50%', background: '#ede4d2', color: '#8a7648', fontSize: 9.5, fontWeight: 700, border: '1px solid #e3d8c0', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>{s.ownerInit}</span>
+                        <span style={{ width: 24, height: 24, borderRadius: '50%', background: '#ede4d2', color: '#8a7648', fontSize: 11.5, fontWeight: 700, border: '1px solid #e3d8c0', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>{(s.owner || s.ownerInit || '?').charAt(0)}</span>
                         <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{s.owner}</span>
                       </span>
                     </td>
