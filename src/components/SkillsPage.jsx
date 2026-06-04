@@ -22,11 +22,16 @@ const STATUS_ICON = {
   'Archived':    { fg: '#7a6f5c', glyph: <g><circle cx="8" cy="8" r="6.2" fill="#a59a87" /><path d="M5.8 5.8l4.4 4.4M10.2 5.8l-4.4 4.4" stroke="#fff" strokeWidth="1.4" strokeLinecap="round" /></g> },
 }
 
+function StatusGlyph({ status, size = 19 }) {
+  const ic = STATUS_ICON[status]
+  if (!ic) return null
+  return <svg width={size} height={size} viewBox="0 0 16 16" fill="none" style={{ flexShrink: 0, display: 'block' }}>{ic.glyph}</svg>
+}
+
 function StatusBadge({ status }) {
-  const ic = STATUS_ICON[status] || STATUS_ICON['Draft']
   return (
     <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, whiteSpace: 'nowrap' }}>
-      <svg width="19" height="19" viewBox="0 0 16 16" fill="none" style={{ flexShrink: 0, display: 'block' }}>{ic.glyph}</svg>
+      <StatusGlyph status={status} />
       <span style={{ fontSize: 13, color: '#374151' }}>{status}</span>
     </span>
   )
@@ -525,11 +530,33 @@ export function GroupIcon({ name }) {
 }
 
 export function SharedIcon({ type }) {
-  const c = '#a98c54' // warm gold/sand
-  if (type === 'org') return <svg width="15" height="15" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="6" stroke={c} strokeWidth="1.3" /><path d="M2 8h12M8 2c1.8 1.6 1.8 10.4 0 12M8 2c-1.8 1.6-1.8 10.4 0 12" stroke={c} strokeWidth="1.1" /></svg>
-  if (type === 'private') return <svg width="15" height="15" viewBox="0 0 16 16" fill="none"><rect x="3" y="7" width="10" height="7" rx="1.5" stroke={c} strokeWidth="1.3" /><path d="M5.5 7V5a2.5 2.5 0 015 0v2" stroke={c} strokeWidth="1.3" /></svg>
-  // team / teams / users — clean two-person group icon
-  return <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" stroke={c} strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" /><circle cx="9" cy="7" r="3.4" stroke={c} strokeWidth="1.7" /><path d="M22 21v-2a4 4 0 0 0-3-3.87" stroke={c} strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" /><path d="M16 3.13a4 4 0 0 1 0 7.75" stroke={c} strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" /></svg>
+  const c = '#a98c54' // warm gold/sand — neutral across all states
+  // Everyone — solid gold globe, one clean meridian + equator
+  if (type === 'org') return (
+    <svg width="17" height="17" viewBox="0 0 16 16" fill="none" style={{ display: 'block' }}>
+      <circle cx="8" cy="8" r="6.4" fill={c} />
+      <g stroke="#fff" strokeWidth="1.1" strokeLinecap="round" fill="none" opacity="0.92">
+        <path d="M1.7 8h12.6" />
+        <ellipse cx="8" cy="8" rx="2.7" ry="6.4" />
+      </g>
+    </svg>
+  )
+  // Only me — solid gold padlock with a white keyhole (squarer body)
+  if (type === 'private') return (
+    <svg width="18" height="18" viewBox="0 0 16 16" fill="none" style={{ display: 'block' }}>
+      <path d="M4.6 7V5.1a3.4 3.4 0 0 1 6.8 0V7" stroke={c} strokeWidth="1.9" strokeLinecap="round" fill="none" />
+      <rect x="2.8" y="6.9" width="10.4" height="7.5" rx="1.7" fill={c} />
+    </svg>
+  )
+  // Team / Users — a single clean solid person, centered & symmetric
+  return (
+    <svg width="17" height="17" viewBox="0 0 16 16" fill="none" style={{ display: 'block' }}>
+      <g fill={c}>
+        <circle cx="8" cy="5.4" r="2.7" />
+        <path d="M2.4 13.9c0-3 2.5-4.8 5.6-4.8s5.6 1.8 5.6 4.8a.4.4 0 0 1-.4.4H2.8a.4.4 0 0 1-.4-.4z" />
+      </g>
+    </svg>
+  )
 }
 
 /* Reusable Create-Skill option menu (4 options) */
@@ -559,15 +586,16 @@ export function Dropdown({ value, options, onChange, icon }) {
         {icon === 'sort'
           ? <svg width="13" height="13" viewBox="0 0 13 13" fill="none"><path d="M3.5 4.5L5 3l1.5 1.5M5 3v7M9.5 8.5L8 10 6.5 8.5M8 10V3" stroke="#9298a0" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" /></svg>
           : <svg width="13" height="13" viewBox="0 0 13 13" fill="none"><path d="M2 3.5h9M3.5 6.5h6M5 9.5h3" stroke="#9298a0" strokeWidth="1.3" strokeLinecap="round" /></svg>}
+        <StatusGlyph status={value} size={16} />
         {value}
         <svg width="9" height="9" viewBox="0 0 9 9" fill="none"><path d="M1.5 3l3 3 3-3" stroke="#6b7280" strokeWidth="1.4" strokeLinecap="round" /></svg>
       </button>
       {open && (
         <div style={{ position: 'absolute', top: 'calc(100% + 4px)', left: 0, background: '#fff', border: '1px solid #e3e6e3', borderRadius: 8, boxShadow: '0 4px 16px rgba(0,0,0,0.1)', zIndex: 50, minWidth: 170, overflow: 'hidden' }}>
           {options.map(o => (
-            <div key={o} onClick={() => { onChange(o); setOpen(false) }} style={{ padding: '9px 14px', fontSize: 13, cursor: 'pointer', color: o === value ? '#1f7a40' : '#374151', background: o === value ? '#f0f8f2' : 'transparent' }}
+            <div key={o} onClick={() => { onChange(o); setOpen(false) }} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '9px 14px', fontSize: 13, cursor: 'pointer', color: o === value ? '#1f7a40' : '#374151', background: o === value ? '#f0f8f2' : 'transparent' }}
               onMouseOver={e => { if (o !== value) e.currentTarget.style.background = '#f8f9f8' }}
-              onMouseOut={e => { if (o !== value) e.currentTarget.style.background = 'transparent' }}>{o}</div>
+              onMouseOut={e => { if (o !== value) e.currentTarget.style.background = 'transparent' }}><StatusGlyph status={o} size={16} />{o}</div>
           ))}
         </div>
       )}
