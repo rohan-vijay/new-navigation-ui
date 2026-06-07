@@ -2394,7 +2394,6 @@ function Inspector({ node, onClose, onViewDetails, onEditSchema, edges: liveEdge
         <div className="ih-text">
           <div className="ih-row">
             <div className="ih-title">{node.label}</div>
-            <div className="ih-tag">{TYPE_META[node.type].tag}</div>
           </div>
         </div>
         <button className="ih-close" onClick={onClose} title="Close">
