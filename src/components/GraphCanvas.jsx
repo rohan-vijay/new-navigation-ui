@@ -611,8 +611,8 @@ function NodeDetailPage({ node, onBack, onCanvas }) {
           </div>
         </div>
 
-        {/* tab zone — minimal underline tabs; edge-to-edge bottom rule */}
-        <div style={{ background: '#FEFDFB', borderBottom: '1px solid #efece6', padding: '0 26px' }}>
+        {/* tab zone — minimal underline tabs; subtle rules above and below, edge-to-edge */}
+        <div style={{ background: '#FEFDFB', borderTop: '1px solid #f1ede6', borderBottom: '1px solid #efece6', padding: '0 26px' }}>
           <div style={{ display: 'flex' }}>
           {DETAIL_TABS.map(t => {
             const on = tab === t
