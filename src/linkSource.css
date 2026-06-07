@@ -1235,3 +1235,7 @@ main > .canvas-wrap { flex: 1 1 auto; min-height: 0; height: 100%; }
 .props-pane > .card { background: transparent; border: none; border-radius: 0; overflow: visible; }
 .props-pane > .card > .card-head { padding: 0 0 12px; border-bottom: none; }
 .props-pane > .card > .props-table { border: 1px solid #ececea; border-radius: 12px; overflow: hidden; background: #fff; }
+
+/* Property pane search: white background like the Edges/Survivorship search */
+.props-pane .sample-search { background: #fff !important; border-color: #e3e6e3 !important; }
+.props-pane .sample-search:focus { border-color: #9298a0 !important; }

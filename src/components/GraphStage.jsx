@@ -5972,7 +5972,7 @@ function PropertiesPane({ node, properties }) {
                 width:30, height:30, padding:0,
                 display:"inline-flex", alignItems:"center", justifyContent:"center",
                 border:"1px solid var(--line)", borderRadius:7,
-                background: expandAll ? "var(--chip)" : "transparent",
+                background: expandAll ? "var(--chip)" : "#fff",
                 color: expandAll ? "var(--ink)" : "var(--ink-3)",
                 cursor:"pointer",
                 transition:"color 100ms ease, background 100ms ease"
@@ -6005,12 +6005,12 @@ function PropertiesPane({ node, properties }) {
                 width:30, height:30, padding:0,
                 display:"inline-flex", alignItems:"center", justifyContent:"center",
                 border:"1px solid var(--line)", borderRadius:7,
-                background:"transparent", color:"var(--ink-3)",
+                background:"#fff", color:"var(--ink-3)",
                 cursor:"pointer",
                 transition:"color 100ms ease, background 100ms ease"
               }}
               onMouseEnter={function(e){ e.currentTarget.style.color = "var(--ink-2)"; e.currentTarget.style.background = "var(--chip)"; }}
-              onMouseLeave={function(e){ e.currentTarget.style.color = "var(--ink-3)"; e.currentTarget.style.background = "transparent"; }}
+              onMouseLeave={function(e){ e.currentTarget.style.color = "var(--ink-3)"; e.currentTarget.style.background = "#fff"; }}
             >
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
                 <circle cx="12" cy="12" r="3"/>
