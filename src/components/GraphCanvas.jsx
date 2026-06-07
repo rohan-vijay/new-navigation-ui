@@ -618,18 +618,22 @@ function NodeDetailPage({ node, onBack, onCanvas }) {
             const on = tab === t
             return (
               <button key={t} onClick={() => setTab(t)} style={{
-                position: 'relative', flex: 1, minWidth: 0,
-                border: 'none', background: 'none', cursor: 'pointer', padding: '10px 8px 12px', fontSize: 13,
-                fontWeight: on ? 600 : 450, color: on ? '#1a1a1a' : '#9a948a',
-                transition: 'color .15s', whiteSpace: 'nowrap',
-                display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+                flex: 1, minWidth: 0, border: 'none', background: 'none', cursor: 'pointer',
+                padding: '8px 6px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
               }}
-                onMouseOver={e => { if (!on) e.currentTarget.style.color = '#5b5547' }}
-                onMouseOut={e => { if (!on) e.currentTarget.style.color = '#9a948a' }}>
-                <span style={{ display: 'inline-flex', color: on ? '#1f7a40' : '#bcb5a4', transition: 'color .15s' }}>{TAB_ICON[t]}</span>
-                {t}
-                {tabCount[t] > 0 && <span style={{ fontFamily: 'var(--mono)', fontSize: 10, fontWeight: 600, color: on ? '#16341f' : '#a89e88', background: on ? '#e7f0e9' : '#f1ede4', borderRadius: 5, padding: '1px 5px' }}>{tabCount[t]}</span>}
-                <span style={{ position: 'absolute', left: '50%', transform: 'translateX(-50%)', bottom: -1, width: on ? '100%' : 0, maxWidth: 'calc(100% - 16px)', height: 2, borderRadius: 2, background: '#16341f', transition: 'width .18s ease' }} />
+                onMouseOver={e => { if (!on) e.currentTarget.firstChild.style.background = 'rgba(40,32,18,0.05)' }}
+                onMouseOut={e => { if (!on) e.currentTarget.firstChild.style.background = 'transparent' }}>
+                <span style={{
+                  display: 'inline-flex', alignItems: 'center', gap: 6, padding: '5px 13px', borderRadius: 9,
+                  fontSize: 13, fontWeight: on ? 600 : 450, color: on ? '#16341f' : '#9a948a',
+                  background: on ? '#e6f0e8' : 'transparent',
+                  boxShadow: on ? '0 1px 2px rgba(22,52,31,0.06)' : 'none',
+                  transition: 'background .15s, color .15s', whiteSpace: 'nowrap',
+                }}>
+                  <span style={{ display: 'inline-flex', color: on ? '#1f7a40' : '#bcb5a4', transition: 'color .15s' }}>{TAB_ICON[t]}</span>
+                  {t}
+                  {tabCount[t] > 0 && <span style={{ fontFamily: 'var(--mono)', fontSize: 10, fontWeight: 600, color: on ? '#16341f' : '#a89e88', background: on ? 'rgba(22,52,31,0.1)' : '#f1ede4', borderRadius: 5, padding: '1px 5px' }}>{tabCount[t]}</span>}
+                </span>
               </button>
             )
           })}
