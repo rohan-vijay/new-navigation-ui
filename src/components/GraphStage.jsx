@@ -1407,7 +1407,7 @@ export default function GraphStage() {
         hover={hover} setHover={setHover}
         savedView={null} setSavedView={() => {}}
       />
-      <main style={{ position: 'relative', flex: 1, minWidth: 0, height: '100%', display: 'flex', flexDirection: 'column', minHeight: 0, background: '#f5f2ea' }}>
+      <main style={{ position: 'relative', flex: 1, minWidth: 0, height: '100%', display: 'flex', flexDirection: 'column', minHeight: 0, background: '#fbf9f3' }}>
         <Canvas
           nodes={nodes} setNodes={setNodes}
           edges={edges} setEdges={setEdges}

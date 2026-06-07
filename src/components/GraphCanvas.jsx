@@ -231,7 +231,7 @@ function GraphCanvasInner({ title = 'New graph', onBack, onAgentAI }) {
 
       {/* Body */}
       {nodeDetail ? (
-        <NodeDetailPage node={nodeDetail} onBack={() => setNodeDetail(null)} />
+        <NodeDetailPage node={nodeDetail} onBack={() => setNodeDetail(null)} onCanvas={() => { setNodeDetail(null); setTab('Graph') }} />
       ) : tab === 'Graph' ? (
         <GraphStage />
       ) : tab === 'Nodes' ? (
@@ -484,8 +484,9 @@ function genActivity(node) {
   return base.slice(0, 3 + (seed % 3))
 }
 
-function NodeDetailPage({ node, onBack }) {
+function NodeDetailPage({ node, onBack, onCanvas }) {
   const [tab, setTab] = useState('Properties')
+  const [menuOpen, setMenuOpen] = useState(false)
   const cat = CAT_TAG[node.cat] || CAT_TAG.core
   const props = useMemo(() => generateProps(node), [node])
   const rules = useMemo(() => generateRules(node), [node])
@@ -502,7 +503,7 @@ function NodeDetailPage({ node, onBack }) {
   return (
     <div style={{ flex: 1, overflowY: 'auto', backgroundColor: '#fcfbf7', padding: '12px 26px 40px' }} className="dark-scroll">
       {/* node header */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 14 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 18 }}>
         <button onClick={onBack} title="Back to nodes" style={{ width: 32, height: 32, borderRadius: 8, border: '1px solid #e3ddd1', background: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}
           onMouseOver={e => e.currentTarget.style.background = '#faf8f3'} onMouseOut={e => e.currentTarget.style.background = '#fff'}>
           <svg width="15" height="15" viewBox="0 0 16 16" fill="none"><path d="M9.5 3.5L5 8l4.5 4.5" stroke="#5b5547" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" /></svg>
@@ -510,21 +511,53 @@ function NodeDetailPage({ node, onBack }) {
         <NodeIcon node={node} size={34} />
         <span style={{ fontFamily: 'var(--serif)', fontSize: 22, fontWeight: 500, color: '#1a1a1a', letterSpacing: -0.2 }}>{node.label}</span>
         <span style={{ fontFamily: 'var(--mono)', fontSize: 11.5, color: cat.color, border: `1px solid ${cat.border}`, background: cat.bg, padding: '2px 8px', borderRadius: 6 }}>{cat.label}</span>
+
+        <div style={{ flex: 1 }} />
+
+        <button onClick={() => onCanvas?.()} style={{ ...gBtnGhost, height: 34 }}
+          onMouseOver={e => e.currentTarget.style.background = '#faf8f3'} onMouseOut={e => e.currentTarget.style.background = '#fff'}>
+          View on canvas
+          <svg width="12" height="12" viewBox="0 0 12 12" fill="none" style={{ marginLeft: 1 }}><path d="M2.5 6h7M6.5 3l3 3-3 3" stroke="#5b5547" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" /></svg>
+        </button>
+        <div style={{ position: 'relative' }}>
+          <button onClick={() => setMenuOpen(o => !o)} title="More actions" style={{ width: 34, height: 34, borderRadius: 8, border: '1px solid #e3ddd1', background: menuOpen ? '#f2f1ee' : '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, transition: 'background .15s' }}
+            onMouseOver={e => { if (!menuOpen) e.currentTarget.style.background = '#faf8f3' }} onMouseOut={e => { if (!menuOpen) e.currentTarget.style.background = '#fff' }}>
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="3.5" r="1.3" fill="#6b6b66" /><circle cx="8" cy="8" r="1.3" fill="#6b6b66" /><circle cx="8" cy="12.5" r="1.3" fill="#6b6b66" /></svg>
+          </button>
+          {menuOpen && (
+            <>
+              <div onClick={() => setMenuOpen(false)} style={{ position: 'fixed', inset: 0, zIndex: 40 }} />
+              <div style={{ position: 'absolute', top: 'calc(100% + 6px)', right: 0, zIndex: 41, width: 200, background: '#fff', border: '1px solid #e3ddd1', borderRadius: 10, boxShadow: '0 14px 40px rgba(40,32,18,0.16)', padding: 5 }}>
+                {[{ l: 'Edit schema' }, { l: 'Export schema' }, { l: 'Version history' }, { divider: true }, { l: 'Delete node type', tone: '#c0492f' }].map((it, i) => it.divider
+                  ? <div key={i} style={{ height: 1, background: '#f1f2f1', margin: '4px 6px' }} />
+                  : <button key={i} onClick={() => setMenuOpen(false)} style={{ display: 'block', width: '100%', textAlign: 'left', padding: '8px 10px', borderRadius: 6, border: 'none', background: 'transparent', cursor: 'pointer', fontFamily: 'var(--sans)', fontSize: 13, color: it.tone || '#2a2620' }}
+                    onMouseOver={e => e.currentTarget.style.background = '#f7f4ee'} onMouseOut={e => e.currentTarget.style.background = 'transparent'}>{it.l}</button>)}
+              </div>
+            </>
+          )}
+        </div>
       </div>
 
-      {/* tabs */}
-      <div style={{ display: 'flex', gap: 2, borderBottom: '1px solid #efece6', marginBottom: 16 }}>
-        {DETAIL_TABS.map(t => (
-          <button key={t} onClick={() => setTab(t)} style={{
-            border: 'none', background: 'none', cursor: 'pointer', padding: '9px 12px', fontSize: 13.5,
-            fontWeight: tab === t ? 600 : 400, color: tab === t ? '#16341f' : '#6b6b66',
-            borderBottom: tab === t ? '2px solid #16341f' : '2px solid transparent', marginBottom: -1,
-            display: 'inline-flex', alignItems: 'center', gap: 6, whiteSpace: 'nowrap',
-          }}>
-            {t}
-            {tabCount[t] > 0 && <span style={{ fontFamily: 'var(--mono)', fontSize: 11, color: tab === t ? '#16341f' : '#a89e88' }}>{tabCount[t]}</span>}
-          </button>
-        ))}
+      {/* tabs — segmented pill */}
+      <div style={{ display: 'flex', marginBottom: 16, overflowX: 'auto' }} className="no-scrollbar">
+        <div style={{ display: 'inline-flex', background: '#f2f1ee', borderRadius: 10, padding: 3, gap: 2 }}>
+          {DETAIL_TABS.map(t => {
+            const on = tab === t
+            return (
+              <button key={t} onClick={() => setTab(t)} style={{
+                border: 'none', cursor: 'pointer', padding: '7px 13px', borderRadius: 7, fontSize: 13,
+                fontWeight: on ? 600 : 400, color: on ? '#1a1a1a' : '#6b6b66',
+                background: on ? '#fff' : 'transparent',
+                boxShadow: on ? '0 1px 2px rgba(0,0,0,0.08), 0 0 0 1px rgba(0,0,0,0.03)' : 'none',
+                transition: 'background .15s, color .15s, box-shadow .15s', whiteSpace: 'nowrap',
+                display: 'inline-flex', alignItems: 'center', gap: 6,
+              }}>
+                {t}
+                {tabCount[t] > 0 && <span style={{ fontFamily: 'var(--mono)', fontSize: 10.5, color: on ? '#16341f' : '#a89e88', background: on ? '#eef4ee' : 'transparent', borderRadius: 4, padding: on ? '0 4px' : 0 }}>{tabCount[t]}</span>}
+              </button>
+            )
+          })}
+        </div>
       </div>
 
       {/* tab body */}

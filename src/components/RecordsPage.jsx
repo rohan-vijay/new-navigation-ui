@@ -339,7 +339,7 @@ function RecordsView({ onOpenRecord }) {
                     const val = r[p.name]
                     const displayVal = val == null ? '—' : String(val)
                     return (
-                      <td key={p.name} style={{ ...cell(last), fontFamily: ci===0 ? 'var(--mono)' : 'var(--sans)', fontSize: ci===0 ? 13 : 13, color: ci===0 ? '#3b6fd4' : '#374151', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>{displayVal}</td>
+                      <td key={p.name} style={{ ...cell(last), fontFamily: ci===0 ? 'var(--mono)' : 'var(--sans)', fontSize: ci===0 ? 13 : 13, color: ci===0 ? '#1a1a1a' : '#374151', fontWeight: ci===0 ? 600 : 400, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>{displayVal}</td>
                     )
                   })}
                   <td style={{ ...cell(last), fontSize:13, color:'#9097a0', whiteSpace:'nowrap' }}>{r._updatedAgo}</td>
@@ -466,7 +466,7 @@ function RecordDetailView({ record, node, onBack, onNavigate }) {
                       style={{ display:'flex', alignItems:'center', gap:8, padding:'5px 6px', cursor:'pointer', borderRadius:6, transition:'background .1s' }}
                       onMouseEnter={e=>e.currentTarget.style.background='#f7f6f3'}
                       onMouseLeave={e=>e.currentTarget.style.background='transparent'}>
-                      <code style={{ fontFamily:'var(--mono)', fontSize:11, color:'#3b6fd4', flexShrink:0 }}>{rr.id}</code>
+                      <code style={{ fontFamily:'var(--mono)', fontSize:11, color:'#1a1a1a', fontWeight:600, flexShrink:0 }}>{rr.id}</code>
                       <span style={{ fontFamily:'var(--sans)', fontSize:12, color:'#9097a0', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', flex:1 }}>{rr.keyValue}</span>
                       <span style={{ fontFamily:'var(--mono)', fontSize:10, color:'#b8bcb8', flexShrink:0 }}>{rr.since}</span>
                     </div>
