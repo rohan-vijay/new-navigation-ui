@@ -1239,35 +1239,3 @@ main > .canvas-wrap { flex: 1 1 auto; min-height: 0; height: 100%; }
 /* Property pane search: white background like the Edges/Survivorship search */
 .props-pane .sample-search { background: #fff !important; border-color: #e3e6e3 !important; }
 .props-pane .sample-search:focus { border-color: #9298a0 !important; }
-
-/* ── Node-detail folder tabs: curved "bell" active tab merging into content ── */
-.nd-tab { border: none; background: transparent; position: relative; font-family: inherit; }
-.nd-tab-on {
-  background: #fcfbf7;
-  border: 1px solid #e6dfd1;
-  border-bottom: none;
-  border-radius: 12px 12px 0 0;
-  margin-bottom: -1px;
-}
-.nd-tab-on::before,
-.nd-tab-on::after {
-  content: "";
-  position: absolute;
-  bottom: -1px;
-  width: 11px;
-  height: 11px;
-  border: 1px solid #e6dfd1;
-  pointer-events: none;
-}
-.nd-tab-on::before {
-  left: -11px;
-  border-radius: 0 0 11px 0;
-  border-width: 0 1px 1px 0;
-  box-shadow: 4px 4px 0 #fcfbf7;
-}
-.nd-tab-on::after {
-  right: -11px;
-  border-radius: 0 0 0 11px;
-  border-width: 0 0 1px 1px;
-  box-shadow: -4px 4px 0 #fcfbf7;
-}

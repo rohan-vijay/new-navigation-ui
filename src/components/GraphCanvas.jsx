@@ -611,17 +611,16 @@ function NodeDetailPage({ node, onBack, onCanvas }) {
           </div>
         </div>
 
-        {/* tab zone — active tab becomes a folder tab that overlaps the rule
-            and flows into the content surface (#fcfbf7) below. */}
-        <div style={{ background: '#FEFDFB', borderBottom: '1px solid #e6dfd1', padding: '6px 26px 0' }}>
+        {/* tab zone — minimal underline tabs; edge-to-edge bottom rule */}
+        <div style={{ background: '#FEFDFB', borderBottom: '1px solid #efece6', padding: '0 26px' }}>
           <div style={{ display: 'flex' }}>
           {DETAIL_TABS.map(t => {
             const on = tab === t
             return (
-              <button key={t} onClick={() => setTab(t)} className={'nd-tab' + (on ? ' nd-tab-on' : '')} style={{
-                flex: 1, minWidth: 0, cursor: 'pointer',
-                padding: '9px 12px 11px', fontSize: 13,
-                fontWeight: on ? 600 : 450, color: on ? '#2a2620' : '#9a948a',
+              <button key={t} onClick={() => setTab(t)} style={{
+                position: 'relative', flex: 1, minWidth: 0, cursor: 'pointer', border: 'none', background: 'none',
+                padding: '11px 8px 13px', fontSize: 13,
+                fontWeight: on ? 600 : 450, color: on ? '#1a1a1a' : '#9a948a',
                 transition: 'color .15s', whiteSpace: 'nowrap',
                 display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6,
               }}
@@ -630,6 +629,7 @@ function NodeDetailPage({ node, onBack, onCanvas }) {
                 <span style={{ display: 'inline-flex', color: on ? '#6b6453' : '#bcb5a4', transition: 'color .15s' }}>{TAB_ICON[t]}</span>
                 {t}
                 {tabCount[t] > 0 && <span style={{ fontFamily: 'var(--mono)', fontSize: 10, fontWeight: 600, color: on ? '#6b6453' : '#a89e88', background: on ? 'rgba(40,32,18,0.07)' : '#f1ede4', borderRadius: 5, padding: '1px 5px' }}>{tabCount[t]}</span>}
+                <span style={{ position: 'absolute', left: '50%', transform: 'translateX(-50%)', bottom: -1, width: on ? '100%' : 0, maxWidth: 'calc(100% - 16px)', height: 2, borderRadius: 2, background: '#2a2620', transition: 'width .18s ease' }} />
               </button>
             )
           })}
