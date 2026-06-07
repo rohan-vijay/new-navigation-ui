@@ -567,52 +567,60 @@ function NodeDetailPage({ node, onBack, onCanvas }) {
 
   return (
     <div style={{ flex: 1, overflowY: 'auto', backgroundColor: '#fcfbf7', padding: '12px 26px 40px' }} className="dark-scroll">
-      {/* node header */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 18 }}>
-        <NodeIcon node={node} size={30} />
-        <span style={{ fontFamily: 'var(--serif)', fontSize: 22, fontWeight: 500, color: '#1a1a1a', letterSpacing: -0.2, marginLeft: -2 }}>{node.label}</span>
-        <span style={{ fontFamily: 'var(--mono)', fontSize: 11.5, color: cat.color, border: `1px solid ${cat.border}`, background: cat.bg, padding: '2px 8px', borderRadius: 6 }}>{cat.label}</span>
+      {/* Unified header: title + tabs as one cohesive premium block.
+          A soft cream panel with the node identity on top and the tab rail
+          along its bottom edge; the active tab's accent merges into the
+          divider that hands off to the content below. */}
+      <div style={{ background: 'linear-gradient(180deg,#fffdfa 0%,#fbf8f2 100%)', border: '1px solid #ece7dc', borderRadius: 14, boxShadow: '0 1px 2px rgba(60,50,30,0.04)', marginBottom: 18, overflow: 'hidden' }}>
+        {/* title row */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 11, padding: '14px 16px 13px' }}>
+          <NodeIcon node={node} size={30} />
+          <span style={{ fontFamily: 'var(--serif)', fontSize: 22, fontWeight: 500, color: '#1a1a1a', letterSpacing: -0.2, marginLeft: -2 }}>{node.label}</span>
+          <span style={{ fontFamily: 'var(--mono)', fontSize: 11.5, color: cat.color, border: `1px solid ${cat.border}`, background: cat.bg, padding: '2px 8px', borderRadius: 6 }}>{cat.label}</span>
 
-        <div style={{ flex: 1 }} />
+          <div style={{ flex: 1 }} />
 
-        <div style={{ position: 'relative' }}>
-          <button onClick={() => setMenuOpen(o => !o)} title="More actions" style={{ width: 34, height: 34, borderRadius: 8, border: '1px solid #e3ddd1', background: menuOpen ? '#f2f1ee' : '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, transition: 'background .15s' }}
-            onMouseOver={e => { if (!menuOpen) e.currentTarget.style.background = '#faf8f3' }} onMouseOut={e => { if (!menuOpen) e.currentTarget.style.background = '#fff' }}>
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="3.5" r="1.3" fill="#6b6b66" /><circle cx="8" cy="8" r="1.3" fill="#6b6b66" /><circle cx="8" cy="12.5" r="1.3" fill="#6b6b66" /></svg>
-          </button>
-          {menuOpen && (
-            <>
-              <div onClick={() => setMenuOpen(false)} style={{ position: 'fixed', inset: 0, zIndex: 40 }} />
-              <div style={{ position: 'absolute', top: 'calc(100% + 6px)', right: 0, zIndex: 41, width: 200, background: '#fff', border: '1px solid #e3ddd1', borderRadius: 10, boxShadow: '0 14px 40px rgba(40,32,18,0.16)', padding: 5 }}>
-                {[{ l: 'Edit schema' }, { l: 'Export schema' }, { l: 'Version history' }, { divider: true }, { l: 'Delete node type', tone: '#c0492f' }].map((it, i) => it.divider
-                  ? <div key={i} style={{ height: 1, background: '#f1f2f1', margin: '4px 6px' }} />
-                  : <button key={i} onClick={() => setMenuOpen(false)} style={{ display: 'block', width: '100%', textAlign: 'left', padding: '8px 10px', borderRadius: 6, border: 'none', background: 'transparent', cursor: 'pointer', fontFamily: 'var(--sans)', fontSize: 13, color: it.tone || '#2a2620' }}
-                    onMouseOver={e => e.currentTarget.style.background = '#f7f4ee'} onMouseOut={e => e.currentTarget.style.background = 'transparent'}>{it.l}</button>)}
-              </div>
-            </>
-          )}
-        </div>
-      </div>
-
-      {/* tabs — full-width segmented pill, evenly distributed */}
-      <div style={{ display: 'flex', width: '100%', background: '#f2f1ee', borderRadius: 10, padding: 3, gap: 2, marginBottom: 16 }}>
-        {DETAIL_TABS.map(t => {
-          const on = tab === t
-          return (
-            <button key={t} onClick={() => setTab(t)} style={{
-              flex: 1, minWidth: 0,
-              border: 'none', cursor: 'pointer', padding: '8px 10px', borderRadius: 7, fontSize: 13,
-              fontWeight: on ? 600 : 400, color: on ? '#1a1a1a' : '#6b6b66',
-              background: on ? '#fff' : 'transparent',
-              boxShadow: on ? '0 1px 2px rgba(0,0,0,0.08), 0 0 0 1px rgba(0,0,0,0.03)' : 'none',
-              transition: 'background .15s, color .15s, box-shadow .15s', whiteSpace: 'nowrap',
-              display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6,
-            }}>
-              {t}
-              {tabCount[t] > 0 && <span style={{ fontFamily: 'var(--mono)', fontSize: 10.5, color: on ? '#16341f' : '#a89e88', background: on ? '#eef4ee' : 'transparent', borderRadius: 4, padding: on ? '0 4px' : 0 }}>{tabCount[t]}</span>}
+          <div style={{ position: 'relative' }}>
+            <button onClick={() => setMenuOpen(o => !o)} title="More actions" style={{ width: 34, height: 34, borderRadius: 8, border: '1px solid #e3ddd1', background: menuOpen ? '#f2f1ee' : '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, transition: 'background .15s' }}
+              onMouseOver={e => { if (!menuOpen) e.currentTarget.style.background = '#faf8f3' }} onMouseOut={e => { if (!menuOpen) e.currentTarget.style.background = '#fff' }}>
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="3.5" r="1.3" fill="#6b6b66" /><circle cx="8" cy="8" r="1.3" fill="#6b6b66" /><circle cx="8" cy="12.5" r="1.3" fill="#6b6b66" /></svg>
             </button>
-          )
-        })}
+            {menuOpen && (
+              <>
+                <div onClick={() => setMenuOpen(false)} style={{ position: 'fixed', inset: 0, zIndex: 40 }} />
+                <div style={{ position: 'absolute', top: 'calc(100% + 6px)', right: 0, zIndex: 41, width: 200, background: '#fff', border: '1px solid #e3ddd1', borderRadius: 10, boxShadow: '0 14px 40px rgba(40,32,18,0.16)', padding: 5 }}>
+                  {[{ l: 'Edit schema' }, { l: 'Export schema' }, { l: 'Version history' }, { divider: true }, { l: 'Delete node type', tone: '#c0492f' }].map((it, i) => it.divider
+                    ? <div key={i} style={{ height: 1, background: '#f1f2f1', margin: '4px 6px' }} />
+                    : <button key={i} onClick={() => setMenuOpen(false)} style={{ display: 'block', width: '100%', textAlign: 'left', padding: '8px 10px', borderRadius: 6, border: 'none', background: 'transparent', cursor: 'pointer', fontFamily: 'var(--sans)', fontSize: 13, color: it.tone || '#2a2620' }}
+                      onMouseOver={e => e.currentTarget.style.background = '#f7f4ee'} onMouseOut={e => e.currentTarget.style.background = 'transparent'}>{it.l}</button>)}
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+
+        {/* tab rail — full width, underline indicator merges into the header base */}
+        <div style={{ display: 'flex', borderTop: '1px solid #efe9dd' }}>
+          {DETAIL_TABS.map(t => {
+            const on = tab === t
+            return (
+              <button key={t} onClick={() => setTab(t)} style={{
+                position: 'relative', flex: 1, minWidth: 0,
+                border: 'none', cursor: 'pointer', padding: '11px 8px 12px', fontSize: 13,
+                fontWeight: on ? 600 : 450, color: on ? '#16341f' : '#7a756a',
+                background: on ? 'rgba(255,255,255,0.66)' : 'transparent',
+                transition: 'background .15s, color .15s', whiteSpace: 'nowrap',
+                display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+              }}
+                onMouseOver={e => { if (!on) { e.currentTarget.style.background = 'rgba(255,255,255,0.4)'; e.currentTarget.style.color = '#3a3a36' } }}
+                onMouseOut={e => { if (!on) { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#7a756a' } }}>
+                {t}
+                {tabCount[t] > 0 && <span style={{ fontFamily: 'var(--mono)', fontSize: 10.5, color: on ? '#16341f' : '#a89e88', background: on ? '#e7f0e9' : 'transparent', borderRadius: 4, padding: on ? '0 4px' : 0 }}>{tabCount[t]}</span>}
+                <span style={{ position: 'absolute', left: 14, right: 14, bottom: 0, height: 2.5, borderRadius: '3px 3px 0 0', background: on ? '#16341f' : 'transparent', transition: 'background .15s' }} />
+              </button>
+            )
+          })}
+        </div>
       </div>
 
       {/* per-tab toolbar — Properties brings its own controls via PropertiesPane */}
