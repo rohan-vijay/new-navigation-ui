@@ -725,13 +725,21 @@ function NodeDetailPage({ node, onBack, onCanvas }) {
 
 /* ── Nodes table ───────────────────────────────────────── */
 const NODE_COLS = [
-  { key: 'name', label: 'Node Type', w: '20%' },
-  { key: 'cat', label: 'Category', w: '13%' },
-  { key: 'records', label: 'Records', w: '12%' },
-  { key: 'props', label: 'Properties', w: '11%' },
-  { key: 'edges', label: 'Edges', w: '11%' },
-  { key: 'fill', label: 'Fill Rate', w: '14%' },
+  { key: 'name', label: 'Node Type', w: '17%' },
+  { key: 'cat', label: 'Category', w: '10%' },
+  { key: 'records', label: 'Records', w: '10%' },
+  { key: 'props', label: 'Properties', w: '9%' },
+  { key: 'edges', label: 'Edges', w: '8%' },
+  { key: 'fill', label: 'Fill Rate', w: '12%' },
+  { key: 'owner', label: 'Owner', w: '18%' },
+  { key: 'modified', label: 'Modified On', w: '13%' },
 ]
+const OwnerCell = ({ owner }) => (
+  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8, fontSize: 13, color: '#374151', whiteSpace: 'nowrap' }}>
+    <span style={{ width: 24, height: 24, borderRadius: '50%', background: '#ede4d2', color: '#8a7648', fontSize: 11.5, fontWeight: 700, border: '1px solid #e3d8c0', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>{owner.charAt(0)}</span>
+    {owner}
+  </span>
+)
 const CAT_TAG = {
   core:    { label: 'Core',    color: '#2f6f43', bg: '#eef4ee', border: '#d6e6d8' },
   support: { label: 'Support', color: '#8a7340', bg: '#faf5ea', border: '#e7dcc1' },
@@ -795,6 +803,7 @@ function NodesList({ onOpen }) {
               const last = i === NODES.length - 1
               const cell = { padding: '12px 18px', verticalAlign: 'middle', overflow: 'hidden', borderBottom: last ? 'none' : '1px solid #f1f2f1' }
               const cat = CAT_TAG[n.cat] || CAT_TAG.core
+              const m = meta(i)
               return (
                 <tr key={n.id} onClick={() => onOpen?.(n.id)} style={{ background: '#fff', cursor: 'pointer', transition: 'background .12s, box-shadow .12s' }}
                   onMouseOver={e => { e.currentTarget.style.background = '#f7f6f3'; e.currentTarget.style.boxShadow = 'inset 3px 0 0 #16341f' }}
@@ -819,7 +828,9 @@ function NodesList({ onOpen }) {
                       <span style={{ fontFamily: 'var(--mono)', fontSize: 12, fontWeight: 600, color: fillColor(n.fill) }}>{n.fill}%</span>
                     </span>
                   </td>
-                  <td style={{ ...cell, textAlign: 'center' }}>
+                  <td style={cell}><OwnerCell owner={m.owner} /></td>
+                  <td style={{ ...cell, color: '#9097a0', fontSize: 13, whiteSpace: 'nowrap' }}>{m.modified}</td>
+                  <td style={{ ...cell, textAlign: 'right', paddingRight: 14 }}>
                     <button onClick={e => e.stopPropagation()} style={{ border: 'none', background: 'none', cursor: 'pointer', padding: 4 }}>
                       <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="3.5" r="1.2" fill="#b8bcb8" /><circle cx="8" cy="8" r="1.2" fill="#b8bcb8" /><circle cx="8" cy="12.5" r="1.2" fill="#b8bcb8" /></svg>
                     </button>
@@ -838,13 +849,15 @@ function NodesList({ onOpen }) {
 
 /* ── Edges table ───────────────────────────────────────── */
 const EDGE_COLS = [
-  { key: 'label', label: 'Relationship', w: '19%' },
-  { key: 'from', label: 'From', w: '17%' },
-  { key: 'arrow', label: '', w: '4%' },
-  { key: 'to', label: 'To', w: '17%' },
-  { key: 'kind', label: 'Kind', w: '12%' },
-  { key: 'card', label: 'Cardinality', w: '12%' },
-  { key: 'inst', label: 'Instances', w: '11%' },
+  { key: 'label', label: 'Relationship', w: '15%' },
+  { key: 'from', label: 'From', w: '13%' },
+  { key: 'arrow', label: '', w: '3%' },
+  { key: 'to', label: 'To', w: '13%' },
+  { key: 'kind', label: 'Kind', w: '9%' },
+  { key: 'card', label: 'Cardinality', w: '9%' },
+  { key: 'inst', label: 'Instances', w: '9%' },
+  { key: 'owner', label: 'Owner', w: '17%' },
+  { key: 'modified', label: 'Modified On', w: '12%' },
 ]
 const EDGE_KIND_TAG = {
   direct:   { label: 'Direct',   color: '#2f6f43', bg: '#eef4ee', border: '#d6e6d8' },
@@ -931,6 +944,7 @@ function EdgesList() {
               const last = i === rows.length - 1
               const cell = { padding: '12px 18px', verticalAlign: 'middle', overflow: 'hidden', borderBottom: last ? 'none' : '1px solid #f1f2f1' }
               const k = EDGE_KIND_TAG[e.kind] || EDGE_KIND_TAG.direct
+              const m = meta(i)
               return (
                 <tr key={e.uid} style={{ background: '#fff', transition: 'background .12s, box-shadow .12s' }}
                   onMouseOver={ev => { ev.currentTarget.style.background = '#f7f6f3'; ev.currentTarget.style.boxShadow = 'inset 3px 0 0 #16341f' }}
@@ -944,7 +958,9 @@ function EdgesList() {
                   </td>
                   <td style={{ ...cell }}><span style={{ fontFamily: 'var(--mono)', fontSize: 12.5, color: '#374151' }}>{e.cardinality}</span></td>
                   <td style={{ ...cell, fontSize: 13.5, fontWeight: 600, color: '#1a1a1a' }}>{e.instances.toLocaleString()}</td>
-                  <td style={{ ...cell, textAlign: 'center' }}>
+                  <td style={cell}><OwnerCell owner={m.owner} /></td>
+                  <td style={{ ...cell, color: '#9097a0', fontSize: 13, whiteSpace: 'nowrap' }}>{m.modified}</td>
+                  <td style={{ ...cell, textAlign: 'right', paddingRight: 14 }}>
                     <button onClick={ev => ev.stopPropagation()} style={{ border: 'none', background: 'none', cursor: 'pointer', padding: 4 }}>
                       <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="3.5" r="1.2" fill="#b8bcb8" /><circle cx="8" cy="8" r="1.2" fill="#b8bcb8" /><circle cx="8" cy="12.5" r="1.2" fill="#b8bcb8" /></svg>
                     </button>
