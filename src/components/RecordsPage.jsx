@@ -331,10 +331,9 @@ function RecordsView({ onOpenRecord }) {
               const last = i === filteredRecords.length - 1
               return (
                 <tr key={r.id}
-                  onClick={() => onOpenRecord(r, selectedNodeObj)}
-                  style={{ background:'#fff', cursor:'pointer', transition:'background .12s, box-shadow .12s' }}
-                  onMouseOver={e => { e.currentTarget.style.background='#f7f6f3'; e.currentTarget.style.boxShadow='inset 3px 0 0 #16341f' }}
-                  onMouseOut={e => { e.currentTarget.style.background='#fff'; e.currentTarget.style.boxShadow='none' }}>
+                  style={{ background:'#fff', transition:'background .12s' }}
+                  onMouseOver={e => { e.currentTarget.style.background='#faf9f6' }}
+                  onMouseOut={e => { e.currentTarget.style.background='#fff' }}>
                   {columns.map((p,ci) => {
                     const val = r[p.name]
                     const displayVal = val == null ? '—' : String(val)

@@ -73,7 +73,7 @@ function FlowStyles() {
 .flow-overlay-full .flow-shell { max-width: none; max-height: none; width: 100vw; height: 100vh; border: none; border-radius: 0; box-shadow: none; }
 @keyframes flow-zoom-in { from { transform: translateY(8px) scale(0.99); opacity: 0; } to { transform: translateY(0) scale(1); opacity: 1; } }
 
-.flow-head { display: flex; justify-content: space-between; align-items: center; padding: 14px 20px; background: var(--panel); border-bottom: 1px solid var(--line-2); flex-shrink: 0; }
+.flow-head { display: flex; justify-content: space-between; align-items: center; padding: 14px 20px; background: var(--panel-2); border-bottom: 1px solid var(--line); flex-shrink: 0; }
 .flow-title { font-family: Lora, serif; font-size: 22px; line-height: 1.15; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .flow-title-from, .flow-title-to { display: inline-flex; align-items: center; gap: 6px; font-family: system-ui, sans-serif; font-size: 14px; padding: 4px 10px; background: var(--bg-canvas); border: 1px solid var(--line); border-radius: 999px; }
 .flow-title-empty { color: var(--ink-4); font-style: italic; }
@@ -84,8 +84,8 @@ function FlowStyles() {
 .flow-body { flex: 1; display: grid; grid-template-columns: 240px minmax(0, 1fr) 320px; min-height: 0; }
 .flow-steps { background: var(--panel-2); border-right: 1px solid var(--line-2); padding: 22px 20px; display: flex; flex-direction: column; gap: 4px; overflow-y: auto; }
 .flow-step { display: flex; gap: 12px; padding: 10px 12px; border-radius: 8px; border: 1px solid transparent; background: transparent; cursor: pointer; font-family: inherit; text-align: left; }
-.flow-step:hover { background: var(--panel); border-color: var(--line-2); }
-.flow-step.on { background: var(--panel); border: 1px solid var(--line); box-shadow: 0 1px 4px rgba(40,32,18,0.07); }
+.flow-step:hover { background: #f3f0eb; border-color: #d8cfbb; }
+.flow-step.on { background: #edeae4; border: 1px solid #c8baa8; box-shadow: 0 1px 4px rgba(40,32,18,0.07); }
 .flow-step.done .flow-step-n { background: #16341f; color: #fff; border-color: #16341f; }
 .flow-step.on .flow-step-n { background: var(--ink); color: var(--bg-canvas); border-color: var(--ink); }
 .flow-step-n { width: 28px; height: 28px; border-radius: 50%; border: 1.5px solid var(--line); display: grid; place-items: center; font-family: "JetBrains Mono", monospace; font-size: 12px; font-weight: 700; color: var(--ink-3); background: var(--panel); flex-shrink: 0; transition: background 120ms, border-color 120ms; }
@@ -100,7 +100,7 @@ function FlowStyles() {
 
 .flow-preview { background: var(--panel-2); border-left: 1px solid var(--line); padding: 20px 18px; overflow-y: auto; display: flex; flex-direction: column; gap: 18px; }
 
-.flow-foot { display: flex; justify-content: space-between; align-items: center; padding: 12px 20px; background: var(--panel); border-top: 1px solid var(--line); flex-shrink: 0; }
+.flow-foot { display: flex; justify-content: space-between; align-items: center; padding: 12px 20px; background: var(--panel-2); border-top: 1px solid var(--line); flex-shrink: 0; }
 .flow-foot-left, .flow-foot-right { display: flex; align-items: center; gap: 10px; }
 .flow-foot-help { font-family: "JetBrains Mono", monospace; font-size: 11px; color: var(--ink-3); }
 .flow-foot-help b { color: var(--ink-2); font-weight: 500; }
@@ -236,7 +236,7 @@ function FlowStyles() {
 
 .wmt { position: relative; width: 100%; }
 .wmt-field { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; padding: 8px 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--panel); cursor: pointer; min-height: 44px; transition: border-color 80ms; }
-.wmt-field:hover, .wmt-field.open { border-color: var(--ink-3); background: var(--bg-canvas); }
+.wmt-field:hover, .wmt-field.open { border-color: #b8a48a; background: var(--bg-canvas); }
 .wmt-token { display: inline-flex; align-items: center; gap: 5px; padding: 3px 8px; background: var(--chip); border: 1px solid var(--line); border-radius: 4px; font-family: "JetBrains Mono", monospace; font-size: 12px; color: var(--ink); }
 .wmt-x { background: transparent; border: 0; cursor: pointer; color: var(--ink-3); font-size: 14px; padding: 0; line-height: 1; }
 .wmt-x:hover { color: var(--coral); }
@@ -2063,7 +2063,7 @@ function SrcObject({ s, set, sel }) {
           const on = selected.indexOf(o.name) >= 0;
           return (
             <button key={o.name} onClick={() => toggle(o.name)}
-              style={{ display: "flex", alignItems: "center", gap: 14, width: "100%", padding: "14px 16px", border: "none", borderTop: i ? "1px solid #f0ece6" : "none", background: on ? "#f0faf2" : "transparent", cursor: "pointer", textAlign: "left", fontFamily: "inherit" }}
+              style={{ display: "flex", alignItems: "center", gap: 14, width: "100%", padding: "14px 16px", border: "none", borderTop: i ? "1px solid #f0ece6" : "none", background: on ? "#f7f5f1" : "transparent", cursor: "pointer", textAlign: "left", fontFamily: "inherit" }}
               onMouseEnter={e => { if (!on) e.currentTarget.style.background = "#faf8f4"; }}
               onMouseLeave={e => { if (!on) e.currentTarget.style.background = "transparent"; }}>
               <span style={{ width: 20, height: 20, borderRadius: 5, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", borderWidth: 1.5, borderStyle: "solid", borderColor: on ? "#16341f" : "var(--line)", background: on ? "#16341f" : "transparent", color: "#fff" }}>
