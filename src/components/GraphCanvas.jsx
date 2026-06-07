@@ -151,7 +151,7 @@ export default function GraphCanvas({ title = 'New graph', onBack, onAgentAI }) 
             Share
             <svg width="11" height="11" viewBox="0 0 12 12" fill="none" style={{ marginLeft: 1 }}><path d="M2.5 4.5L6 8l3.5-3.5" stroke="#8a8378" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg>
           </button>
-          <button style={gBtnGhost} onMouseOver={e => e.currentTarget.style.background = '#faf8f3'} onMouseOut={e => e.currentTarget.style.background = '#fff'}>Publish</button>
+          <button style={gBtnPrimary} onMouseOver={e => e.currentTarget.style.background = '#1d4228'} onMouseOut={e => e.currentTarget.style.background = 'var(--green-btn)'}>Publish</button>
         </div>
       </div>
 

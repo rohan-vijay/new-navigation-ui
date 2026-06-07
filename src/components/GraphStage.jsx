@@ -2411,10 +2411,10 @@ function Inspector({ node, onClose, onViewDetails, onEditSchema, edges: liveEdge
           <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2.5 6h7M6.5 3l3 3-3 3" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" /></svg>
         </button>
         <button onClick={onEditSchema}
-          style={{ flex: 1, height: 34, borderRadius: 8, border: "none", background: "var(--green-btn, #16341f)", color: "#fff", fontSize: 12.5, fontWeight: 500, fontFamily: "var(--sans)", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 6, boxShadow: "0 1px 3px rgba(22,52,31,0.16)", transition: "background .15s" }}
-          onMouseOver={e => e.currentTarget.style.background = "#1d4228"}
-          onMouseOut={e => e.currentTarget.style.background = "var(--green-btn, #16341f)"}>
-          <svg width="12" height="12" viewBox="0 0 14 14" fill="none"><path d="M9.5 1.8l2.7 2.7L4.8 11.9 1.5 12.5l.6-3.3 7.4-7.4z" stroke="#fff" strokeWidth="1.3" strokeLinejoin="round" /></svg>
+          style={{ flex: 1, height: 34, borderRadius: 8, border: "1px solid var(--line)", background: "var(--panel)", color: "var(--ink-2)", fontSize: 12.5, fontWeight: 500, fontFamily: "var(--sans)", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 6, transition: "background .15s, border-color .15s" }}
+          onMouseOver={e => { e.currentTarget.style.background = "var(--panel-2)"; e.currentTarget.style.borderColor = "var(--ink-4)" }}
+          onMouseOut={e => { e.currentTarget.style.background = "var(--panel)"; e.currentTarget.style.borderColor = "var(--line)" }}>
+          <svg width="12" height="12" viewBox="0 0 14 14" fill="none"><path d="M9.5 1.8l2.7 2.7L4.8 11.9 1.5 12.5l.6-3.3 7.4-7.4z" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round" /></svg>
           Edit schema
         </button>
       </div>
