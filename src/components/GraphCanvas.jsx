@@ -21,7 +21,7 @@ const gBtnPrimary = { background: 'var(--green-btn)', color: '#fff', border: 'no
 
 /* Compact table toolbar — sort + filter dropdowns + search, matching the
    Enterprise Context Graph (records) view. */
-function TableToolbar({ sort, sortOptions, onSort, filter, filterOptions, onFilter, search, onSearch, placeholder }) {
+function TableToolbar({ sort, sortOptions, onSort, filter, filterOptions, onFilter, search, onSearch, placeholder, cta, onCta }) {
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
       <Dropdown value={sort} options={sortOptions} onChange={onSort} icon="sort" />
@@ -35,6 +35,13 @@ function TableToolbar({ sort, sortOptions, onSort, filter, filterOptions, onFilt
           style={{ border: '1px solid #e3e6e3', borderRadius: 8, padding: '6px 12px 6px 30px', fontSize: 13, color: '#374151', outline: 'none', width: 200, height: 32, boxSizing: 'border-box', transition: 'border-color .15s' }}
           onFocus={e => e.target.style.borderColor = '#9298a0'} onBlur={e => e.target.style.borderColor = '#e3e6e3'} />
       </div>
+      {cta && (
+        <button onClick={() => onCta?.()} style={{ ...gBtnGhost, height: 32, padding: '0 13px', display: 'inline-flex', alignItems: 'center', gap: 7, whiteSpace: 'nowrap' }}
+          onMouseOver={e => e.currentTarget.style.background = '#faf8f3'} onMouseOut={e => e.currentTarget.style.background = '#fff'}>
+          <svg width="13" height="13" viewBox="0 0 13 13" fill="none"><path d="M6.5 1.5v10M1.5 6.5h10" stroke="#3a3a36" strokeWidth="1.6" strokeLinecap="round" /></svg>
+          {cta}
+        </button>
+      )}
     </div>
   )
 }
@@ -488,32 +495,32 @@ const DETAIL_TAB_CFG = {
   Properties: {
     sorters: { 'Name (A–Z)': (a, b) => a.name.localeCompare(b.name), 'Fill Rate': (a, b) => b.fill - a.fill, 'Type': (a, b) => a.type.localeCompare(b.type) },
     filters: { 'All attributes': null, Required: p => p.required, Indexed: p => p.indexed, PII: p => p.pii, 'Primary key': p => p.pk },
-    search: p => p.name + ' ' + p.type, placeholder: 'Search properties',
+    search: p => p.name + ' ' + p.type, placeholder: 'Search properties', cta: 'New Property',
   },
   Edges: {
     sorters: { 'Relationship': (a, b) => a.label.localeCompare(b.label), 'Instances': (a, b) => b.instances - a.instances, 'Connected Node': (a, b) => a.other.label.localeCompare(b.other.label) },
     filters: { 'All kinds': null, Direct: e => e.kind === 'direct', Inferred: e => e.kind === 'inferred', Agent: e => e.kind === 'agent', Source: e => e.kind === 'source' },
-    search: e => e.label + ' ' + e.other.label, placeholder: 'Search edges',
+    search: e => e.label + ' ' + e.other.label, placeholder: 'Search edges', cta: 'New Edge',
   },
   Survivorship: {
     sorters: { 'Rule (A–Z)': (a, b) => a.title.localeCompare(b.title), 'Property': (a, b) => a.property.localeCompare(b.property) },
     filters: { 'All status': null, Active: r => r.on, Off: r => !r.on },
-    search: r => r.title + ' ' + r.property, placeholder: 'Search rules',
+    search: r => r.title + ' ' + r.property, placeholder: 'Search rules', cta: 'New Rule',
   },
   'Data Enrichment': {
     sorters: { 'Rule (A–Z)': (a, b) => a.title.localeCompare(b.title), 'Compliance': (a, b) => b.compliance - a.compliance, 'Severity': (a, b) => a.severity.localeCompare(b.severity) },
     filters: { 'All status': null, Active: r => r.on, Off: r => !r.on, Errors: r => r.severity === 'ERROR', Warnings: r => r.severity === 'WARN' },
-    search: r => r.title + ' ' + r.kind, placeholder: 'Search rules',
+    search: r => r.title + ' ' + r.kind, placeholder: 'Search rules', cta: 'New Rule',
   },
   'Data Matching': {
     sorters: { 'Rule (A–Z)': (a, b) => a.title.localeCompare(b.title) },
     filters: { 'All status': null, Active: r => r.on, Off: r => !r.on },
-    search: r => r.title, placeholder: 'Search rules',
+    search: r => r.title, placeholder: 'Search rules', cta: 'New Rule',
   },
   Computation: {
     sorters: { 'Field (A–Z)': (a, b) => a.field.localeCompare(b.field), 'Kind': (a, b) => a.kind.localeCompare(b.kind) },
     filters: { 'All status': null, Healthy: c => c.status === 'Healthy', Stale: c => c.status === 'Stale' },
-    search: c => c.field + ' ' + c.expr + ' ' + c.kind, placeholder: 'Search computations',
+    search: c => c.field + ' ' + c.expr + ' ' + c.kind, placeholder: 'Search computations', cta: 'New Computation',
   },
   Activity: {
     sorters: { 'Most recent': null, 'Event': (a, b) => a.event.localeCompare(b.event) },
@@ -525,6 +532,7 @@ const DETAIL_TAB_CFG = {
 function NodeDetailPage({ node, onBack, onCanvas }) {
   const [tab, setTab] = useState('Properties')
   const [menuOpen, setMenuOpen] = useState(false)
+  const [edgeFlowOpen, setEdgeFlowOpen] = useState(false)
   const cat = CAT_TAG[node.cat] || CAT_TAG.core
   const props = useMemo(() => generateProps(node), [node])
   const rules = useMemo(() => generateRules(node), [node])
@@ -621,7 +629,8 @@ function NodeDetailPage({ node, onBack, onCanvas }) {
       <TableToolbar
         sort={sort} sortOptions={Object.keys(cfg.sorters)} onSort={setSort}
         filter={filter} filterOptions={Object.keys(cfg.filters)} onFilter={setFilter}
-        search={search} onSearch={setSearch} placeholder={cfg.placeholder} />
+        search={search} onSearch={setSearch} placeholder={cfg.placeholder}
+        cta={cfg.cta} onCta={() => { if (tab === 'Edges') setEdgeFlowOpen(true) }} />
 
       {/* tab body */}
       {tab === 'Properties' && (
@@ -717,6 +726,8 @@ function NodeDetailPage({ node, onBack, onCanvas }) {
           ])}
           empty="No recent activity." />
       )}
+
+      {edgeFlowOpen && <NewEdgeFlow nodes={SIDEBAR_NODES} fromNode={node} onClose={() => setEdgeFlowOpen(false)} onCreate={() => setEdgeFlowOpen(false)} />}
     </div>
   )
 }
