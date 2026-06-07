@@ -575,11 +575,6 @@ function NodeDetailPage({ node, onBack, onCanvas }) {
 
         <div style={{ flex: 1 }} />
 
-        <button onClick={() => onCanvas?.()} style={{ ...gBtnGhost, height: 34 }}
-          onMouseOver={e => e.currentTarget.style.background = '#faf8f3'} onMouseOut={e => e.currentTarget.style.background = '#fff'}>
-          View on canvas
-          <svg width="12" height="12" viewBox="0 0 12 12" fill="none" style={{ marginLeft: 1 }}><path d="M2.5 6h7M6.5 3l3 3-3 3" stroke="#5b5547" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" /></svg>
-        </button>
         <div style={{ position: 'relative' }}>
           <button onClick={() => setMenuOpen(o => !o)} title="More actions" style={{ width: 34, height: 34, borderRadius: 8, border: '1px solid #e3ddd1', background: menuOpen ? '#f2f1ee' : '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, transition: 'background .15s' }}
             onMouseOver={e => { if (!menuOpen) e.currentTarget.style.background = '#faf8f3' }} onMouseOut={e => { if (!menuOpen) e.currentTarget.style.background = '#fff' }}>
@@ -599,26 +594,25 @@ function NodeDetailPage({ node, onBack, onCanvas }) {
         </div>
       </div>
 
-      {/* tabs — segmented pill */}
-      <div style={{ display: 'flex', marginBottom: 16, overflowX: 'auto' }} className="no-scrollbar">
-        <div style={{ display: 'inline-flex', background: '#f2f1ee', borderRadius: 10, padding: 3, gap: 2 }}>
-          {DETAIL_TABS.map(t => {
-            const on = tab === t
-            return (
-              <button key={t} onClick={() => setTab(t)} style={{
-                border: 'none', cursor: 'pointer', padding: '7px 13px', borderRadius: 7, fontSize: 13,
-                fontWeight: on ? 600 : 400, color: on ? '#1a1a1a' : '#6b6b66',
-                background: on ? '#fff' : 'transparent',
-                boxShadow: on ? '0 1px 2px rgba(0,0,0,0.08), 0 0 0 1px rgba(0,0,0,0.03)' : 'none',
-                transition: 'background .15s, color .15s, box-shadow .15s', whiteSpace: 'nowrap',
-                display: 'inline-flex', alignItems: 'center', gap: 6,
-              }}>
-                {t}
-                {tabCount[t] > 0 && <span style={{ fontFamily: 'var(--mono)', fontSize: 10.5, color: on ? '#16341f' : '#a89e88', background: on ? '#eef4ee' : 'transparent', borderRadius: 4, padding: on ? '0 4px' : 0 }}>{tabCount[t]}</span>}
-              </button>
-            )
-          })}
-        </div>
+      {/* tabs — full-width segmented pill, evenly distributed */}
+      <div style={{ display: 'flex', width: '100%', background: '#f2f1ee', borderRadius: 10, padding: 3, gap: 2, marginBottom: 16 }}>
+        {DETAIL_TABS.map(t => {
+          const on = tab === t
+          return (
+            <button key={t} onClick={() => setTab(t)} style={{
+              flex: 1, minWidth: 0,
+              border: 'none', cursor: 'pointer', padding: '8px 10px', borderRadius: 7, fontSize: 13,
+              fontWeight: on ? 600 : 400, color: on ? '#1a1a1a' : '#6b6b66',
+              background: on ? '#fff' : 'transparent',
+              boxShadow: on ? '0 1px 2px rgba(0,0,0,0.08), 0 0 0 1px rgba(0,0,0,0.03)' : 'none',
+              transition: 'background .15s, color .15s, box-shadow .15s', whiteSpace: 'nowrap',
+              display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+            }}>
+              {t}
+              {tabCount[t] > 0 && <span style={{ fontFamily: 'var(--mono)', fontSize: 10.5, color: on ? '#16341f' : '#a89e88', background: on ? '#eef4ee' : 'transparent', borderRadius: 4, padding: on ? '0 4px' : 0 }}>{tabCount[t]}</span>}
+            </button>
+          )
+        })}
       </div>
 
       {/* per-tab toolbar — Properties brings its own controls via PropertiesPane */}
