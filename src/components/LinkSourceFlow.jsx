@@ -1848,17 +1848,34 @@ const GOOGLE_FAVICON_DOMAINS = {
   gmail: "mail.google.com", googledrive: "drive.google.com",
   googlecalendar: "calendar.google.com", googlemeet: "meet.google.com",
 };
+const CONNECTOR_LOGO_OVERRIDES = {
+  hubspot:        "https://logo.clearbit.com/hubspot.com",
+  netsuite:       "https://logo.clearbit.com/netsuite.com",
+  slack:          "https://logo.clearbit.com/slack.com",
+  monday:         "https://logo.clearbit.com/monday.com",
+  docusign:       "https://logo.clearbit.com/docusign.com",
+  apollo:         "https://logo.clearbit.com/apollo.io",
+  postgresql:     "https://logo.clearbit.com/postgresql.org",
+  salesforce:     "https://logo.clearbit.com/salesforce.com",
+  zendesk:        "https://logo.clearbit.com/zendesk.com",
+  gmail:          "https://www.google.com/s2/favicons?sz=64&domain=mail.google.com",
+  googledrive:    "https://www.google.com/s2/favicons?sz=64&domain=drive.google.com",
+  gcal:           "https://www.google.com/s2/favicons?sz=64&domain=calendar.google.com",
+  googlecalendar: "https://www.google.com/s2/favicons?sz=64&domain=calendar.google.com",
+  googlemeet:     "https://www.google.com/s2/favicons?sz=64&domain=meet.google.com",
+  support:        "https://www.google.com/s2/favicons?sz=64&domain=unifyapps.com",
+  productdocs:    "https://www.google.com/s2/favicons?sz=64&domain=unifyapps.com",
+  productusage:   "https://www.google.com/s2/favicons?sz=64&domain=unifyapps.com",
+  unifyapps:      "https://www.google.com/s2/favicons?sz=64&domain=unifyapps.com",
+};
+
 function SrcConnectorLogo({ c, size }) {
   size = size || 22;
   const box = size + 12;
-  // Choose primary URL: Clearbit for rich color, Google favicon for Google products,
-  // then simple icons colored, then generic favicon as final fallback.
   const slug = c.slug || "";
-  const gDomain = GOOGLE_FAVICON_DOMAINS[slug];
-  const cDomain = c.domain && !gDomain ? "https://logo.clearbit.com/" + c.domain : "";
-  const primary = gDomain
-    ? "https://www.google.com/s2/favicons?sz=64&domain=" + gDomain
-    : cDomain || (slug ? "https://cdn.simpleicons.org/" + slug + "/" + (c.color || "444").replace("#", "") : "");
+  // Use explicit override first, then Clearbit, then Google favicon, then text glyph.
+  const override = CONNECTOR_LOGO_OVERRIDES[slug];
+  const primary = override || (c.domain ? "https://logo.clearbit.com/" + c.domain : "");
   const favicon = "https://www.google.com/s2/favicons?sz=64&domain=" + (c.domain || slug + ".com");
   const [src, setSrc] = useState(primary || favicon);
   const [failed, setFailed] = useState(!primary && !favicon);
@@ -2517,7 +2534,6 @@ function SrcEntityMap({ s, set, groups, activeObj, sel, openCol, setOpenCol }) {
               </div>
               {hasAgents ? (
                 <>
-                  {sectionLabel("From source", baseCols.length, true)}
                   {baseCols.map((c, i) => renderFieldRow(c, "s-" + i, i))}
                   {agentGroups.map(ag => (
                     <React.Fragment key={ag.name}>
@@ -2901,7 +2917,7 @@ function SrcObjectAgents({ s, set, groups, sel, agentPoolFor, fileMode }) {
                       {chain.map((id, i) => {
                         const a = agentDef(id); if (!a) return null;
                         return (
-                          <div key={id} style={{ display: "flex", alignItems: "center", gap: 11, padding: "9px 12px", border: "1px solid var(--line)", borderRadius: 9, background: "var(--bg-canvas)" }}>
+                          <div key={id} style={{ display: "flex", alignItems: "center", gap: 11, padding: "9px 12px", border: "1px solid var(--line)", borderRadius: 9, background: "#fff" }}>
                             <span style={{ width: 20, height: 20, borderRadius: "50%", flexShrink: 0, background: "var(--ink)", color: "var(--panel)", fontFamily: "'JetBrains Mono', monospace", fontSize: 10.5, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center" }}>{i + 1}</span>
                             <div style={{ flex: 1, minWidth: 0 }}>
                               <div style={{ fontSize: 13, fontWeight: 600, color: "var(--ink)" }}>{a.name}</div>
@@ -2972,7 +2988,6 @@ function SrcAgentOutputDrawer({ obj, agents, onClose }) {
         </div>
         <div style={{ flex: 1, overflowY: "auto", paddingBottom: 8 }}>
           <React.Fragment key="src">
-            {sectionLabel("From source", srcCols.length, true)}
             {srcCols.map((c, i) => row(c, "src-" + i))}
           </React.Fragment>
           {agents.map((a, ai) => (
@@ -3202,7 +3217,6 @@ function SrcMapping({ s, set, groups, activeObj, nodeProps, node, sel, openCol, 
             {tableHeader(false)}
             {hasAgents ? (
               <>
-                {sectionLabel("From source", sourceVisible.length, true)}
                 {sourceVisible.map((col, i) => renderRow(current, col, i))}
                 {agentGroups.map(ag => (
                   <React.Fragment key={ag.name}>
