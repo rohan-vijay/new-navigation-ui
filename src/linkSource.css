@@ -1230,3 +1230,8 @@ main > .canvas-wrap { flex: 1 1 auto; min-height: 0; height: 100%; }
 .props-th:hover { color: #6b6453 !important; }
 .props-row { border-bottom: 1px solid #f1f2f1 !important; background: #fff; transition: background .12s, box-shadow .12s !important; }
 .props-row:hover, .props-row.open { background: #f7f6f3 !important; box-shadow: inset 3px 0 0 #16341f; }
+
+/* ── Property pane: toolbar OUTSIDE the card, table in its own card (like Edges) ── */
+.props-pane > .card { background: transparent; border: none; border-radius: 0; overflow: visible; }
+.props-pane > .card > .card-head { padding: 0 0 12px; border-bottom: none; }
+.props-pane > .card > .props-table { border: 1px solid #ececea; border-radius: 12px; overflow: hidden; background: #fff; }
