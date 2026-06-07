@@ -86,7 +86,7 @@
   .chip-n { color: var(--ink-3); font-family: "JetBrains Mono", monospace; font-size: 10.5px; }
   .chip.on .chip-n { color: var(--ink-2); }
 
-  .sb-section-head { padding: 14px 16px 8px; display: flex; justify-content: space-between; font-family: "JetBrains Mono", monospace; font-size: 10.5px; letter-spacing: 0.8px; color: var(--ink-3); border-top: 1px solid var(--line-2); margin-top: 4px; }
+  .sb-section-head { padding: 6px 16px 8px; display: flex; justify-content: space-between; font-family: "JetBrains Mono", monospace; font-size: 10.5px; letter-spacing: 0.8px; color: var(--ink-3); }
   .sb-section-sort { color: var(--ink-4); }
 
   .sb-list { flex: 1; overflow-y: auto; padding: 0 8px 8px; }

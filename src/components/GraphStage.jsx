@@ -1240,12 +1240,6 @@ function Sidebar({ open, onToggle, filter, setFilter, query, setQuery, selected,
         </button>
       </div>
 
-      <div className="sb-chips">
-        <button className={"chip" + (filter === "all" ? " on" : "")} onClick={() => setFilter("all")}>All <span className="chip-n">{counts.all}</span></button>
-        <button className={"chip" + (filter === "entity" ? " on" : "")} onClick={() => setFilter("entity")}>Entities <span className="chip-n">{counts.entity}</span></button>
-        <button className={"chip" + (filter === "source" ? " on" : "")} onClick={() => setFilter("source")}>Sources <span className="chip-n">{counts.source}</span></button>
-      </div>
-
       <div className="sb-section-head">
         <span>{filtered.length} NODES</span>
         <span className="sb-section-sort">A–Z</span>
