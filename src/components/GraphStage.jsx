@@ -6166,7 +6166,7 @@ function PropertiesPane({ node, properties }) {
                   </div>
                   <div className="props-cell prop-type">
                     <span style={{ display:"inline-flex", alignItems:"center", gap:7 }}>
-                      <span style={{ minWidth:22, height:18, padding:"0 5px", borderRadius:4, background:"var(--chip)", color:"var(--ink-3)", border:"1px solid var(--line-2)", display:"inline-flex", alignItems:"center", justifyContent:"center", fontFamily:"JetBrains Mono", fontSize:9.5, fontWeight:700, letterSpacing:"0.3px", flexShrink:0 }}>{tg.g}</span>
+                      <span style={{ minWidth:22, height:18, padding:"0 5px", borderRadius:4, background:tg.c, color:"#fff", display:"inline-flex", alignItems:"center", justifyContent:"center", fontFamily:"JetBrains Mono", fontSize:9.5, fontWeight:700, letterSpacing:"0.3px", flexShrink:0 }}>{tg.g}</span>
                       <span style={{ fontFamily:"JetBrains Mono", fontSize:12, color:"var(--ink-2)" }}>{p.type}</span>
                     </span>
                   </div>
