@@ -5,7 +5,8 @@ import CreateAgentPage, { ModelIcon, MODELS } from './CreateAgentModal'
 import BuildWithAIModal from './BuildWithAIModal'
 import { ToolGlyph } from './AddToolPanel'
 import { LinkSourceFlow } from './LinkSourceFlow'
-import GraphStage from './GraphStage'
+import GraphStage, { SIDEBAR_NODES, ListGlyph } from './GraphStage'
+import RecordsPage from './RecordsPage'
 import SkillLibrary from './SkillLibrary'
 import { AGENT_LIBRARY, AGENT_GROUP_ORDER } from '../data/agentLibrary'
 
@@ -158,10 +159,14 @@ export default function GraphCanvas({ title = 'New graph', onBack, onAgentAI }) 
       {/* Body */}
       {tab === 'Graph' ? (
         <GraphStage />
+      ) : tab === 'Nodes' ? (
+        <NodesList onAddNode={() => setTab('Graph')} onOpen={() => setTab('Graph')} />
       ) : tab === 'Sources' ? (
         <SourcesList onConnect={() => setSourceFlow(true)} />
       ) : tab === 'Agents' && agents.length > 0 ? (
         <AgentsList agents={agents} onAction={onAgentAction} onRemove={i => setAgents(a => a.filter((_, j) => j !== i))} />
+      ) : tab === 'Records' ? (
+        <RecordsPage />
       ) : (
         <EmptyState meta={EMPTY[tab]} actions={tab === 'Agents' ? AGENT_MENU : undefined} onAction={onAgentAction} />
       )}
@@ -305,6 +310,95 @@ const SOURCES = [
   { name: 'Notion', slug: 'notion', conn: 'team-workspace', status: 'Connected', freq: 'Hourly', lastSync: '40 min ago', owner: 'Olivia Bennett', modified: '1 week ago' },
   { name: 'Slack', slug: 'slack', conn: 'acme-slack', status: 'Connected', freq: 'Real-time', lastSync: 'Just now', owner: 'James Carter', modified: '2 weeks ago' },
 ]
+
+/* ── Nodes table ───────────────────────────────────────── */
+const NODE_COLS = [
+  { key: 'name', label: 'Node Type', w: '20%' },
+  { key: 'cat', label: 'Category', w: '13%' },
+  { key: 'records', label: 'Records', w: '12%' },
+  { key: 'props', label: 'Properties', w: '11%' },
+  { key: 'edges', label: 'Edges', w: '10%' },
+  { key: 'fill', label: 'Fill Rate', w: '13%' },
+  { key: 'pii', label: 'PII Fields', w: '11%' },
+]
+const CAT_TAG = {
+  core:    { label: 'Core',    color: '#2f6f43', bg: '#eef4ee', border: '#d6e6d8' },
+  support: { label: 'Support', color: '#8a7340', bg: '#faf5ea', border: '#e7dcc1' },
+  derived: { label: 'Derived', color: '#6b5aa6', bg: '#f2effa', border: '#ddd5ef' },
+  source:  { label: 'Source',  color: '#3a6ea0', bg: '#eef3f9', border: '#d3e0ee' },
+}
+const fillColor = (v) => v >= 92 ? '#2f9e5a' : v >= 80 ? '#a98c54' : '#c0492f'
+
+function NodesList({ onAddNode, onOpen }) {
+  const NODES = SIDEBAR_NODES
+  return (
+    <div style={{ flex: 1, overflowY: 'auto', backgroundColor: '#fcfbf7', padding: '12px 26px 40px' }} className="dark-scroll">
+      <div style={{ display: 'flex', alignItems: 'center', marginBottom: 12 }}>
+        <div style={{ flex: 1, display: 'flex', alignItems: 'baseline', gap: 9 }}>
+          <span style={{ fontFamily: 'var(--serif)', fontSize: 23, fontWeight: 500, color: '#1a1a1a', letterSpacing: -0.2 }}>Nodes</span>
+          <span style={{ fontFamily: 'var(--sans)', fontSize: 14, color: '#a89e88' }}>{NODES.length}</span>
+        </div>
+        <button onClick={() => onAddNode?.()} style={{ ...gBtnGhost, height: 32, padding: '0 13px', display: 'inline-flex', alignItems: 'center', gap: 7 }}
+          onMouseOver={e => e.currentTarget.style.background = '#faf8f3'} onMouseOut={e => e.currentTarget.style.background = '#fff'}>
+          <svg width="13" height="13" viewBox="0 0 13 13" fill="none"><path d="M6.5 1.5v10M1.5 6.5h10" stroke="#3a3a36" strokeWidth="1.6" strokeLinecap="round" /></svg>
+          New Node
+        </button>
+      </div>
+
+      <div style={{ border: '1px solid #ececea', borderRadius: 12, overflow: 'hidden' }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed' }}>
+          <thead>
+            <tr style={{ background: '#F7F5F3' }}>
+              {NODE_COLS.map(c => (
+                <th key={c.key} style={{ width: c.w, textAlign: 'left', padding: '10px 18px', fontSize: 11, fontWeight: 600, letterSpacing: 0.5, textTransform: 'uppercase', color: '#9a948a', borderBottom: '1px solid #eaecea', whiteSpace: 'nowrap' }}>{c.label}</th>
+              ))}
+              <th style={{ width: 48, borderBottom: '1px solid #eaecea' }} />
+            </tr>
+          </thead>
+          <tbody>
+            {NODES.map((n, i) => {
+              const last = i === NODES.length - 1
+              const cell = { padding: '12px 18px', verticalAlign: 'middle', overflow: 'hidden', borderBottom: last ? 'none' : '1px solid #f1f2f1' }
+              const cat = CAT_TAG[n.cat] || CAT_TAG.core
+              return (
+                <tr key={n.id} onClick={() => onOpen?.(n.id)} style={{ background: '#fff', cursor: 'pointer', transition: 'background .12s, box-shadow .12s' }}
+                  onMouseOver={e => { e.currentTarget.style.background = '#f7f6f3'; e.currentTarget.style.boxShadow = 'inset 3px 0 0 #16341f' }}
+                  onMouseOut={e => { e.currentTarget.style.background = '#fff'; e.currentTarget.style.boxShadow = 'none' }}>
+                  <td style={cell}>
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 10, whiteSpace: 'nowrap' }}>
+                      <span style={{ width: 28, height: 28, borderRadius: 7, background: '#fff', border: '1px solid #eee7da', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}><ListGlyph node={n} size={16} /></span>
+                      <span style={{ fontSize: 13.5, fontWeight: 500, color: '#1a1a1a' }}>{n.label}</span>
+                    </span>
+                  </td>
+                  <td style={cell}>
+                    <span style={{ fontFamily: 'var(--mono)', fontSize: 11.5, color: cat.color, border: `1px solid ${cat.border}`, background: cat.bg, padding: '2px 8px', borderRadius: 6 }}>{cat.label}</span>
+                  </td>
+                  <td style={{ ...cell, fontSize: 13.5, fontWeight: 600, color: '#1a1a1a' }}>{n.instancesN ? n.instancesN.toLocaleString() : '—'}</td>
+                  <td style={{ ...cell, fontSize: 13, color: '#374151' }}>{n.props}</td>
+                  <td style={{ ...cell, fontSize: 13, color: '#374151' }}>{n.edges}</td>
+                  <td style={cell}>
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8, whiteSpace: 'nowrap' }}>
+                      <span style={{ width: 54, height: 5, borderRadius: 3, background: '#ecebe6', overflow: 'hidden', flexShrink: 0 }}>
+                        <span style={{ display: 'block', height: '100%', width: `${n.fill}%`, background: fillColor(n.fill) }} />
+                      </span>
+                      <span style={{ fontFamily: 'var(--mono)', fontSize: 12, fontWeight: 600, color: fillColor(n.fill) }}>{n.fill}%</span>
+                    </span>
+                  </td>
+                  <td style={{ ...cell, fontSize: 13, color: n.pii > 0 ? '#c0492f' : '#9097a0', fontWeight: n.pii > 0 ? 600 : 400 }}>{n.pii}</td>
+                  <td style={{ ...cell, textAlign: 'center' }}>
+                    <button onClick={e => e.stopPropagation()} style={{ border: 'none', background: 'none', cursor: 'pointer', padding: 4 }}>
+                      <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="3.5" r="1.2" fill="#b8bcb8" /><circle cx="8" cy="8" r="1.2" fill="#b8bcb8" /><circle cx="8" cy="12.5" r="1.2" fill="#b8bcb8" /></svg>
+                    </button>
+                  </td>
+                </tr>
+              )
+            })}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  )
+}
 
 function SourcesList({ onConnect }) {
   return (

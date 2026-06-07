@@ -244,61 +244,44 @@ function RecordsView({ onOpenRecord }) {
   const columns    = [pkProp, ...displayProps]
   const gridCols   = `1.4fr ${displayProps.map(()=>'1.1fr').join(' ')} 110px 90px`
 
-  const PLATE = { background:'#FEFDFB', borderRadius:14, overflow:'hidden', display:'flex', flexDirection:'column', flex:1, minWidth:0 }
+  const thStyle = { textAlign:'left', padding:'10px 18px', fontSize:11, fontWeight:600, letterSpacing:0.5, textTransform:'uppercase', color:'#9a948a', borderBottom:'1px solid #eaecea', whiteSpace:'nowrap' }
+  const cell    = (last) => ({ padding:'12px 18px', verticalAlign:'middle', overflow:'hidden', borderBottom: last ? 'none' : '1px solid #f1f2f1' })
 
   return (
-    <div style={PLATE}>
+    <div style={{ flex:1, overflowY:'auto', backgroundColor:'#fcfbf7', padding:'12px 26px 40px' }} className="dark-scroll">
       {/* ── Header ── */}
-      <div style={{ padding:'18px 26px 0', flexShrink:0 }}>
-        <div style={{ display:'flex', alignItems:'center', marginBottom:18 }}>
-          <h1 style={{ fontFamily:'var(--serif)', fontSize:27, fontWeight:500, color:'#1a1a1a', letterSpacing:-0.3, flex:1 }}>
-            Records
-          </h1>
-          <div style={{ display:'flex', gap:34, marginRight:22 }}>
-            {[['NODES', String(entityNodes.length)], ['RECORDS', filteredRecords.length.toLocaleString()], ['PROPS', String(props.length)]].map(([l,v]) => (
-              <div key={l} style={{ textAlign:'left' }}>
-                <div style={{ fontFamily:'var(--sans)', fontSize:10.5, color:'#9ca3af', fontWeight:500, letterSpacing:0.8, marginBottom:3, textTransform:'uppercase' }}>{l}</div>
-                <div style={{ fontFamily:'var(--serif)', fontSize:20, fontWeight:600, color:'#111827' }}>{v}</div>
-              </div>
-            ))}
-          </div>
-          <div style={{ display:'flex', gap:8 }}>
-            <GhostBtn>Export CSV</GhostBtn>
-            <DarkBtn>+ Add record</DarkBtn>
-          </div>
+      <div style={{ display:'flex', alignItems:'center', marginBottom:12 }}>
+        <div style={{ flex:1, display:'flex', alignItems:'baseline', gap:9 }}>
+          <span style={{ fontFamily:'var(--serif)', fontSize:23, fontWeight:500, color:'#1a1a1a', letterSpacing:-0.2 }}>Records</span>
+          <span style={{ fontFamily:'var(--sans)', fontSize:14, color:'#a89e88' }}>{filteredRecords.length}</span>
         </div>
-
-        {/* ── Toolbar ── */}
-        <div style={{ display:'flex', alignItems:'center', gap:12, paddingBottom:14 }}>
+        <div style={{ display:'flex', alignItems:'center', gap:10 }}>
           {/* Node type dropdown */}
           <div style={{ position:'relative' }}>
             <button
               onClick={() => setDropOpen(o => !o)}
-              style={{ display:'flex', alignItems:'center', gap:10, padding:'8px 14px', border:`1px solid ${C.line}`, borderRadius:8, background: dropOpen ? C.canvas : '#fff', cursor:'pointer', fontFamily:'var(--sans)', fontSize:13, color:C.ink, minWidth:240 }}>
-              <NodeGlyph n={selectedNodeObj} size={16} />
-              <span style={{ fontWeight:500 }}>{selectedNodeObj.label}</span>
-              <span style={{ fontFamily:'var(--mono)', fontSize:10.5, color:C.ink3, marginLeft:4 }}>{records.length} records</span>
-              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" style={{ marginLeft:'auto', transition:'transform 120ms', transform: dropOpen ? 'rotate(180deg)' : 'none' }}>
+              style={{ display:'flex', alignItems:'center', gap:10, padding:'7px 14px', border:'1px solid #e3e6e3', borderRadius:8, background: dropOpen ? '#f1f3f1' : '#fff', cursor:'pointer', fontFamily:'var(--sans)', fontSize:15, fontWeight:600, color:'#1a1a1a', minWidth:200 }}>
+              <NodeGlyph n={selectedNodeObj} size={18} />
+              <span style={{ fontWeight:600 }}>{selectedNodeObj.label}</span>
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" style={{ marginLeft:4, transition:'transform 120ms', transform: dropOpen ? 'rotate(180deg)' : 'none' }}>
                 <path d="M6 9l6 6 6-6" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/>
               </svg>
             </button>
             {dropOpen && (
               <>
                 <div style={{ position:'fixed', top:0, left:0, right:0, bottom:0, zIndex:99 }} onClick={() => setDropOpen(false)} />
-                <div style={{ position:'absolute', top:'calc(100% + 6px)', left:0, zIndex:100, background:'#fff', border:`1px solid ${C.line}`, borderRadius:10, boxShadow:'0 8px 28px rgba(0,0,0,0.12)', padding:6, minWidth:280, maxHeight:420, overflowY:'auto' }}>
-                  <div style={{ fontFamily:'var(--mono)', fontSize:9.5, letterSpacing:'0.7px', color:C.ink4, textTransform:'uppercase', padding:'8px 10px 6px' }}>Select node type</div>
+                <div style={{ position:'absolute', top:'calc(100% + 6px)', left:0, zIndex:100, background:'#fff', border:'1px solid #e3e6e3', borderRadius:10, boxShadow:'0 8px 28px rgba(0,0,0,0.12)', padding:6, minWidth:240, maxHeight:380, overflowY:'auto' }}>
                   {entityNodes.map(n => {
                     const isOn = nodeFilter === n.id
                     return (
                       <button key={n.id}
                         onClick={() => { setNodeFilter(n.id); setDropOpen(false); setSearch('') }}
-                        style={{ display:'flex', alignItems:'center', gap:10, width:'100%', padding:'8px 10px', borderRadius:6, border:'none', background: isOn ? C.canvas : 'transparent', cursor:'pointer', fontFamily:'var(--sans)', fontSize:13, color:C.ink, textAlign:'left' }}
-                        onMouseEnter={e => { if (!isOn) e.currentTarget.style.background=C.canvas }}
+                        style={{ display:'flex', alignItems:'center', gap:9, width:'100%', padding:'7px 10px', borderRadius:6, border:'none', background: isOn ? '#f1f3f1' : 'transparent', cursor:'pointer', fontFamily:'var(--sans)', fontSize:13, color:'#1a1a1a', textAlign:'left' }}
+                        onMouseEnter={e => { if (!isOn) e.currentTarget.style.background='#f7f6f3' }}
                         onMouseLeave={e => { if (!isOn) e.currentTarget.style.background='transparent' }}>
-                        <NodeGlyph n={n} size={14} />
+                        <NodeGlyph n={n} size={13} />
                         <span style={{ fontWeight: isOn?600:400, flex:1 }}>{n.label}</span>
-                        <span style={{ fontFamily:'var(--mono)', fontSize:10.5, color:C.ink3 }}>12</span>
-                        {isOn && <span style={{ fontFamily:'var(--mono)', color:C.ink, fontSize:11, marginLeft:4 }}>✓</span>}
+                        {isOn && <span style={{ color:'#16341f', fontSize:12 }}>✓</span>}
                       </button>
                     )
                   })}
@@ -306,9 +289,8 @@ function RecordsView({ onOpenRecord }) {
               </>
             )}
           </div>
-
           {/* Search */}
-          <div style={{ position:'relative', flex:'0 0 280px' }}>
+          <div style={{ position:'relative' }}>
             <svg width="13" height="13" viewBox="0 0 14 14" fill="none" style={{ position:'absolute', left:10, top:'50%', transform:'translateY(-50%)', pointerEvents:'none' }}>
               <circle cx="6" cy="6" r="4" stroke="#9ca3af" strokeWidth="1.4"/><path d="M10 10l3 3" stroke="#9ca3af" strokeWidth="1.4" strokeLinecap="round"/>
             </svg>
@@ -316,60 +298,67 @@ function RecordsView({ onOpenRecord }) {
               value={search}
               onChange={e => setSearch(e.target.value)}
               placeholder={`Search ${selectedNodeObj.label.toLowerCase()} records…`}
-              style={{ width:'100%', padding:'7px 10px 7px 30px', border:`1px solid ${C.line}`, borderRadius:8, fontFamily:'var(--sans)', fontSize:12.5, color:C.ink, background:'#fff', outline:'none', transition:'border-color .15s' }}
-              onFocus={e => e.target.style.borderColor=C.ink3}
-              onBlur={e => e.target.style.borderColor=C.line}
+              style={{ width:240, padding:'7px 10px 7px 30px', border:'1px solid #e3e6e3', borderRadius:8, fontFamily:'var(--sans)', fontSize:13, color:'#1a1a1a', background:'#fff', outline:'none' }}
+              onFocus={e => e.target.style.borderColor='#9097a0'}
+              onBlur={e => e.target.style.borderColor='#e3e6e3'}
             />
-          </div>
-
-          <div style={{ marginLeft:'auto', fontFamily:'var(--mono)', fontSize:11, color:C.ink3 }}>
-            {filteredRecords.length}{search ? ` of ${records.length}` : ''} records · {props.length} properties
           </div>
         </div>
       </div>
 
       {/* ── Table ── */}
-      <div style={{ flex:1, overflowY:'auto', padding:'0 18px 18px' }}>
-        <div style={{ background:'#fff', border:`1px solid ${C.line}`, borderRadius:12, overflow:'hidden' }}>
-          {/* Header */}
-          <div style={{ display:'grid', gridTemplateColumns:gridCols, gap:12, padding:'10px 18px', background:C.canvas, borderBottom:`1px solid ${C.line}`, fontFamily:'var(--mono)', fontSize:9.5, color:C.ink3, letterSpacing:'0.6px', textTransform:'uppercase', alignItems:'center' }}>
-            {columns.map(p => (
-              <div key={p.name} style={{ display:'flex', alignItems:'center', gap:5, overflow:'hidden' }}>
-                {p.pk  && <span style={{ fontFamily:'var(--mono)', fontSize:8.5, padding:'1px 4px', borderRadius:3, background:C.ink, color:'#fff', fontWeight:700, letterSpacing:0 }}>PK</span>}
-                {p.pii && <span style={{ fontFamily:'var(--mono)', fontSize:8.5, padding:'1px 4px', borderRadius:3, background:C.coralFill, color:C.coral, fontWeight:700, letterSpacing:0 }}>PII</span>}
-                <span style={{ overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{p.name}</span>
-                <span style={{ fontFamily:'var(--mono)', fontSize:8.5, color:C.ink4, textTransform:'none', letterSpacing:0 }}>{p.type}</span>
-              </div>
-            ))}
-            <div>Updated</div>
-            <div>Status</div>
+      <div style={{ border:'1px solid #ececea', borderRadius:12, overflow:'hidden' }}>
+        <table style={{ width:'100%', borderCollapse:'collapse', tableLayout:'fixed' }}>
+          <thead>
+            <tr style={{ background:'#F7F5F3' }}>
+              {columns.map(p => (
+                <th key={p.name} style={thStyle}>
+                  <span style={{ display:'inline-flex', alignItems:'center', gap:5 }}>
+                    {p.pk  && <span style={{ fontFamily:'var(--mono)', fontSize:8.5, padding:'1px 4px', borderRadius:3, background:'#1a1a1a', color:'#fff', fontWeight:700, letterSpacing:0 }}>PK</span>}
+                    {p.pii && <span style={{ fontFamily:'var(--mono)', fontSize:8.5, padding:'1px 4px', borderRadius:3, background:'#fbe6e6', color:'#c84040', fontWeight:700, letterSpacing:0 }}>PII</span>}
+                    <span>{p.name}</span>
+                    <span style={{ fontFamily:'var(--mono)', fontSize:9, color:'#b8bcb8', fontWeight:400, letterSpacing:0, textTransform:'none' }}>{p.type}</span>
+                  </span>
+                </th>
+              ))}
+              <th style={thStyle}>Updated</th>
+              <th style={thStyle}>Status</th>
+              <th style={{ width:48, borderBottom:'1px solid #eaecea' }} />
+            </tr>
+          </thead>
+          <tbody>
+            {filteredRecords.map((r,i) => {
+              const last = i === filteredRecords.length - 1
+              return (
+                <tr key={r.id}
+                  onClick={() => onOpenRecord(r, selectedNodeObj)}
+                  style={{ background:'#fff', cursor:'pointer', transition:'background .12s, box-shadow .12s' }}
+                  onMouseOver={e => { e.currentTarget.style.background='#f7f6f3'; e.currentTarget.style.boxShadow='inset 3px 0 0 #16341f' }}
+                  onMouseOut={e => { e.currentTarget.style.background='#fff'; e.currentTarget.style.boxShadow='none' }}>
+                  {columns.map((p,ci) => {
+                    const val = r[p.name]
+                    const displayVal = val == null ? '—' : String(val)
+                    return (
+                      <td key={p.name} style={{ ...cell(last), fontFamily: ci===0 ? 'var(--mono)' : 'var(--sans)', fontSize: ci===0 ? 13 : 13, color: ci===0 ? '#3b6fd4' : '#374151', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>{displayVal}</td>
+                    )
+                  })}
+                  <td style={{ ...cell(last), fontSize:13, color:'#9097a0', whiteSpace:'nowrap' }}>{r._updatedAgo}</td>
+                  <td style={cell(last)}><StatusPill status={r.status} /></td>
+                  <td style={{ ...cell(last), textAlign:'center' }}>
+                    <button style={{ border:'none', background:'none', cursor:'pointer', padding:4 }}>
+                      <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="3.5" r="1.2" fill="#b8bcb8"/><circle cx="8" cy="8" r="1.2" fill="#b8bcb8"/><circle cx="8" cy="12.5" r="1.2" fill="#b8bcb8"/></svg>
+                    </button>
+                  </td>
+                </tr>
+              )
+            })}
+          </tbody>
+        </table>
+        {filteredRecords.length === 0 && (
+          <div style={{ padding:'40px 18px', textAlign:'center', color:'#9097a0', fontSize:13, fontFamily:'var(--sans)' }}>
+            No {selectedNodeObj.label.toLowerCase()} records match <b>{search}</b>.
           </div>
-
-          {/* Rows */}
-          {filteredRecords.map((r,i) => (
-            <div key={r.id}
-              onClick={() => onOpenRecord(r, selectedNodeObj)}
-              style={{ display:'grid', gridTemplateColumns:gridCols, gap:12, padding:'12px 18px', borderBottom: i < filteredRecords.length-1 ? `1px solid ${C.line2}` : 'none', cursor:'pointer', alignItems:'center', transition:'background 80ms' }}
-              onMouseEnter={e => e.currentTarget.style.background=C.canvas}
-              onMouseLeave={e => e.currentTarget.style.background='transparent'}>
-              {columns.map((p,ci) => {
-                const val = r[p.name]
-                const displayVal = val == null ? '—' : String(val)
-                return (
-                  <div key={p.name} style={{ fontFamily:'var(--mono)', fontSize:ci===0?11.5:11, color:ci===0?C.blue:C.ink2, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{displayVal}</div>
-                )
-              })}
-              <div style={{ fontFamily:'var(--mono)', fontSize:10.5, color:C.ink4 }}>{r._updatedAgo}</div>
-              <div><StatusPill status={r.status} /></div>
-            </div>
-          ))}
-
-          {filteredRecords.length === 0 && (
-            <div style={{ padding:'40px 18px', textAlign:'center', color:C.ink3, fontSize:13, fontFamily:'var(--sans)' }}>
-              No {selectedNodeObj.label.toLowerCase()} records match <b>{search}</b>.
-            </div>
-          )}
-        </div>
+        )}
       </div>
     </div>
   )
@@ -377,413 +366,116 @@ function RecordsView({ onOpenRecord }) {
 
 // ── RecordDetailView ─────────────────────────────────────────────────────────
 function RecordDetailView({ record, node, onBack, onNavigate }) {
-  const [tab, setTab]               = useState('Overview')
-  const [twoHop, setTwoHop]         = useState(false)
-  const [hoverNode, setHoverNode]   = useState(null)
-  const [inspected, setInspected]   = useState(null) // a related record rr object | null = centre
-  const [graphPan, setGraphPan]     = useState({ x:0, y:0 })
-  const graphDrag = useRef(null)
-
   const props   = generateProps(node)
-  const col     = colorForNode(node)
-  const tabs    = ['Overview','Graph','Provenance','Activity']
   const related = generateRelatedRecords(record, node)
   const totalRelated = related.reduce((s,r) => s + r.count, 0)
 
-  // Provenance per prop
   const provenance = props.map((p,i) => {
     const s = node.id.charCodeAt(0)*7 + i*17 + record.id.length*3
-    const conf = parseFloat((0.70+(Math.abs(s)%28)/100).toFixed(2))
-    const sources = ['Salesforce CRM','NetSuite ERP','HubSpot Marketing','Manual / Admin','Snowflake Warehouse']
-    const src = p.computed ? 'computed' : sources[Math.abs(s)%4]
-    const ages = ['2m','18m','1h','4h','12h','1d','3d']
-    const hasConflict = !p.computed && !p.pk && (Math.abs(s)%7 === 0)
-    return {
-      prop: p,
-      value: record[p.name] ?? generateValueForProp(p,s),
-      source: src, conf, age: ages[Math.abs(s)%7],
-      conflict: hasConflict ? { loser: sources[(Math.abs(s)+1)%4], loserValue: generateValueForProp(p,s+1000), resolution: 'source_priority strategy' } : null
-    }
+    return { prop: p, value: record[p.name] ?? generateValueForProp(p,s) }
   })
-
-  // Group by source for source contributions card
-  const grouped = {}
-  provenance.forEach(pv => { if (!grouped[pv.source]) grouped[pv.source]=[]; grouped[pv.source].push(pv) })
-
-  // Activity
-  const activity = [
-    { when:'2m ago',  who:'Salesforce CRM',   action:'updated',   what:'name, owner_id',            kind:'sync'     },
-    { when:'1h ago',  who:'agent:enrich_v3',  action:'computed',  what:'tier, risk_score',           kind:'agent'    },
-    { when:'4h ago',  who:'HubSpot Marketing',action:'merged',    what:'industry, region',           kind:'merge'    },
-    { when:'1d ago',  who:'morgan.lee',        action:'edited',    what:'billing_address (override)', kind:'manual'   },
-    { when:'3d ago',  who:'schema-bot',        action:'validated', what:'all 18 properties · 0 fails',kind:'validate' },
-    { when:'12d ago', who:'Salesforce CRM',   action:'created',   what:'initial record',             kind:'create'   },
-  ]
 
   function navigateTo(recId, nodeId) {
     if (!onNavigate) return
-    const targetNode   = NODES.find(n => n.id === nodeId)
+    const targetNode = NODES.find(n => n.id === nodeId)
     if (!targetNode) return
-    const targetRecord = buildRecordFromId(recId, targetNode)
-    onNavigate(targetRecord, targetNode)
+    onNavigate(buildRecordFromId(recId, targetNode), targetNode)
   }
 
-  function buildSecondHop(parentNodeObj, parentSeed) {
-    const childEdges = [...EDGES.filter(e=>e.s===parentNodeObj.id).slice(0,2), ...EDGES.filter(e=>e.t===parentNodeObj.id).slice(0,1)]
-    return childEdges.slice(0,2).map((e,ci) => {
-      const isOut = e.s === parentNodeObj.id
-      const grandId = isOut ? e.t : e.s
-      const grand = NODES.find(n => n.id === grandId)
-      if (!grand || grand.id === node.id) return null
-      const seed = parentSeed + ci*41 + 17
-      const gp = generateProps(grand)
-      const nameProp = gp.find(p => ['name','title','company_name'].includes(p.name)) || gp[1] || gp[0]
-      return { id: grand.id+'-'+(100000+Math.abs(seed*1597)%899999), label:grand.label, nodeId:grand.id, keyName:nameProp?.name||'id', keyValue:nameProp?generateValueForProp(nameProp,seed):'—', edgeLabel:e.label, kind:e.kind, isOut }
-    }).filter(Boolean)
-  }
-
-  const CARD = { background:'#fff', border:`1px solid ${C.line}`, borderRadius:12, overflow:'hidden' }
-  const CARD_HEAD = { display:'flex', alignItems:'center', justifyContent:'space-between', padding:'13px 18px', borderBottom:`1px solid ${C.line}`, fontFamily:'var(--sans)', fontSize:13.5, fontWeight:500, color:C.ink, background:C.canvas }
+  const CARD     = { background:'#fff', border:'1px solid #ececea', borderRadius:12, overflow:'hidden' }
+  const CARD_HEAD = { display:'flex', alignItems:'center', justifyContent:'space-between', padding:'13px 18px', borderBottom:'1px solid #eaecea', fontFamily:'var(--sans)', fontSize:13, fontWeight:600, color:'#1a1a1a', background:'#F7F5F3', letterSpacing:0.1 }
 
   return (
-    <div style={{ background:'#FEFDFB', borderRadius:14, overflow:'hidden', display:'flex', flexDirection:'column', flex:1, minWidth:0, height:'100%' }}>
-      {/* ── Detail header ── */}
-      <div style={{ padding:'16px 26px 0', flexShrink:0 }}>
-        {/* Breadcrumb */}
-        <div style={{ display:'flex', alignItems:'center', gap:6, marginBottom:14, fontFamily:'var(--sans)', fontSize:12.5, color:C.ink3 }}>
-          <button onClick={onBack} style={{ display:'flex', alignItems:'center', gap:4, background:'none', border:'none', cursor:'pointer', color:C.ink3, padding:0, fontSize:12.5, fontFamily:'var(--sans)' }}
-            onMouseOver={e=>e.currentTarget.style.color=C.ink}
-            onMouseOut={e=>e.currentTarget.style.color=C.ink3}>
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M15 18l-6-6 6-6" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"/></svg>
-            Records
-          </button>
-          <span>/</span>
-          <span style={{ color:C.ink2 }}>{node.label}</span>
-          <span>/</span>
-          <span style={{ fontFamily:'var(--mono)', fontSize:10.5, color:C.ink2 }}>{record.id}</span>
+    <div style={{ flex:1, overflowY:'auto', backgroundColor:'#fcfbf7', padding:'12px 26px 40px' }} className="dark-scroll">
+      {/* ── Header ── */}
+      <div style={{ display:'flex', alignItems:'center', marginBottom:20 }}>
+        <button onClick={onBack}
+          style={{ display:'flex', alignItems:'center', gap:6, background:'none', border:'none', cursor:'pointer', color:'#9097a0', padding:'0 12px 0 0', fontFamily:'var(--sans)', fontSize:13 }}
+          onMouseOver={e=>e.currentTarget.style.color='#1a1a1a'}
+          onMouseOut={e=>e.currentTarget.style.color='#9097a0'}>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M15 18l-6-6 6-6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/></svg>
+          Back
+        </button>
+        <div style={{ flex:1, display:'flex', alignItems:'baseline', gap:10 }}>
+          <span style={{ fontFamily:'var(--serif)', fontSize:23, fontWeight:500, color:'#1a1a1a', letterSpacing:-0.2 }}>{record.id}</span>
+          <StatusPill status={record.status} />
         </div>
-
-        {/* Title row */}
-        <div style={{ display:'flex', alignItems:'flex-start', gap:14, marginBottom:16 }}>
-          <div style={{ flexShrink:0, marginTop:4 }}><NodeGlyph n={node} size={36} /></div>
-          <div style={{ flex:1 }}>
-            <div style={{ fontFamily:'var(--mono)', fontSize:20, fontWeight:600, color:C.ink, marginBottom:6 }}>{record.id}</div>
-            <div style={{ display:'flex', gap:8, alignItems:'center' }}>
-              <span style={{ fontFamily:'var(--mono)', fontSize:10, padding:'3px 8px', borderRadius:4, background:C.canvas, color:C.ink3, letterSpacing:'0.5px' }}>{node.label.toUpperCase()}</span>
-              <StatusPill status={record.status} />
-              <span style={{ fontFamily:'var(--mono)', fontSize:10.5, color:C.ink4 }}>created {record._createdAgo} · updated {record._updatedAgo}</span>
-            </div>
-          </div>
-          <div style={{ display:'flex', gap:8, flexShrink:0 }}>
-            <GhostBtn>Open in source ↗</GhostBtn>
-            <GhostBtn>Copy ID</GhostBtn>
-            <DarkBtn>Edit record</DarkBtn>
-          </div>
-        </div>
-
-        {/* KPI strip */}
-        <div style={{ display:'grid', gridTemplateColumns:'repeat(6,1fr)', gap:1, borderRadius:10, overflow:'hidden', border:`1px solid ${C.line}`, marginBottom:14 }}>
-          {[
-            ['Properties', String(props.length), null],
-            ['Completeness', record._completeness+'%', record._completeness>=90?C.green:C.gold],
-            ['Confidence',   record._confidence+'%',   record._confidence>=90?C.green:C.gold],
-            ['Sources',      String(Object.keys(grouped).length), null],
-            ['Related',      String(totalRelated), null],
-            ['Conflicts',    String(provenance.filter(p=>p.conflict).length), provenance.filter(p=>p.conflict).length?C.gold:null],
-          ].map(([lbl,val,col2]) => (
-            <div key={lbl} style={{ padding:'10px 14px', background:'#fff', textAlign:'center' }}>
-              <div style={{ fontFamily:'var(--sans)', fontSize:10.5, color:C.ink4, letterSpacing:0.5, textTransform:'uppercase', marginBottom:3 }}>{lbl}</div>
-              <div style={{ fontFamily:'var(--serif)', fontSize:22, fontWeight:600, color: col2||C.ink }}>{val}</div>
-            </div>
-          ))}
-        </div>
-
-        {/* Tabs */}
-        <div style={{ display:'flex', gap:0, borderBottom:`1px solid ${C.line}` }}>
-          {tabs.map(t => {
-            const n2 = t==='Overview'?props.length : t==='Graph'?totalRelated : t==='Provenance'?provenance.filter(x=>x.conflict).length||null : activity.length
-            const isOn = tab === t
-            return (
-              <button key={t} onClick={() => setTab(t)}
-                style={{ padding:'10px 18px', border:'none', borderBottom: isOn?`2px solid ${C.ink}`:'2px solid transparent', background:'transparent', cursor:'pointer', fontFamily:'var(--sans)', fontSize:13.5, fontWeight:isOn?600:400, color:isOn?C.ink:C.ink3, display:'flex', alignItems:'center', gap:6, transition:'color .12s' }}>
-                {t}
-                {n2!=null && <span style={{ fontFamily:'var(--mono)', fontSize:10, padding:'1px 6px', borderRadius:10, background:isOn?C.ink:C.canvas, color:isOn?'#fff':C.ink3 }}>{n2}</span>}
-              </button>
-            )
-          })}
+        <div style={{ display:'flex', gap:8 }}>
+          <button style={{ background:'#fff', border:'1px solid #d0d5d0', borderRadius:8, padding:'7px 14px', fontSize:13, color:'#374151', cursor:'pointer', fontFamily:'var(--sans)', boxShadow:'0 1px 2px rgba(0,0,0,0.06)' }}
+            onMouseOver={e=>e.currentTarget.style.background='#f7f6f3'}
+            onMouseOut={e=>e.currentTarget.style.background='#fff'}>Copy ID</button>
+          <DarkBtn>Edit record</DarkBtn>
         </div>
       </div>
 
-      {/* ── Body ── */}
-      <div style={{ flex:1, overflowY:'auto', padding:'18px 26px 26px' }}>
+      {/* ── Two-column body ── */}
+      <div style={{ display:'grid', gridTemplateColumns:'minmax(0,1.6fr) minmax(280px,1fr)', gap:18, alignItems:'start' }}>
 
-        {/* ─ Overview ─ */}
-        {tab === 'Overview' && (
-          <div style={{ display:'grid', gridTemplateColumns:'minmax(0,1.6fr) minmax(280px,1fr)', gap:18 }}>
-            {/* Left — property values */}
-            <div style={{ display:'flex', flexDirection:'column', gap:18 }}>
-              <div style={CARD}>
-                <div style={CARD_HEAD}>
-                  <span>Property values <span style={{ fontWeight:400, color:C.ink3, fontSize:12.5 }}>{props.length} fields · {record._source} system of record</span></span>
-                  <div style={{ display:'flex', gap:6 }}>
-                    <GhostBtn style={{ height:28, fontSize:11.5 }}>Show nulls</GhostBtn>
-                    <GhostBtn style={{ height:28, fontSize:11.5 }}>Export JSON</GhostBtn>
-                  </div>
-                </div>
-                <div>
-                  {provenance.map((pv,i) => {
-                    const p = pv.prop
-                    return (
-                      <div key={p.name} style={{ display:'grid', gridTemplateColumns:'180px 1fr auto auto', alignItems:'center', gap:14, padding:'11px 18px', borderBottom: i<provenance.length-1 ? `1px solid ${C.line2}` : 'none' }}>
-                        <div style={{ display:'flex', alignItems:'center', gap:6, minWidth:0 }}>
-                          {p.pk && <span style={{ fontFamily:'var(--mono)', fontSize:9, padding:'1px 4px', borderRadius:3, background:C.ink, color:'#fff', fontWeight:700 }}>PK</span>}
-                          <code style={{ fontFamily:'var(--mono)', fontSize:12, color:C.ink, fontWeight:p.pk?600:400, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{p.name}</code>
-                        </div>
-                        <div style={{ fontFamily:'var(--mono)', fontSize:12.5, color:C.ink, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{String(pv.value)}</div>
-                        <span style={{ fontFamily:'var(--mono)', fontSize:10, color:C.ink3 }}>{p.type}</span>
-                        <div style={{ display:'flex', gap:3 }}>
-                          {p.pii      && <span style={{ fontFamily:'var(--mono)', fontSize:8.5, padding:'1px 5px', borderRadius:3, background:C.coralFill,  color:C.coral,  fontWeight:700 }}>PII</span>}
-                          {p.required && <span style={{ fontFamily:'var(--mono)', fontSize:8.5, padding:'1px 5px', borderRadius:3, background:C.canvas,      color:C.ink3,   fontWeight:700 }}>REQ</span>}
-                          {p.computed && <span style={{ fontFamily:'var(--mono)', fontSize:8.5, padding:'1px 5px', borderRadius:3, background:C.purpleFill,  color:C.purple, fontWeight:700 }}>FX</span>}
-                          {pv.conflict && <span style={{ fontFamily:'var(--mono)', fontSize:8.5, padding:'1px 5px', borderRadius:3, background:C.goldFill, color:C.gold, fontWeight:700 }}>⚠</span>}
-                        </div>
-                      </div>
-                    )
-                  })}
-                </div>
-              </div>
-            </div>
-
-            {/* Right — connections + sources */}
-            <div style={{ display:'flex', flexDirection:'column', gap:18 }}>
-              <div style={CARD}>
-                <div style={CARD_HEAD}>
-                  <span>Connections <span style={{ fontWeight:400, color:C.ink3, fontSize:12.5 }}>{totalRelated} across {related.length} edge types</span></span>
-                  <GhostBtn style={{ height:28, fontSize:11.5 }} onClick={() => setTab('Graph')}>See in graph →</GhostBtn>
-                </div>
-                <div style={{ maxHeight:520, overflowY:'auto' }}>
-                  {related.map((r,i) => (
-                    <div key={i} style={{ padding:'10px 16px', borderBottom: i<related.length-1 ? `1px solid ${C.line2}` : 'none' }}>
-                      <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:7 }}>
-                        <span style={{ fontFamily:'var(--mono)', fontSize:9.5, color:C.ink3 }}>{r.isOut?'→':'←'}</span>
-                        <code style={{ fontFamily:'var(--mono)', fontSize:11, color:C.ink2, fontWeight:600 }}>:{r.edge.label}</code>
-                        <NodeGlyph n={r.otherNode} size={12} />
-                        <span style={{ fontSize:11.5, color:C.ink2, fontFamily:'var(--sans)' }}>{r.otherNode.label}</span>
-                        <span style={{ fontFamily:'var(--mono)', fontSize:9, padding:'1px 5px', borderRadius:3, background: r.edge.kind==='inferred'?C.goldFill : r.edge.kind==='agent'?C.purpleFill : C.canvas, color: r.edge.kind==='inferred'?C.gold : r.edge.kind==='agent'?C.purple : C.ink3, textTransform:'uppercase', letterSpacing:'0.4px', fontWeight:700 }}>{r.edge.kind}</span>
-                        <span style={{ marginLeft:'auto', fontFamily:'var(--mono)', fontSize:10, color:C.ink4 }}>{r.count}</span>
-                      </div>
-                      <div style={{ display:'flex', flexDirection:'column', gap:2 }}>
-                        {r.related.map((rr,j) => (
-                          <div key={j}
-                            onClick={() => navigateTo(rr.id, rr.nodeId)}
-                            style={{ display:'flex', alignItems:'center', gap:8, padding:'5px 6px', cursor:'pointer', borderRadius:5, transition:'background 80ms' }}
-                            onMouseEnter={e => e.currentTarget.style.background=C.canvas}
-                            onMouseLeave={e => e.currentTarget.style.background='transparent'}>
-                            <code style={{ fontFamily:'var(--mono)', fontSize:10.5, color:C.blue, flexShrink:0 }}>{rr.id}</code>
-                            <span style={{ fontFamily:'var(--mono)', fontSize:10.5, color:C.ink3, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', minWidth:0 }}>{rr.keyValue}</span>
-                            <span style={{ marginLeft:'auto', fontFamily:'var(--mono)', fontSize:9.5, color:C.ink4, flexShrink:0 }}>{rr.since}</span>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              <div style={CARD}>
-                <div style={CARD_HEAD}>Source contributions</div>
-                <div>
-                  {Object.keys(grouped).map((src,i,arr) => {
-                    const fields = grouped[src]
-                    const pct    = Math.round(fields.length / provenance.length * 100)
-                    const avgConf= (fields.reduce((s,f)=>s+f.conf,0)/fields.length).toFixed(2)
-                    return (
-                      <div key={src} style={{ padding:'12px 18px', borderBottom: i<arr.length-1?`1px solid ${C.line2}`:'none' }}>
-                        <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:6 }}>
-                          <span style={{ fontFamily:'var(--mono)', fontSize:11.5, color:C.ink2, fontWeight:600 }}>{src}</span>
-                          <span style={{ fontFamily:'var(--mono)', fontSize:10.5, color:C.ink4 }}>{fields.length} fields · conf {avgConf}</span>
-                        </div>
-                        <div style={{ height:4, background:C.canvas, borderRadius:3, overflow:'hidden' }}>
-                          <div style={{ height:'100%', width:pct+'%', background: src==='computed'?C.purple:C.blue, borderRadius:3 }} />
-                        </div>
-                      </div>
-                    )
-                  })}
-                </div>
-              </div>
-            </div>
+        {/* Left — property values */}
+        <div style={CARD}>
+          <div style={CARD_HEAD}>
+            <span>Properties <span style={{ fontWeight:400, color:'#9a948a', fontSize:12 }}>{props.length} fields</span></span>
           </div>
-        )}
-
-        {/* ─ Graph ─ */}
-        {tab === 'Graph' && (
-          <div style={{ display:'grid', gridTemplateColumns:'minmax(0,2fr) minmax(320px,0.7fr)', gap:18, height:'calc(100vh - 370px)', minHeight:520 }}>
-            <div style={{ ...CARD, padding:0, display:'flex', flexDirection:'column' }}>
-              <div style={CARD_HEAD}>
-                <span>Relationship graph</span>
-                <button onClick={() => setTwoHop(v=>!v)}
-                  style={{ background:'none', border:`1px solid ${C.line}`, borderRadius:7, padding:'4px 12px', cursor:'pointer', fontFamily:'var(--sans)', fontSize:12, color:C.ink2 }}>
-                  {twoHop ? 'Collapse to 1-hop' : 'Expand 2-hop'}
-                </button>
-              </div>
-              <div
-                onMouseDown={e => { if (e.target.tagName==='circle') return; graphDrag.current={startX:e.clientX,startY:e.clientY,origX:graphPan.x,origY:graphPan.y,moved:false}; e.currentTarget.style.cursor='grabbing' }}
-                onMouseMove={e => { const d=graphDrag.current; if(!d)return; const dx=e.clientX-d.startX, dy=e.clientY-d.startY; if(!d.moved&&Math.hypot(dx,dy)>3)d.moved=true; if(d.moved)setGraphPan({x:d.origX+dx,y:d.origY+dy}) }}
-                onMouseUp={e => { graphDrag.current=null; e.currentTarget.style.cursor='grab' }}
-                onMouseLeave={e => { graphDrag.current=null; e.currentTarget.style.cursor='grab' }}
-                onDoubleClick={() => setGraphPan({x:0,y:0})}
-                style={{ flex:1, background:C.canvas, overflow:'hidden', cursor:'grab', position:'relative', userSelect:'none' }}>
-                {(() => {
-                  const W=1100, H=760, cx=W/2, cy=H/2, r1=280, r2=540
-                  const flat = []
-                  related.forEach((r,ri) => r.related.forEach(rr => flat.push({ rr, parentIdx:ri, isOut:r.isOut })))
-                  const nFlat = flat.length || 1
-                  flat.forEach((f,i) => { const a=(i/nFlat)*Math.PI*2-Math.PI/2; f.x=cx+Math.cos(a)*r1; f.y=cy+Math.sin(a)*r1; f.angle=a })
-                  const hops = []
-                  if (twoHop) {
-                    flat.forEach((f,i) => {
-                      const parentNodeObj = NODES.find(n => n.id === f.rr.nodeId)
-                      if (!parentNodeObj) return
-                      const pSeed = f.rr.id.length*31 + i*13
-                      const kids = buildSecondHop(parentNodeObj, pSeed)
-                      kids.forEach((kid,ki) => {
-                        const offset = kids.length>1 ? ((ki-(kids.length-1)/2)/(kids.length-1))*(Math.PI/7) : 0
-                        const ang = f.angle + offset
-                        hops.push({ rr:kid, parent:f, x:cx+Math.cos(ang)*r2, y:cy+Math.sin(ang)*r2 })
-                      })
-                    })
-                  }
-                  return (
-                    <svg width="100%" height="100%" viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="xMidYMid meet" style={{ display:'block' }}>
-                      <defs>
-                        <marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill={C.ink3}/></marker>
-                        <marker id="arr2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill={C.ink4}/></marker>
-                      </defs>
-                      <g transform={`translate(${graphPan.x},${graphPan.y})`}>
-                        {hops.map((h,i) => {
-                          const [px,py]=[h.parent.x,h.parent.y], dx=h.x-px, dy=h.y-py, len=Math.sqrt(dx*dx+dy*dy), ux=dx/len, uy=dy/len
-                          return <g key={'he'+i}><line x1={px+ux*28} y1={py+uy*28} x2={h.x-ux*28} y2={h.y-uy*28} stroke={C.ink4} strokeWidth="0.9" opacity="0.45" markerEnd="url(#arr2)"/><g transform={`translate(${(px+h.x)/2} ${(py+h.y)/2})`}><rect x="-32" y="-7" width="64" height="13" rx="2.5" fill="#fff" stroke={C.line}/><text textAnchor="middle" y="2.5" style={{ fontFamily:'var(--mono)', fontSize:'8px', fill:C.ink3 }}>{':'+h.rr.edgeLabel}</text></g></g>
-                        })}
-                        {flat.map((f,i) => {
-                          const dx=f.x-cx, dy=f.y-cy, len=Math.sqrt(dx*dx+dy*dy), ux=dx/len, uy=dy/len
-                          return <g key={'e'+i}><line x1={cx+ux*40} y1={cy+uy*40} x2={f.x-ux*28} y2={f.y-uy*28} stroke={C.ink3} strokeWidth="1.3" opacity="0.6" strokeDasharray={f.rr.kind==='inferred'?'4,3':'none'} markerEnd="url(#arr)"/><g transform={`translate(${(cx+f.x)/2} ${(cy+f.y)/2})`}><rect x="-44" y="-9" width="88" height="18" rx="3" fill="#fff" stroke={C.line}/><text textAnchor="middle" y="3.5" style={{ fontFamily:'var(--mono)', fontSize:'9.5px', fill:C.ink2 }}>{':'+f.rr.edgeLabel}</text></g></g>
-                        })}
-                        {hops.map((h,i) => {
-                          const nodeObj = NODES.find(n=>n.id===h.rr.nodeId)
-                          const hc = colorForNode(nodeObj)
-                          const isH = hoverNode===h.rr.id, isI = inspected?.id===h.rr.id
-                          return <g key={'hn'+i} opacity={isH||isI?1:0.92} style={{ cursor:'pointer' }} onClick={()=>{ if(graphDrag.current?.moved)return; setInspected(h.rr) }} onMouseEnter={()=>setHoverNode(h.rr.id)} onMouseLeave={()=>setHoverNode(null)}><circle cx={h.x} cy={h.y} r={isI?30:isH?28:26} fill={hc.fill} stroke={isI||isH?C.ink:hc.stroke} strokeWidth={isI?3:isH?2.6:1.8}/><text x={h.x} y={h.y-34} textAnchor="middle" style={{ fontFamily:'var(--mono)', fontSize:'11.5px', fontWeight:600, fill:isH||isI?C.ink:C.ink2, pointerEvents:'none' }}>{h.rr.id}</text><text x={h.x} y={h.y+42} textAnchor="middle" style={{ fontFamily:'var(--mono)', fontSize:'10.5px', fill:C.ink3, pointerEvents:'none' }}>{String(h.rr.keyValue).slice(0,18)}</text></g>
-                        })}
-                        <g style={{ cursor:'pointer' }} onClick={()=>{ if(graphDrag.current?.moved)return; setInspected(null) }}>
-                          <circle cx={cx} cy={cy} r="38" fill={col.fill} stroke={inspected===null?C.ink:col.stroke} strokeWidth={inspected===null?3.6:2.8}/>
-                          <text x={cx} y={cy-50} textAnchor="middle" style={{ fontFamily:'var(--mono)', fontSize:'12px', fontWeight:600, fill:C.ink, pointerEvents:'none' }}>{record.id}</text>
-                          <text x={cx} y={cy+60} textAnchor="middle" style={{ fontFamily:'var(--mono)', fontSize:'11px', fill:C.ink3, pointerEvents:'none' }}>{record[Object.keys(record).find(k=>k==='name'||k==='company_name'||k==='title')] || node.label}</text>
-                        </g>
-                        {flat.map((f,i) => {
-                          const otherCol = colorForNode(NODES.find(n=>n.id===f.rr.nodeId))
-                          const isH = hoverNode===f.rr.id, isI = inspected?.id===f.rr.id
-                          return <g key={'n'+i} style={{ cursor:'pointer' }} onClick={()=>{ if(graphDrag.current?.moved)return; setInspected(f.rr) }} onMouseEnter={()=>setHoverNode(f.rr.id)} onMouseLeave={()=>setHoverNode(null)}><circle cx={f.x} cy={f.y} r={isI?30:isH?28:26} fill={otherCol.fill} stroke={isI||isH?C.ink:otherCol.stroke} strokeWidth={isI?3:isH?2.6:1.8}/><text x={f.x} y={f.y-34} textAnchor="middle" style={{ fontFamily:'var(--mono)', fontSize:'11.5px', fontWeight:600, fill:C.ink, pointerEvents:'none' }}>{f.rr.id}</text><text x={f.x} y={f.y+42} textAnchor="middle" style={{ fontFamily:'var(--mono)', fontSize:'10.5px', fill:C.ink3, pointerEvents:'none' }}>{f.rr.keyName+': '+String(f.rr.keyValue).slice(0,20)}</text></g>
-                        })}
-                      </g>
-                    </svg>
-                  )
-                })()}
-              </div>
-            </div>
-
-            {/* Right — inspector */}
-            <div style={{ ...CARD, display:'flex', flexDirection:'column', overflowY:'auto' }}>
-              <div style={CARD_HEAD}>{inspected ? inspected.label+' '+inspected.id : 'Current record'}</div>
-              {inspected ? (
-                <div style={{ flex:1, overflowY:'auto' }}>
-                  {(() => {
-                    const iNode = NODES.find(n=>n.id===inspected.nodeId)
-                    const iRec  = buildRecordFromId(inspected.id, iNode)
-                    const iProps = generateProps(iNode)
-                    return iProps.slice(0,8).map((p,i) => (
-                      <div key={p.name} style={{ display:'grid', gridTemplateColumns:'140px 1fr', alignItems:'center', gap:10, padding:'10px 16px', borderBottom: i<7?`1px solid ${C.line2}`:'none' }}>
-                        <code style={{ fontFamily:'var(--mono)', fontSize:11, color:C.ink3, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{p.name}</code>
-                        <div style={{ fontFamily:'var(--mono)', fontSize:11.5, color:C.ink, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{String(iRec[p.name]??generateValueForProp(p,iRec.id?.length??42))}</div>
-                      </div>
-                    ))
-                  })()}
-                  <div style={{ padding:'12px 16px' }}>
-                    <button onClick={() => navigateTo(inspected.id, inspected.nodeId)}
-                      style={{ width:'100%', background:C.canvas, border:`1px solid ${C.line}`, borderRadius:8, padding:'8px 12px', cursor:'pointer', fontFamily:'var(--sans)', fontSize:12.5, color:C.ink2 }}
-                      onMouseOver={e=>e.currentTarget.style.background=C.line2}
-                      onMouseOut={e=>e.currentTarget.style.background=C.canvas}>
-                      Open full record →
-                    </button>
-                  </div>
-                </div>
-              ) : (
-                <div style={{ padding:'16px', display:'flex', flexDirection:'column', gap:8 }}>
-                  {[['Status', record.status], ['Completeness', record._completeness+'%'], ['Confidence', record._confidence+'%'], ['Source', record._source], ['Created', record._createdAgo], ['Updated', record._updatedAgo]].map(([k,v]) => (
-                    <div key={k} style={{ display:'flex', justifyContent:'space-between', padding:'6px 0', borderBottom:`1px solid ${C.line2}` }}>
-                      <span style={{ fontFamily:'var(--sans)', fontSize:12.5, color:C.ink3 }}>{k}</span>
-                      <span style={{ fontFamily:'var(--mono)', fontSize:12, color:C.ink2 }}>{v}</span>
-                    </div>
-                  ))}
-                  <div style={{ marginTop:8 }}>
-                    <div style={{ fontFamily:'var(--sans)', fontSize:12, color:C.ink3, marginBottom:8 }}>Click any node to inspect it</div>
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-        )}
-
-        {/* ─ Provenance ─ */}
-        {tab === 'Provenance' && (
-          <div style={CARD}>
-            <div style={CARD_HEAD}>
-              <span>Field provenance <span style={{ fontWeight:400, color:C.ink3, fontSize:12.5 }}>{props.length} fields traced</span></span>
-            </div>
-            <div>
-              {provenance.map((pv,i) => (
-                <div key={pv.prop.name} style={{ display:'grid', gridTemplateColumns:'180px 1fr 120px 90px 80px', alignItems:'center', gap:14, padding:'12px 18px', borderBottom: i<provenance.length-1?`1px solid ${C.line2}`:'none' }}>
-                  <code style={{ fontFamily:'var(--mono)', fontSize:12, color:C.ink, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', fontWeight:pv.prop.pk?600:400 }}>
-                    {pv.prop.pk && <span style={{ fontFamily:'var(--mono)', fontSize:8.5, padding:'1px 4px', borderRadius:3, background:C.ink, color:'#fff', fontWeight:700, marginRight:5 }}>PK</span>}
-                    {pv.prop.name}
-                  </code>
-                  <div style={{ fontFamily:'var(--mono)', fontSize:12, color: pv.conflict ? C.gold : C.ink2, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
-                    {String(pv.value)}
-                    {pv.conflict && <span style={{ marginLeft:8, fontFamily:'var(--mono)', fontSize:9, padding:'1px 5px', borderRadius:3, background:C.goldFill, color:C.gold }}>conflict</span>}
-                  </div>
-                  <span style={{ fontFamily:'var(--mono)', fontSize:10.5, color:C.ink3, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{pv.source}</span>
-                  <span style={{ fontFamily:'var(--mono)', fontSize:10.5, color:C.ink3 }}>{pv.age} ago</span>
-                  <span style={{ fontFamily:'var(--mono)', fontSize:10.5, color: pv.conf>=0.9?C.green:pv.conf>=0.75?C.gold:C.coral }}>{(pv.conf*100).toFixed(0)}%</span>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* ─ Activity ─ */}
-        {tab === 'Activity' && (
-          <div style={CARD}>
-            <div style={CARD_HEAD}>Activity log <span style={{ fontWeight:400, color:C.ink3, fontSize:12.5 }}>{activity.length} events</span></div>
-            <div>
-              {activity.map((a,i) => {
-                const kindCol = { sync:C.blue, agent:C.purple, merge:C.gold, manual:C.ink3, validate:C.green, create:C.green }[a.kind] || C.ink3
-                const kindFill = { sync:C.blueFill, agent:C.purpleFill, merge:C.goldFill, manual:C.canvas, validate:C.greenFill, create:C.greenFill }[a.kind] || C.canvas
+          <table style={{ width:'100%', borderCollapse:'collapse' }}>
+            <tbody>
+              {provenance.map((pv,i) => {
+                const p = pv.prop
+                const last = i === provenance.length - 1
                 return (
-                  <div key={i} style={{ display:'grid', gridTemplateColumns:'90px 1fr 100px', alignItems:'start', gap:14, padding:'13px 18px', borderBottom: i<activity.length-1?`1px solid ${C.line2}`:'none' }}>
-                    <span style={{ fontFamily:'var(--mono)', fontSize:10.5, color:C.ink4, paddingTop:2 }}>{a.when}</span>
-                    <div>
-                      <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:3 }}>
-                        <span style={{ fontFamily:'var(--mono)', fontSize:11.5, color:C.ink2, fontWeight:600 }}>{a.who}</span>
-                        <span style={{ fontFamily:'var(--sans)', fontSize:12, color:C.ink3 }}>{a.action}</span>
+                  <tr key={p.name} style={{ borderBottom: last ? 'none' : '1px solid #f1f2f1' }}>
+                    <td style={{ padding:'11px 18px', width:180, verticalAlign:'middle' }}>
+                      <div style={{ display:'flex', alignItems:'center', gap:5 }}>
+                        {p.pk && <span style={{ fontFamily:'var(--mono)', fontSize:8.5, padding:'1px 4px', borderRadius:3, background:'#1a1a1a', color:'#fff', fontWeight:700 }}>PK</span>}
+                        <code style={{ fontFamily:'var(--mono)', fontSize:12, color:'#374151', fontWeight:p.pk?600:400 }}>{p.name}</code>
                       </div>
-                      <div style={{ fontFamily:'var(--mono)', fontSize:11, color:C.ink3 }}>{a.what}</div>
-                    </div>
-                    <span style={{ fontFamily:'var(--mono)', fontSize:9.5, padding:'2px 8px', borderRadius:4, background:kindFill, color:kindCol, fontWeight:700, textTransform:'uppercase', letterSpacing:'0.4px', justifySelf:'end', marginTop:2 }}>{a.kind}</span>
-                  </div>
+                    </td>
+                    <td style={{ padding:'11px 18px', verticalAlign:'middle' }}>
+                      <span style={{ fontFamily:'var(--mono)', fontSize:13, color:'#1a1a1a' }}>{String(pv.value)}</span>
+                    </td>
+                    <td style={{ padding:'11px 18px', verticalAlign:'middle', textAlign:'right', whiteSpace:'nowrap' }}>
+                      <div style={{ display:'inline-flex', gap:4, alignItems:'center' }}>
+                        <span style={{ fontFamily:'var(--mono)', fontSize:10, color:'#b8bcb8' }}>{p.type}</span>
+                        {p.pii      && <span style={{ fontFamily:'var(--mono)', fontSize:8.5, padding:'1px 5px', borderRadius:3, background:'#fbe6e6', color:'#c84040', fontWeight:700 }}>PII</span>}
+                        {p.computed && <span style={{ fontFamily:'var(--mono)', fontSize:8.5, padding:'1px 5px', borderRadius:3, background:'#ede9fc', color:'#7c3aed', fontWeight:700 }}>FX</span>}
+                      </div>
+                    </td>
+                  </tr>
                 )
               })}
-            </div>
+            </tbody>
+          </table>
+        </div>
+
+        {/* Right — connections */}
+        <div style={CARD}>
+          <div style={CARD_HEAD}>
+            <span>Connections <span style={{ fontWeight:400, color:'#9a948a', fontSize:12 }}>{totalRelated} across {related.length} edge types</span></span>
           </div>
-        )}
+          <div>
+            {related.map((r,i) => (
+              <div key={i} style={{ padding:'12px 16px', borderBottom: i<related.length-1 ? '1px solid #f1f2f1' : 'none' }}>
+                <div style={{ display:'flex', alignItems:'center', gap:7, marginBottom:8 }}>
+                  <code style={{ fontFamily:'var(--mono)', fontSize:11, color:'#374151', fontWeight:600 }}>:{r.edge.label}</code>
+                  <NodeGlyph n={r.otherNode} size={11} />
+                  <span style={{ fontFamily:'var(--sans)', fontSize:12, color:'#374151' }}>{r.otherNode.label}</span>
+                  <span style={{ fontFamily:'var(--mono)', fontSize:9, padding:'1px 5px', borderRadius:3, background: r.edge.kind==='inferred'?'#f9f0de' : r.edge.kind==='agent'?'#ede9fc' : '#f1f3f1', color: r.edge.kind==='inferred'?'#b07a20' : r.edge.kind==='agent'?'#7c3aed' : '#9097a0', fontWeight:700, textTransform:'uppercase', letterSpacing:'0.4px' }}>{r.edge.kind}</span>
+                </div>
+                <div style={{ display:'flex', flexDirection:'column', gap:1 }}>
+                  {r.related.map((rr,j) => (
+                    <div key={j} onClick={() => navigateTo(rr.id, rr.nodeId)}
+                      style={{ display:'flex', alignItems:'center', gap:8, padding:'5px 6px', cursor:'pointer', borderRadius:6, transition:'background .1s' }}
+                      onMouseEnter={e=>e.currentTarget.style.background='#f7f6f3'}
+                      onMouseLeave={e=>e.currentTarget.style.background='transparent'}>
+                      <code style={{ fontFamily:'var(--mono)', fontSize:11, color:'#3b6fd4', flexShrink:0 }}>{rr.id}</code>
+                      <span style={{ fontFamily:'var(--sans)', fontSize:12, color:'#9097a0', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', flex:1 }}>{rr.keyValue}</span>
+                      <span style={{ fontFamily:'var(--mono)', fontSize:10, color:'#b8bcb8', flexShrink:0 }}>{rr.since}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
       </div>
     </div>
   )

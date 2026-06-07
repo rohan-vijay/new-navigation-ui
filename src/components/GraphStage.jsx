@@ -1281,6 +1281,8 @@ function Sidebar({ open, onToggle, filter, setFilter, query, setQuery, selected,
 
 
 // ── Stage 1 host: provides graph state + view/edit toggle, renders the canvas ──
+export { SIDEBAR_NODES, ListGlyph, colorForNode }
+
 export default function GraphStage() {
   // Agents aren't part of the graph here — drop them and any edges touching them.
   const BASE_NODES = useMemo(() => NODES.filter(n => n.type !== "agent"), [])
