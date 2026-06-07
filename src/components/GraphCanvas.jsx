@@ -618,15 +618,10 @@ function NodeDetailPage({ node, onBack, onCanvas }) {
           {DETAIL_TABS.map(t => {
             const on = tab === t
             return (
-              <button key={t} onClick={() => setTab(t)} style={{
-                flex: 1, minWidth: 0, cursor: 'pointer', position: 'relative',
-                marginBottom: on ? -1 : 0,
+              <button key={t} onClick={() => setTab(t)} className={'nd-tab' + (on ? ' nd-tab-on' : '')} style={{
+                flex: 1, minWidth: 0, cursor: 'pointer',
                 padding: '9px 12px 11px', fontSize: 13,
                 fontWeight: on ? 600 : 450, color: on ? '#2a2620' : '#9a948a',
-                background: on ? '#fcfbf7' : 'transparent',
-                border: on ? '1px solid #e6dfd1' : '1px solid transparent',
-                borderBottom: on ? '1px solid #fcfbf7' : '1px solid transparent',
-                borderRadius: '10px 10px 0 0',
                 transition: 'color .15s', whiteSpace: 'nowrap',
                 display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6,
               }}
