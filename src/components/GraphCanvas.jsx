@@ -397,6 +397,16 @@ const SOURCES = [
 
 /* ── Node detail page ──────────────────────────────────── */
 const DETAIL_TABS = ['Properties', 'Edges', 'Survivorship', 'Data Enrichment', 'Data Matching', 'Computation', 'Activity']
+const _ic = { fill: 'none', stroke: 'currentColor', strokeWidth: 1.7, strokeLinecap: 'round', strokeLinejoin: 'round' }
+const TAB_ICON = {
+  Properties: <svg width="14" height="14" viewBox="0 0 24 24" {..._ic}><rect x="4" y="5" width="16" height="14" rx="2" /><line x1="4" y1="10" x2="20" y2="10" /><line x1="9.5" y1="10" x2="9.5" y2="19" /></svg>,
+  Edges: <svg width="14" height="14" viewBox="0 0 24 24" {..._ic}><circle cx="6" cy="12" r="2.4" /><circle cx="18" cy="12" r="2.4" /><line x1="8.4" y1="12" x2="15.6" y2="12" /></svg>,
+  Survivorship: <svg width="14" height="14" viewBox="0 0 24 24" {..._ic}><path d="M12 3l7 3v6c0 4-3 6.6-7 7.6C8 18.6 5 16 5 12V6z" /></svg>,
+  'Data Enrichment': <svg width="14" height="14" viewBox="0 0 24 24" {..._ic}><path d="M12 4l1.7 4.6L18 10l-4.3 1.4L12 16l-1.7-4.6L6 10l4.3-1.4z" /></svg>,
+  'Data Matching': <svg width="14" height="14" viewBox="0 0 24 24" {..._ic}><circle cx="6.5" cy="6" r="2" /><circle cx="6.5" cy="18" r="2" /><circle cx="17.5" cy="12" r="2" /><path d="M8.5 6.5c1 3.5 3 5 7 5.4M8.5 17.5c1-3.5 3-5 7-5.4" /></svg>,
+  Computation: <svg width="14" height="14" viewBox="0 0 24 24" {..._ic}><path d="M9.5 4c-2 0-2.8 1-2.8 3v1.6c0 1.5-1 2.4-2.2 2.4 1.2 0 2.2.9 2.2 2.4V17c0 2 .8 3 2.8 3" /><path d="M14.5 4c2 0 2.8 1 2.8 3v1.6c0 1.5 1 2.4 2.2 2.4-1.2 0-2.2.9-2.2 2.4V17c0 2-.8 3-2.8 3" /></svg>,
+  Activity: <svg width="14" height="14" viewBox="0 0 24 24" {..._ic}><polyline points="3 12 8 12 10 6 14 18 16 12 21 12" /></svg>,
+}
 
 function NodeIcon({ node, size = 34 }) {
   const c = colorForNode(node)
@@ -614,8 +624,9 @@ function NodeDetailPage({ node, onBack, onCanvas }) {
               }}
                 onMouseOver={e => { if (!on) e.currentTarget.style.color = '#5b5547' }}
                 onMouseOut={e => { if (!on) e.currentTarget.style.color = '#9a948a' }}>
+                <span style={{ display: 'inline-flex', color: on ? '#1f7a40' : '#bcb5a4', transition: 'color .15s' }}>{TAB_ICON[t]}</span>
                 {t}
-                {tabCount[t] > 0 && <span style={{ fontFamily: 'var(--mono)', fontSize: 10.5, color: on ? '#16341f' : '#b8b1a0' }}>{tabCount[t]}</span>}
+                {tabCount[t] > 0 && <span style={{ fontFamily: 'var(--mono)', fontSize: 10, fontWeight: 600, color: on ? '#16341f' : '#a89e88', background: on ? '#e7f0e9' : '#f1ede4', borderRadius: 5, padding: '1px 5px' }}>{tabCount[t]}</span>}
                 <span style={{ position: 'absolute', left: '50%', transform: 'translateX(-50%)', bottom: -1, width: on ? '100%' : 0, maxWidth: 'calc(100% - 16px)', height: 2, borderRadius: 2, background: '#16341f', transition: 'width .18s ease' }} />
               </button>
             )
