@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect, useMemo, useCallback } from 'react'
+import { Dropdown } from './SkillsPage'
 import '../linkSource.css'
 
 // ── data + node/edge meta ──
@@ -5952,11 +5953,11 @@ function PropertiesPane({ node, properties }) {
       <div className="card">
         <div className="card-head card-head-row">
           <div style={{ display:"flex", gap:4 }}>
-            {FILTERS.map(f => (
-              <button key={f.id} className={"chip" + (filter === f.id ? " on" : "")} onClick={() => setFilter(f.id)}>
-                {f.label} <span className="chip-n">{f.count}</span>
-              </button>
-            ))}
+            <Dropdown
+              value={(FILTERS.find(f => f.id === filter) || FILTERS[0]).label === "All" ? "All properties" : (FILTERS.find(f => f.id === filter)).label}
+              options={["All properties", "Required", "Indexed", "PII"]}
+              onChange={lbl => { const map = { "All properties": "all", Required: "required", Indexed: "indexed", PII: "pii" }; setFilter(map[lbl] || "all"); }}
+              icon="filter" />
           </div>
           <div className="card-head-actions">
             {/* Global expand/collapse toggle. Subtle by default — only the
