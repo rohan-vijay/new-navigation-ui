@@ -5020,7 +5020,7 @@ function CodeSnippetFlow({ node, onClose }) {
   var [saveName, setSaveName]   = useState("");
   var [langOpen, setLangOpen]   = useState(false);
 
-  var TYPE_GLYPH = { uuid:{ g:"ID", c:"var(--purple)" }, string:{ g:"T", c:"var(--blue)" }, "string[]":{ g:"[T]", c:"var(--blue)" }, decimal:{ g:"#", c:"var(--gold)" }, float:{ g:".5", c:"var(--gold)" }, bool:{ g:"01", c:"var(--coral)" }, timestamp:{ g:"TS", c:"var(--green)" }, date:{ g:"DT", c:"var(--green)" }, datetime:{ g:"DT", c:"var(--green)" }, enum:{ g:"E", c:"var(--purple)" }, struct:{ g:"{}", c:"var(--ink-3)" }, int:{ g:"#", c:"var(--gold)" } };
+  var TYPE_GLYPH = { uuid:{ g:"ID", c:"#8a7340" }, string:{ g:"T", c:"var(--blue)" }, "string[]":{ g:"[T]", c:"var(--blue)" }, decimal:{ g:"#", c:"var(--gold)" }, float:{ g:".5", c:"var(--gold)" }, bool:{ g:"01", c:"var(--coral)" }, timestamp:{ g:"TS", c:"var(--green)" }, date:{ g:"DT", c:"var(--green)" }, datetime:{ g:"DT", c:"var(--green)" }, enum:{ g:"E", c:"#8a7340" }, struct:{ g:"{}", c:"var(--ink-3)" }, int:{ g:"#", c:"var(--gold)" } };
 
   function templateFor(L) {
     if (L === "JSON") return SCRATCH_JSON_TEMPLATE;
@@ -5132,7 +5132,7 @@ function CodeSnippetFlow({ node, onClose }) {
         {/* HEADER */}
         <div style={{ flexShrink:0, padding:"16px 22px", borderBottom:"1px solid var(--line)", display:"flex", alignItems:"center", justifyContent:"space-between", background:"var(--panel)" }}>
           <div style={{ display:"flex", alignItems:"center", gap:12 }}>
-            <span style={{ width:34, height:34, borderRadius:8, background:"var(--purple-fill)", color:"var(--purple)", display:"inline-flex", alignItems:"center", justifyContent:"center", fontFamily:"JetBrains Mono", fontSize:13, fontWeight:700 }}>{"{ }"}</span>
+            <span style={{ width:34, height:34, borderRadius:8, background:"var(--chip)", color:"#8a7340", display:"inline-flex", alignItems:"center", justifyContent:"center", fontFamily:"JetBrains Mono", fontSize:13, fontWeight:700 }}>{"{ }"}</span>
             <div style={{ fontFamily:"Instrument Serif", fontSize:22, color:"var(--ink)" }}>Use code snippet</div>
           </div>
           <button onClick={onClose} style={{ width:32, height:32, borderRadius:"50%", border:"1px solid var(--line)", background:"none", cursor:"pointer", fontSize:15, color:"var(--ink-3)", display:"flex", alignItems:"center", justifyContent:"center" }}>✕</button>
@@ -5145,10 +5145,10 @@ function CodeSnippetFlow({ node, onClose }) {
           <div style={{ background:"var(--panel-2)", borderRight:"1px solid var(--line)", padding:"16px 14px", display:"flex", flexDirection:"column", gap:12, overflowY:"auto" }}>
             <button onClick={startFresh}
               style={{ display:"flex", alignItems:"center", gap:10, padding:"10px 12px", borderRadius:8, fontFamily:"inherit", textAlign:"left", cursor:"pointer",
-                       border:"1px solid " + (pickedId === null ? "var(--purple)" : "var(--line)"),
-                       background: pickedId === null ? "var(--purple-fill)" : "var(--panel)",
-                       color: pickedId === null ? "var(--purple)" : "var(--ink)" }}>
-              <span style={{ width:22, height:22, borderRadius:5, background: pickedId === null ? "var(--purple)" : "var(--chip)", color: pickedId === null ? "#fff" : "var(--ink-2)", display:"inline-flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
+                       border:"1px solid " + (pickedId === null ? "#8a7340" : "var(--line)"),
+                       background: pickedId === null ? "var(--chip)" : "var(--panel)",
+                       color: pickedId === null ? "#8a7340" : "var(--ink)" }}>
+              <span style={{ width:22, height:22, borderRadius:5, background: pickedId === null ? "#8a7340" : "var(--chip)", color: pickedId === null ? "#fff" : "var(--ink-2)", display:"inline-flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
               </span>
               <div style={{ fontSize:13, fontWeight:600 }}>Start from scratch</div>
@@ -5173,7 +5173,7 @@ function CodeSnippetFlow({ node, onClose }) {
                       <div style={{ minWidth:0, flex:1 }}>
                         <div style={{ fontFamily:"JetBrains Mono", fontSize:12, color:"var(--ink)", fontWeight: on ? 600 : 500, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{s.name}</div>
                       </div>
-                      <span style={{ fontFamily:"JetBrains Mono", fontSize:9, padding:"2px 6px", borderRadius:4, background: s.lang === "JSON" ? "var(--purple-fill)" : s.lang === "XML" ? "var(--blue-fill)" : "var(--gold-fill)", color: s.lang === "JSON" ? "var(--purple)" : s.lang === "XML" ? "var(--blue)" : "var(--gold)", fontWeight:700, letterSpacing:"0.5px", flexShrink:0 }}>{s.lang}</span>
+                      <span style={{ fontFamily:"JetBrains Mono", fontSize:9, padding:"2px 6px", borderRadius:4, background: s.lang === "JSON" ? "var(--chip)" : s.lang === "XML" ? "var(--blue-fill)" : "var(--gold-fill)", color: s.lang === "JSON" ? "#8a7340" : s.lang === "XML" ? "var(--blue)" : "var(--gold)", fontWeight:700, letterSpacing:"0.5px", flexShrink:0 }}>{s.lang}</span>
                     </button>
                   );
                 })}
@@ -5227,7 +5227,7 @@ function CodeSnippetFlow({ node, onClose }) {
             {/* Save-as toggle */}
             <div style={{ display:"flex", alignItems:"center", gap:14, padding:"10px 14px", border:"1px solid var(--line)", borderRadius:8, background:"var(--panel)" }}>
               <label style={{ display:"flex", alignItems:"center", gap:9, cursor:"pointer", flexShrink:0 }}>
-                <input type="checkbox" checked={saveAs} onChange={function(e){ setSaveAs(e.target.checked); }} style={{ width:15, height:15, accentColor:"var(--purple)" }} />
+                <input type="checkbox" checked={saveAs} onChange={function(e){ setSaveAs(e.target.checked); }} style={{ width:15, height:15, accentColor:"#8a7340" }} />
                 <div>
                   <div style={{ fontSize:12.5, color:"var(--ink)", fontWeight:500 }}>Save as a new snippet</div>
                   <div style={{ fontFamily:"JetBrains Mono", fontSize:10, color:"var(--ink-3)", marginTop:2 }}>Save this {lang} snippet to the library for re-use</div>
@@ -5277,7 +5277,7 @@ function CodeSnippetFlow({ node, onClose }) {
                         {f.pk       && flagPill("PK",  "var(--green)",  "var(--green-fill)")}
                         {f.required && flagPill("REQ", "var(--coral)",  "var(--coral-fill)")}
                         {f.indexed  && flagPill("IDX", "var(--blue)",   "var(--blue-fill)")}
-                        {f.unique   && flagPill("UNQ", "var(--purple)", "var(--purple-fill)")}
+                        {f.unique   && flagPill("UNQ", "#8a7340", "var(--chip)")}
                         {f.pii      && flagPill("PII", "var(--ink-2)",  "var(--chip)")}
                       </div>
                       {f.sample && <div style={{ fontFamily:"JetBrains Mono", fontSize:9.5, color:"var(--ink-4)", marginTop:2, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{f.sample}</div>}
