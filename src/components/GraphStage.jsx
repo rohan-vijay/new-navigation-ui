@@ -2489,19 +2489,16 @@ function Inspector({ node, onClose, onViewDetails, onEditSchema, edges: liveEdge
               {properties.map((p, i) => (
                 <div key={i} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 12px", borderBottom: i < properties.length - 1 ? "1px solid var(--line-2)" : "none" }}>
                   <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: 4, marginBottom: 3 }}>
-                      {p.pk  && <span className="snap-tag snap-pk">PK</span>}
-                      {p.pii && <span className="snap-tag snap-pii">PII</span>}
-                      <span style={{ fontSize: 12.5, color: "var(--ink)", fontWeight: p.pk ? 600 : 400, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.name}</span>
-                    </div>
-                    <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
-                      <span className="snap-type">{p.type}</span>
-                      {p.required && <span className="snap-tag">REQ</span>}
-                      {p.indexed  && <span className="snap-tag snap-idx">IDX</span>}
-                      {p.computed && <span className="snap-tag snap-comp">FX</span>}
-                    </div>
+                    <div style={{ fontSize: 12.5, color: "var(--ink)", fontWeight: p.pk ? 600 : 400, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", marginBottom: 3 }}>{p.name}</div>
+                    <span className="snap-type">{p.type}</span>
                   </div>
-                  <span style={{ fontFamily: "JetBrains Mono", fontSize: 11, color: metricColor(p.fill), fontWeight: 600, flexShrink: 0 }}>{p.fill}%</span>
+                  <div style={{ display: "flex", alignItems: "center", gap: 4, flexShrink: 0, flexWrap: "wrap", justifyContent: "flex-end" }}>
+                    {p.pk  && <span className="snap-tag snap-pk">PK</span>}
+                    {p.pii && <span className="snap-tag snap-pii">PII</span>}
+                    {p.required && <span className="snap-tag">REQ</span>}
+                    {p.indexed  && <span className="snap-tag snap-idx">IDX</span>}
+                    {p.computed && <span className="snap-tag snap-comp">FX</span>}
+                  </div>
                 </div>
               ))}
             </div>
