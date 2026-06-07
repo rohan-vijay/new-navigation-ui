@@ -14,6 +14,7 @@ import StatusBar from './components/StatusBar'
 import { BuildContext, useBuildDraft, useAgentDraft } from './components/aiBuild'
 import { AgentCanvas } from './components/CreateAgentModal'
 import ContextGraphsPage from './components/ContextGraphsPage'
+import RecordsPage from './components/RecordsPage'
 import GraphCanvas from './components/GraphCanvas'
 import BuildWithAIModal from './components/BuildWithAIModal'
 import ScratchSkillModal from './components/ScratchSkillModal'
@@ -146,6 +147,7 @@ export default function App() {
   const handleNavigate = (label) => {
     if (label === 'Skills') { setView('skills'); setActiveNav('agents'); setSkillsTab('Skills') }
     else if (label === 'Enterprise Context Graph') { setView('context-graphs'); setActiveNav('ontology') }
+    else if (label === 'Records') { setView('records'); setActiveNav('ontology') }
   }
 
   return (
@@ -175,6 +177,7 @@ export default function App() {
           {view === 'graphs' && (
             <GraphsPage onOpenGraph={g => { setSelectedGraph(g); setView('detail') }} />
           )}
+          {view === 'records' && <RecordsPage />}
           {view === 'context-graphs' && (
             <ContextGraphsPage onCreate={() => setView('blank-canvas')} onOpenGraph={() => setView('blank-canvas')} />
           )}

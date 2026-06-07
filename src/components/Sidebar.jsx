@@ -13,7 +13,7 @@ const NAV = [
   { id:'agents',     label:'AI Agents',           icon:'agents',     children:['Agents','Teams','Skills','Copilot','MCP Servers','A2A Servers','Deployments'] },
   { id:'apps',       label:'AI Applications',     icon:'apps',       children:['Applications','Design System','Custom Components','Template Components'] },
   { id:'workflows',  label:'AI Workflows',        icon:'workflows',  children:['Automations','API Gateway','Decision Tables','Automation Interfaces','Automation Templates'] },
-  { id:'ontology',   label:'AI Ontology & Data',  icon:'ontology',   children:['Enterprise Context Graph','Data Pipelines','Data Catalog & Lineage','Data Quality','Ontology','Event Streams','Campaigns','Segments'] },
+  { id:'ontology',   label:'AI Ontology & Data',  icon:'ontology',   children:['Enterprise Context Graph','Records','Data Pipelines','Data Catalog & Lineage','Data Quality','Ontology','Event Streams','Campaigns','Segments'] },
   { id:'resources',  label:'Enterprise Resources',icon:'platform',   children:['Objects Manager','Knowledge','Memory Set','Code Functions','Templates','Environment Variables'] },
   { id:'system',     label:'Enterprise Systems',  icon:'system',     children:['Connections Manager','Connectors SDK'] },
 ]

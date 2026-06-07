@@ -314,9 +314,9 @@ function SourcesList({ onConnect }) {
           <span style={{ fontFamily: 'var(--serif)', fontSize: 23, fontWeight: 500, color: '#1a1a1a', letterSpacing: -0.2 }}>Sources</span>
           <span style={{ fontFamily: 'var(--sans)', fontSize: 14, color: '#a89e88' }}>{SOURCES.length}</span>
         </div>
-        <button onClick={() => onConnect?.()} style={{ ...gBtnPrimary, height: 32, padding: '0 13px', display: 'inline-flex', alignItems: 'center', gap: 7 }}
-          onMouseOver={e => e.currentTarget.style.background = '#1d4228'} onMouseOut={e => e.currentTarget.style.background = '#16341f'}>
-          <svg width="13" height="13" viewBox="0 0 13 13" fill="none"><path d="M6.5 1.5v10M1.5 6.5h10" stroke="#fff" strokeWidth="1.6" strokeLinecap="round" /></svg>
+        <button onClick={() => onConnect?.()} style={{ ...gBtnGhost, height: 32, padding: '0 13px', display: 'inline-flex', alignItems: 'center', gap: 7 }}
+          onMouseOver={e => e.currentTarget.style.background = '#faf8f3'} onMouseOut={e => e.currentTarget.style.background = '#fff'}>
+          <svg width="13" height="13" viewBox="0 0 13 13" fill="none"><path d="M6.5 1.5v10M1.5 6.5h10" stroke="#3a3a36" strokeWidth="1.6" strokeLinecap="round" /></svg>
           Connect Source
         </button>
       </div>
