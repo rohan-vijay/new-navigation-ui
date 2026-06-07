@@ -172,14 +172,17 @@ function GraphCanvasInner({ title = 'New graph', onBack, onAgentAI }) {
     <div style={{ flex: 1, minWidth: 0, background: '#FEFDFB', borderRadius: 14, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
       {/* Header: back + title + tabs */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 14, height: 60, padding: '0 18px 0 22px', borderBottom: '1px solid #efece6', flexShrink: 0 }}>
-        <button onClick={() => onBack?.()} title="Back" style={{ width: 34, height: 34, borderRadius: 9, border: '1px solid #e3ddd1', background: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, transition: 'background .15s' }}
-          onMouseOver={e => e.currentTarget.style.background = '#faf8f3'} onMouseOut={e => e.currentTarget.style.background = '#fff'}>
-          <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M9.5 3.5L5 8l4.5 4.5" stroke="#5b5547" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" /></svg>
-        </button>
-        <span style={{ fontFamily: 'var(--serif)', fontSize: 17, fontWeight: 500, color: '#1a1a1a', whiteSpace: 'nowrap', flexShrink: 0 }}>{title}</span>
+        {/* left group (back + title) — equal flex with the right group so tabs sit at true center */}
+        <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 14, minWidth: 0 }}>
+          <button onClick={() => onBack?.()} title="Back" style={{ width: 34, height: 34, borderRadius: 9, border: '1px solid #e3ddd1', background: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, transition: 'background .15s' }}
+            onMouseOver={e => e.currentTarget.style.background = '#faf8f3'} onMouseOut={e => e.currentTarget.style.background = '#fff'}>
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M9.5 3.5L5 8l4.5 4.5" stroke="#5b5547" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" /></svg>
+          </button>
+          <span style={{ fontFamily: 'var(--serif)', fontSize: 17, fontWeight: 500, color: '#1a1a1a', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{title}</span>
+        </div>
 
-        {/* segmented tabs */}
-        <div style={{ flex: 1, display: 'flex', justifyContent: 'center', minWidth: 0, overflowX: 'auto' }} className="no-scrollbar">
+        {/* segmented tabs — centered to the canvas */}
+        <div style={{ flexShrink: 0, display: 'flex', justifyContent: 'center', minWidth: 0, overflowX: 'auto' }} className="no-scrollbar">
           <div style={{ display: 'flex', background: '#f2f1ee', borderRadius: 11, padding: 4, gap: 2 }}>
             {TABS.filter(t => mode === 'full' || !FULL_ONLY_TABS.includes(t)).map(t => (
               <button key={t} onClick={() => setTab(t)} style={{
@@ -193,8 +196,8 @@ function GraphCanvasInner({ title = 'New graph', onBack, onAgentAI }) {
           </div>
         </div>
 
-        {/* right actions: MVP/Full toggle + Share + Publish */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
+        {/* right actions: MVP/Full toggle + Share + Publish — equal flex with left group */}
+        <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 10, minWidth: 0 }}>
           <FeatureModeToggle mode={mode} setMode={setMode} />
           <button onClick={() => setShareOpen(true)} style={gBtnGhost} onMouseOver={e => e.currentTarget.style.background = '#faf8f3'} onMouseOut={e => e.currentTarget.style.background = '#fff'}>
             <ShareTypeIcon type={shareType} />
