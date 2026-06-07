@@ -5,7 +5,7 @@ import CreateAgentPage, { ModelIcon, MODELS } from './CreateAgentModal'
 import BuildWithAIModal from './BuildWithAIModal'
 import { ToolGlyph } from './AddToolPanel'
 import { LinkSourceFlow } from './LinkSourceFlow'
-import GraphStage, { SIDEBAR_NODES, GRAPH_EDGES, ListGlyph, colorForNode, AddNodeFlow, NewEdgeFlow, generateProps, generateRules } from './GraphStage'
+import GraphStage, { SIDEBAR_NODES, GRAPH_EDGES, ListGlyph, colorForNode, AddNodeFlow, NewEdgeFlow, generateProps, generateRules, PropertiesPane } from './GraphStage'
 import RecordsPage from './RecordsPage'
 import SkillLibrary from './SkillLibrary'
 import { AGENT_LIBRARY, AGENT_GROUP_ORDER } from '../data/agentLibrary'
@@ -621,28 +621,18 @@ function NodeDetailPage({ node, onBack, onCanvas }) {
         </div>
       </div>
 
-      {/* per-tab toolbar */}
-      <TableToolbar
-        sort={sort} sortOptions={Object.keys(cfg.sorters)} onSort={setSort}
-        filter={filter} filterOptions={Object.keys(cfg.filters)} onFilter={setFilter}
-        search={search} onSearch={setSearch} placeholder={cfg.placeholder}
-        cta={cfg.cta} onCta={() => { if (tab === 'Edges') setEdgeFlowOpen(true) }} />
+      {/* per-tab toolbar — Properties brings its own controls via PropertiesPane */}
+      {tab !== 'Properties' && (
+        <TableToolbar
+          sort={sort} sortOptions={Object.keys(cfg.sorters)} onSort={setSort}
+          filter={filter} filterOptions={Object.keys(cfg.filters)} onFilter={setFilter}
+          search={search} onSearch={setSearch} placeholder={cfg.placeholder}
+          cta={cfg.cta} onCta={() => { if (tab === 'Edges') setEdgeFlowOpen(true) }} />
+      )}
 
       {/* tab body */}
       {tab === 'Properties' && (
-        <DetailTable
-          cols={[{ label: 'Property', w: '32%' }, { label: 'Type', w: '18%' }, { label: 'Attributes', w: '30%' }, { label: 'Fill Rate', w: '20%' }]}
-          rows={view.map(p => [
-            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-              {p.pk && <span className="snap-tag snap-pk">PK</span>}
-              {p.pii && <span className="snap-tag snap-pii">PII</span>}
-              <span style={{ fontSize: 13.5, fontWeight: p.pk ? 600 : 500, color: '#1a1a1a' }}>{p.name}</span>
-            </span>,
-            monoCell(p.type),
-            tagPills([...(p.required ? [{ label: 'REQ' }] : []), ...(p.indexed ? [{ label: 'IDX', cls: 'snap-idx' }] : []), ...(p.computed ? [{ label: 'FX', cls: 'snap-comp' }] : [])]),
-            fillCell(p.fill),
-          ])}
-          empty="No properties defined." />
+        <div className="prop-pane-host"><PropertiesPane node={node} properties={props} /></div>
       )}
 
       {tab === 'Edges' && (

@@ -245,7 +245,7 @@ function RecordsView({ onOpenRecord }) {
   const gridCols   = `1.4fr ${displayProps.map(()=>'1.1fr').join(' ')} 110px 90px`
 
   const thStyle = { textAlign:'left', padding:'10px 18px', fontSize:11, fontWeight:600, letterSpacing:0.5, textTransform:'uppercase', color:'#9a948a', borderBottom:'1px solid #eaecea', whiteSpace:'nowrap' }
-  const cell    = (last) => ({ padding:'12px 18px', verticalAlign:'middle', overflow:'hidden', borderBottom: last ? 'none' : '1px solid #f1f2f1' })
+  const cell    = (last) => ({ padding:'16px 18px', verticalAlign:'middle', overflow:'hidden', borderBottom: last ? 'none' : '1px solid #f1f2f1' })
 
   return (
     <div style={{ flex:1, overflowY:'auto', backgroundColor:'#fcfbf7', padding:'12px 26px 40px' }} className="dark-scroll">
