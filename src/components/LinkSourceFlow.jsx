@@ -1855,7 +1855,7 @@ const CONNECTOR_LOGO_OVERRIDES = {
   slack:          FAV("slack.com"),
   monday:         FAV("monday.com"),
   docusign:       FAV("docusign.com"),
-  apollo:         FAV("apollo.io"),
+  apollo:         "/logos/apollo.svg",
   postgresql:     FAV("postgresql.org"),
   salesforce:     FAV("salesforce.com"),
   zendesk:        FAV("zendesk.com"),
@@ -2144,7 +2144,7 @@ function srcCap(w) { return w ? w.charAt(0).toUpperCase() + w.slice(1) : w; }
 
 // Rich single-select that mirrors the "Pick a type" control: icon box + title +
 // sub line + chevron. options = [{ id, title, desc, icon }]. Empty shows a dashed +.
-function SrcRichSelect({ value, onChange, options, emptyLabel, dense, searchable, searchPlaceholder, plainOptions }) {
+function SrcRichSelect({ value, onChange, options, emptyLabel, dense, searchable, searchPlaceholder, plainOptions, noDesc }) {
   const box = dense ? 27 : 34;
   const iconBox = (content, dashed) => (
     <span style={{ width: box, height: box, borderRadius: dense ? 6 : 7, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", background: "var(--chip)", borderWidth: 1, borderStyle: dashed ? "dashed" : "solid", borderColor: "var(--line)", color: "var(--ink-3)" }}>{content}</span>
@@ -2154,7 +2154,7 @@ function SrcRichSelect({ value, onChange, options, emptyLabel, dense, searchable
       {icon}
       <span style={{ display: "flex", flexDirection: "column", minWidth: 0, gap: 1 }}>
         <span style={{ fontSize: dense ? 13 : 14, fontWeight: ghost ? 400 : 600, color: ghost ? "var(--ink-3)" : "var(--ink)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{title}</span>
-        <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: dense ? 10 : 11, color: "var(--ink-4)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{sub}</span>
+        {!noDesc && <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: dense ? 10 : 11, color: "var(--ink-4)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{sub}</span>}
       </span>
     </span>
   );
@@ -2162,8 +2162,8 @@ function SrcRichSelect({ value, onChange, options, emptyLabel, dense, searchable
     <CustomSelect
       value={value} onChange={onChange} options={options} className={dense ? "csel-dense" : undefined}
       searchable={searchable} searchPlaceholder={searchPlaceholder}
-      placeholder={body(iconBox("+", true), emptyLabel || "Choose…", "Click to choose", true)}
-      renderTrigger={o => body(null, o.title, o.desc)}
+      placeholder={body(iconBox("+", true), emptyLabel || "Choose…", noDesc ? null : "Click to choose", true)}
+      renderTrigger={o => body(null, o.title, noDesc ? null : o.desc)}
       renderOption={plainOptions ? (o => <span style={{ fontSize: dense ? 13 : 14, fontWeight: 600, color: "var(--ink)" }}>{o.title}</span>) : (o => body(iconBox(o.icon), o.title, o.desc))}
     />
   );
@@ -2406,13 +2406,11 @@ function SrcDiscover({ s, set, sel }) {
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, maxWidth: 760 }}>
           <div>
             <div className="wfr-label">Discover with</div>
-            <SrcRichSelect value={kind} onChange={chooseKind} options={METHOD_KIND_OPTS} emptyLabel="Pick a method" />
-            <div className="wfr-hint" style={{ marginTop: 8 }}>Use an AI agent or a saved automation.</div>
+            <SrcRichSelect value={kind} onChange={chooseKind} options={METHOD_KIND_OPTS} emptyLabel="Pick a method" noDesc />
           </div>
           <div style={{ opacity: kind ? 1 : 0.45, pointerEvents: kind ? "auto" : "none", transition: "opacity 120ms" }}>
             <div className="wfr-label">{isAuto ? "Automation" : "Discovery agent"}</div>
-            <SrcRichSelect value={agent} onChange={chooseAgent} options={kind ? agentOpts : []} emptyLabel={kind ? (isAuto ? "Select an automation…" : "Select an agent…") : "Pick a method first"} />
-            <div className="wfr-hint" style={{ marginTop: 8 }}>{kind ? "Extracts a known set of file types." : "Choose a method to enable."}</div>
+            <SrcRichSelect value={agent} onChange={chooseAgent} options={kind ? agentOpts : []} emptyLabel={kind ? (isAuto ? "Select an automation…" : "Select an agent…") : "Pick a method first"} noDesc />
           </div>
         </div>
       </div>

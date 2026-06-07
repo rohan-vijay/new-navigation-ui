@@ -396,7 +396,7 @@ const FAVICON_OVERRIDES = {
   monday:         _fav('monday.com'),
   docusign:       _fav('docusign.com'),
   zendesk:        _fav('zendesk.com'),
-  apollo:         _fav('apollo.io'),
+  apollo:         '/logos/apollo.svg',
   postgresql:     _fav('postgresql.org'),
   gitbook:        _fav('gitbook.com'),
   salesforce:     _fav('salesforce.com'),
