@@ -6161,7 +6161,7 @@ function PropertiesPane({ node, properties }) {
                   </div>
                   <div className="props-cell prop-type">
                     <span style={{ display:"inline-flex", alignItems:"center", gap:7 }}>
-                      <span style={{ minWidth:22, height:18, padding:"0 5px", borderRadius:4, background:tg.c, color:"#fff", display:"inline-flex", alignItems:"center", justifyContent:"center", fontFamily:"JetBrains Mono", fontSize:9.5, fontWeight:700, letterSpacing:"0.3px", flexShrink:0 }}>{tg.g}</span>
+                      <span style={{ minWidth:22, height:18, padding:"0 5px", borderRadius:4, background:"var(--chip)", color:"var(--ink-3)", border:"1px solid var(--line-2)", display:"inline-flex", alignItems:"center", justifyContent:"center", fontFamily:"JetBrains Mono", fontSize:9.5, fontWeight:700, letterSpacing:"0.3px", flexShrink:0 }}>{tg.g}</span>
                       <span style={{ fontFamily:"JetBrains Mono", fontSize:12, color:"var(--ink-2)" }}>{p.type}</span>
                     </span>
                   </div>
@@ -6178,10 +6178,10 @@ function PropertiesPane({ node, properties }) {
                     </div>
                   </div>
                   <div className="props-cell" style={{ display:"flex", alignItems:"center", gap:5 }}>
-                    {p.required && <FlagPill title="Required"   tone={{ bg:"var(--coral-fill)", fg:"var(--coral)"  }} icon={REQ_ICON} />}
-                    {p.indexed  && <FlagPill title="Indexed"    tone={{ bg:"var(--blue-fill)",  fg:"var(--blue)"   }} icon={IDX_ICON} />}
-                    {p.unique   && <FlagPill title="Unique"     tone={{ bg:"var(--purple-fill)",fg:"var(--purple)" }} icon={UNQ_ICON} />}
-                    {p.pii      && <FlagPill title="PII"        tone={{ bg:"var(--chip)",       fg:"var(--ink-2)"  }} icon={PII_ICON} />}
+                    {p.required && <FlagPill title="Required"   tone={{ bg:"var(--chip)", fg:"var(--ink-3)" }} icon={REQ_ICON} />}
+                    {p.indexed  && <FlagPill title="Indexed"    tone={{ bg:"var(--chip)", fg:"var(--ink-3)" }} icon={IDX_ICON} />}
+                    {p.unique   && <FlagPill title="Unique"     tone={{ bg:"var(--chip)", fg:"var(--ink-3)" }} icon={UNQ_ICON} />}
+                    {p.pii      && <FlagPill title="PII"        tone={{ bg:"var(--chip)", fg:"var(--ink-3)" }} icon={PII_ICON} />}
                     {!p.required && !p.indexed && !p.unique && !p.pii && <span style={{ fontFamily:"JetBrains Mono", fontSize:10.5, color:"var(--ink-4)" }}>—</span>}
                   </div>
                   <div className="props-cell props-chevron">›</div>

@@ -1210,3 +1210,23 @@ main > .canvas-wrap { flex: 1 1 auto; min-height: 0; height: 100%; }
 /* sidebar: warm cream to match the app surface (not stark white) */
 .sb { background: #faf7f0; }
 .sb-search input, .sb-reopen { background: #fffdfa; }
+
+/* ── Property table: match the DetailTable (Edges/Survivorship) chrome ── */
+.props-head {
+  background: #F7F5F3 !important;
+  border-bottom: 1px solid #eaecea !important;
+  font-family: 'ARS Maquette', -apple-system, system-ui, sans-serif !important;
+  font-size: 11px !important;
+  letter-spacing: 0.5px !important;
+  color: #9a948a !important;
+}
+.props-th {
+  font-family: 'ARS Maquette', -apple-system, system-ui, sans-serif !important;
+  font-size: 11px !important;
+  font-weight: 600 !important;
+  letter-spacing: 0.5px !important;
+  color: #9a948a !important;
+}
+.props-th:hover { color: #6b6453 !important; }
+.props-row { border-bottom: 1px solid #f1f2f1 !important; background: #fff; transition: background .12s, box-shadow .12s !important; }
+.props-row:hover, .props-row.open { background: #f7f6f3 !important; box-shadow: inset 3px 0 0 #16341f; }
