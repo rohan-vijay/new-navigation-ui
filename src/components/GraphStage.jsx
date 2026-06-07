@@ -1282,13 +1282,19 @@ function Sidebar({ open, onToggle, filter, setFilter, query, setQuery, selected,
 
 // ── Stage 1 host: provides graph state + view/edit toggle, renders the canvas ──
 export default function GraphStage() {
-  const [nodes, setNodes] = useState(NODES)
-  const [edges, setEdges] = useState(EDGES)
+  // Agents aren't part of the graph here — drop them and any edges touching them.
+  const BASE_NODES = useMemo(() => NODES.filter(n => n.type !== "agent"), [])
+  const BASE_EDGES = useMemo(() => {
+    const ok = {}; BASE_NODES.forEach(n => { ok[n.id] = true })
+    return EDGES.filter(e => ok[e.s] && ok[e.t])
+  }, [BASE_NODES])
+  const [nodes, setNodes] = useState(BASE_NODES)
+  const [edges, setEdges] = useState(BASE_EDGES)
   const [selected, setSelected] = useState(null)
   const [hover, setHover] = useState(null)
   const [filter, setFilter] = useState("all")
   const initView = useMemo(() => {
-    const xs = NODES.map(n => n.x), ys = NODES.map(n => n.y)
+    const xs = BASE_NODES.map(n => n.x), ys = BASE_NODES.map(n => n.y)
     const cx = (Math.min(...xs) + Math.max(...xs)) / 2
     const cy = (Math.min(...ys) + Math.max(...ys)) / 2
     const zoom = 0.8
@@ -2346,7 +2352,7 @@ function PermRow({ k, label, list, setList, tone, desc }) {
 
 // — Inspector (third pane) + Meter —
 function Inspector({ node, onClose, onOpenDetail, edges: liveEdges, nodes: liveNodes }) {
-  const [tab, setTab] = useState("Overview");
+  const [tab, setTab] = useState("Props");
   if (!node) return null;
   const c = colorForNode(node);
   // Fall back to the module-scope EDGES when the caller doesn't pass live state.
@@ -2368,7 +2374,7 @@ function Inspector({ node, onClose, onOpenDetail, edges: liveEdges, nodes: liveN
   const idxProps = properties.filter(p => p.indexed).length;
   const piiProps = properties.filter(p => p.pii).length;
 
-  const TABS = ["Overview", `Props · ${properties.length}`, `Edges · ${outgoing.length}`, "Sources", "Rules"];
+  const TABS = [`Props · ${properties.length}`, `Edges · ${outgoing.length}`, "Sources"];
 
   return (
     <aside className="inspector">
