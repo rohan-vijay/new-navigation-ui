@@ -585,7 +585,7 @@ function NodeDetailPage({ node, onBack, onCanvas }) {
           unified by an edge-to-edge bottom rule. */}
       <div style={{ margin: '-12px -26px 18px' }}>
         {/* title zone */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, background: '#FEFDFB', padding: '16px 26px 14px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, background: '#FEFDFB', padding: '14px 26px 12px' }}>
           <NodeIcon node={node} size={30} />
           <span style={{ fontFamily: 'var(--serif)', fontSize: 22, fontWeight: 500, color: '#1a1a1a', letterSpacing: -0.2, marginLeft: -2 }}>{node.label}</span>
           <span style={{ fontFamily: 'var(--mono)', fontSize: 11.5, color: cat.color, border: `1px solid ${cat.border}`, background: cat.bg, padding: '2px 8px', borderRadius: 6 }}>{cat.label}</span>

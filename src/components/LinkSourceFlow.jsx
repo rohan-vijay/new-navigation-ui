@@ -41,11 +41,11 @@ function FlowStyles() {
   --coral-fill: #fbf1ee;
 }
 
-.btn-ghost { display: inline-flex; align-items: center; gap: 6px; padding: 8px 12px; border-radius: 8px; border: 1px solid var(--line); background: var(--bg-canvas); cursor: pointer; font-family: inherit; font-size: 12.5px; color: var(--ink-2); }
-.btn-ghost:hover { background: var(--chip); color: var(--ink); }
+.btn-ghost { display: inline-flex; align-items: center; gap: 6px; padding: 8px 14px; border-radius: 8px; border: 1px solid #e3ddd1; background: #fff; cursor: pointer; font-family: inherit; font-size: 12.5px; color: var(--ink-2); font-weight: 500; }
+.btn-ghost:hover { background: var(--bg-canvas); color: var(--ink); border-color: var(--line); }
 .btn-ghost .kbd { display: inline-flex; align-items: center; height: 18px; padding: 0 5px; border-radius: 4px; background: var(--chip); font-family: "JetBrains Mono", monospace; font-size: 10.5px; color: var(--ink-2); }
-.btn-dark { padding: 9px 14px; border-radius: 8px; border: 0; background: #16341f; color: #fff; cursor: pointer; font-family: inherit; font-size: 12.5px; display: inline-flex; align-items: center; gap: 6px; font-weight: 500; }
-.btn-dark:hover { background: #0f2415; }
+.btn-dark { padding: 9px 18px; border-radius: 8px; border: 0; background: #16341f; color: #fff; cursor: pointer; font-family: inherit; font-size: 13px; display: inline-flex; align-items: center; gap: 6px; font-weight: 500; }
+.btn-dark:hover { background: #1d4228; }
 .btn-dark .plus { font-size: 14px; line-height: 1; }
 
 .nv-change { font-family: "JetBrains Mono", monospace; font-size: 10px; letter-spacing: 0.7px; padding: 3px 8px; border-radius: 4px; border: 1px solid var(--line); background: var(--panel); color: var(--ink-2); }
@@ -53,7 +53,7 @@ function FlowStyles() {
 .nv-change-medium { color: var(--gold); border-color: color-mix(in oklab, var(--gold) 30%, var(--line)); background: var(--gold-fill); }
 .nv-change-low { color: var(--ink-3); }
 
-.card { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; overflow: hidden; }
+.card { background: var(--panel); border: 1px solid #e8e2d8; border-radius: 12px; overflow: hidden; box-shadow: 0 1px 3px rgba(40,32,18,0.06); }
 .card-head { padding: 14px 18px; border-bottom: 1px solid var(--line-2); font-size: 13.5px; font-weight: 600; display: flex; align-items: baseline; gap: 8px; }
 .card-head-row { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
 .card-head-sub { font-size: 11.5px; color: var(--ink-3); font-weight: 400; font-family: "JetBrains Mono", monospace; letter-spacing: 0.2px; }
@@ -66,7 +66,7 @@ function FlowStyles() {
 .snap-idx  { background: var(--blue-fill); color: var(--blue); }
 .snap-comp { background: var(--purple-fill); color: var(--purple); }
 
-.flow-overlay { position: fixed; inset: 0; background: rgba(20, 22, 16, 0.42); backdrop-filter: blur(2px); z-index: 300; display: grid; place-items: center; padding: 28px; animation: flow-fade-in 160ms ease-out; }
+.flow-overlay { position: fixed; inset: 0; background: rgba(28,24,18,0.42); backdrop-filter: blur(2px); z-index: 300; display: grid; place-items: center; padding: 28px; animation: flow-fade-in 160ms ease-out; }
 @keyframes flow-fade-in { from { opacity: 0; } to { opacity: 1; } }
 .flow-shell { position: relative; background: var(--bg); border: 1px solid #ece5d7; border-radius: 14px; width: 100%; max-width: 1480px; height: 100%; max-height: 920px; display: flex; flex-direction: column; box-shadow: 0 28px 80px rgba(40,32,18,0.32); overflow: hidden; animation: flow-zoom-in 180ms cubic-bezier(.2,.8,.2,1); }
 .flow-overlay.flow-overlay-full { padding: 0; }
@@ -86,9 +86,9 @@ function FlowStyles() {
 .flow-step { display: flex; gap: 12px; padding: 10px 12px; border-radius: 8px; border: 1px solid transparent; background: transparent; cursor: pointer; font-family: inherit; text-align: left; }
 .flow-step:hover { background: var(--panel); border-color: var(--line-2); }
 .flow-step.on { background: var(--panel); border: 1px solid var(--line); box-shadow: 0 1px 4px rgba(40,32,18,0.07); }
-.flow-step.done .flow-step-n { background: #16a34a; color: #fff; border-color: #16a34a; }
+.flow-step.done .flow-step-n { background: #16341f; color: #fff; border-color: #16341f; }
 .flow-step.on .flow-step-n { background: var(--ink); color: var(--bg-canvas); border-color: var(--ink); }
-.flow-step-n { width: 28px; height: 28px; border-radius: 50%; border: 1px solid var(--line); display: grid; place-items: center; font-family: "JetBrains Mono", monospace; font-size: 12px; font-weight: 700; color: var(--ink-3); background: var(--bg-canvas); flex-shrink: 0; }
+.flow-step-n { width: 28px; height: 28px; border-radius: 50%; border: 1.5px solid var(--line); display: grid; place-items: center; font-family: "JetBrains Mono", monospace; font-size: 12px; font-weight: 700; color: var(--ink-3); background: var(--panel); flex-shrink: 0; transition: background 120ms, border-color 120ms; }
 .flow-step-text { min-width: 0; }
 .flow-step-label { font-size: 13.5px; color: var(--ink); font-weight: 500; line-height: 1.1; }
 .flow-step-hint { font-family: "JetBrains Mono", monospace; font-size: 10.5px; color: var(--ink-3); margin-top: 3px; line-height: 1.3; }
@@ -117,7 +117,7 @@ function FlowStyles() {
 .switch input { opacity: 0; width: 0; height: 0; }
 .switch-track { position: absolute; inset: 0; background: var(--line); border-radius: 999px; transition: background 120ms; }
 .switch-track::before { content: ""; position: absolute; top: 2px; left: 2px; width: 14px; height: 14px; background: var(--panel); border-radius: 50%; transition: transform 120ms; box-shadow: 0 1px 2px rgba(0,0,0,0.15); }
-.switch input:checked ~ .switch-track { background: #16a34a; }
+.switch input:checked ~ .switch-track { background: #16341f; }
 .switch input:checked ~ .switch-track::before { transform: translateX(14px); }
 
 .review-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
@@ -165,8 +165,8 @@ function FlowStyles() {
 .wfr-suffix { border-radius: 0 8px 8px 0 !important; border-left: 0 !important; }
 .wfr-prefix-input .winput { border-radius: 0 8px 8px 0; flex: 1; }
 
-.winput { border: 1px solid var(--line); background: var(--panel); border-radius: 8px; padding: 10px 12px; font-family: inherit; font-size: 14px; color: var(--ink); outline: none; width: 100%; transition: border-color 80ms; box-sizing: border-box; }
-.winput:focus { border-color: var(--ink-3); background: var(--bg-canvas); }
+.winput { border: 1px solid #d8cfbb; background: var(--panel); border-radius: 8px; padding: 10px 12px; font-family: inherit; font-size: 14px; color: var(--ink); outline: none; width: 100%; transition: border-color 80ms; box-sizing: border-box; box-shadow: inset 0 1px 0 rgba(255,255,255,0.7); }
+.winput:focus { border-color: #b8a48a; background: var(--panel); }
 .winput::placeholder { color: var(--ink-4); }
 .winput-mono { font-family: "JetBrains Mono", monospace; font-size: 13px; }
 .winput-xl { font-size: 18px; padding: 12px 14px; }
@@ -175,15 +175,15 @@ function FlowStyles() {
 .winput-err { border-color: var(--coral) !important; }
 
 .csel { position: relative; width: 100%; }
-.csel-trigger { width: 100%; display: flex; align-items: center; gap: 10px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--panel); cursor: pointer; font-family: inherit; font-size: 14px; text-align: left; transition: border-color 80ms; }
-.csel-trigger:hover, .csel-trigger.open { border-color: var(--ink-3); background: var(--bg-canvas); }
+.csel-trigger { width: 100%; display: flex; align-items: center; gap: 10px; padding: 10px 12px; border: 1px solid #d8cfbb; border-radius: 8px; background: var(--panel); cursor: pointer; font-family: inherit; font-size: 14px; text-align: left; transition: border-color 80ms; box-shadow: inset 0 1px 0 rgba(255,255,255,0.7); }
+.csel-trigger:hover, .csel-trigger.open { border-color: #b8a48a; background: var(--panel); }
 .csel-chevron { color: var(--ink-3); flex-shrink: 0; transition: transform 150ms; }
 .csel-chevron.up { transform: rotate(180deg); }
 .csel-val { flex: 1; display: flex; align-items: center; gap: 10px; min-width: 0; overflow: hidden; }
 .csel-ph { color: var(--ink-4); font-size: 14px; }
 .csel-val-sub { font-family: "JetBrains Mono", monospace; font-size: 11px; color: var(--ink-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .csel-code { font-family: "JetBrains Mono", monospace; font-size: 13px; color: var(--ink); background: var(--chip); padding: 1px 6px; border-radius: 3px; flex-shrink: 0; }
-.csel-menu { position: absolute; top: calc(100% + 4px); left: 0; right: 0; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; box-shadow: 0 8px 28px rgba(0,0,0,0.12); z-index: 500; max-height: 320px; overflow-y: auto; padding: 4px; }
+.csel-menu { position: absolute; top: calc(100% + 4px); left: 0; right: 0; background: var(--panel); border: 1px solid #e8e2d8; border-radius: 10px; box-shadow: 0 10px 36px rgba(40,32,18,0.18); z-index: 500; max-height: 320px; overflow-y: auto; padding: 4px; }
 .csel.csel-auto { width: auto; display: inline-block; }
 .csel-auto .csel-trigger { width: auto; }
 .csel-auto .csel-val { flex: 0 1 auto; }
@@ -217,11 +217,11 @@ function FlowStyles() {
 .csel-sys-tag { margin-left: 0; }
 
 .wrl { display: flex; flex-direction: column; gap: 2px; }
-.wrl-item { display: flex; align-items: flex-start; gap: 12px; padding: 12px 14px; border: 1px solid var(--line); border-radius: 8px; background: var(--panel); cursor: pointer; font-family: inherit; text-align: left; transition: border-color 80ms, background 80ms; width: 100%; }
-.wrl-item:hover { background: var(--bg-canvas); }
-.wrl-item.on { border-color: #16a34a; background: color-mix(in oklab, #16a34a 6%, var(--panel)); }
+.wrl-item { display: flex; align-items: flex-start; gap: 12px; padding: 12px 14px; border: 1px solid #e3ddd1; border-radius: 8px; background: var(--panel); cursor: pointer; font-family: inherit; text-align: left; transition: border-color 80ms, background 80ms; width: 100%; box-shadow: inset 0 1px 0 rgba(255,255,255,0.8); }
+.wrl-item:hover { background: var(--bg-canvas); border-color: var(--line); }
+.wrl-item.on { border-color: #b8a48a; background: var(--bg-canvas); box-shadow: none; }
 .wrl-radio { width: 16px; height: 16px; border-radius: 50%; border: 1.5px solid var(--line); flex-shrink: 0; margin-top: 2px; transition: border-color 80ms, border-width 80ms; }
-.wrl-radio.on { border: 5px solid #16a34a; }
+.wrl-radio.on { border: 5px solid #16341f; }  /* brand dark green dot — intentional */
 .wrl-body { flex: 1; min-width: 0; }
 .wrl-label { font-size: 13.5px; font-weight: 500; color: var(--ink); display: flex; align-items: center; gap: 8px; }
 .wrl-tag { font-family: "JetBrains Mono", monospace; font-size: 9.5px; padding: 1px 6px; border-radius: 3px; letter-spacing: 0.4px; }
@@ -248,11 +248,11 @@ function FlowStyles() {
 .wflag-row { display: flex; gap: 6px; flex-wrap: wrap; }
 .wflag { display: inline-flex; align-items: center; gap: 7px; padding: 8px 14px; border: 1px solid var(--line); border-radius: 7px; background: var(--panel); cursor: pointer; font-size: 13px; color: var(--ink-2); user-select: none; }
 .wflag:hover { background: var(--bg-canvas); }
-.wflag.on { background: color-mix(in oklab, #16a34a 7%, var(--panel)); border-color: #16a34a; color: var(--ink); font-weight: 500; }
-.wflag input { accent-color: #16a34a; }
+.wflag.on { background: var(--bg-canvas); border-color: #b8a48a; color: var(--ink); font-weight: 500; }
+.wflag input { accent-color: #16341f; }
 
 .wslider { display: flex; align-items: center; gap: 14px; }
-.wslider-input { flex: 1; accent-color: #16a34a; height: 4px; }
+.wslider-input { flex: 1; accent-color: #16341f; height: 4px; }
 .wslider-val { font-family: "JetBrains Mono", monospace; font-size: 13px; color: var(--ink); min-width: 64px; text-align: right; }
 
 .wenum-tokens { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; padding: 8px 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--panel); min-height: 44px; }
@@ -2063,10 +2063,10 @@ function SrcObject({ s, set, sel }) {
           const on = selected.indexOf(o.name) >= 0;
           return (
             <button key={o.name} onClick={() => toggle(o.name)}
-              style={{ display: "flex", alignItems: "center", gap: 14, width: "100%", padding: "14px 16px", border: "none", borderTop: i ? "1px solid var(--line-2)" : "none", background: on ? "color-mix(in oklab, #16a34a 8%, #fff)" : "transparent", cursor: "pointer", textAlign: "left", fontFamily: "inherit" }}
-              onMouseEnter={e => { if (!on) e.currentTarget.style.background = "var(--panel-2)"; }}
+              style={{ display: "flex", alignItems: "center", gap: 14, width: "100%", padding: "14px 16px", border: "none", borderTop: i ? "1px solid #f0ece6" : "none", background: on ? "#f0faf2" : "transparent", cursor: "pointer", textAlign: "left", fontFamily: "inherit" }}
+              onMouseEnter={e => { if (!on) e.currentTarget.style.background = "#faf8f4"; }}
               onMouseLeave={e => { if (!on) e.currentTarget.style.background = "transparent"; }}>
-              <span style={{ width: 20, height: 20, borderRadius: 5, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", borderWidth: 1.5, borderStyle: "solid", borderColor: on ? "#16a34a" : "var(--line)", background: on ? "#16a34a" : "transparent", color: "#fff" }}>
+              <span style={{ width: 20, height: 20, borderRadius: 5, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", borderWidth: 1.5, borderStyle: "solid", borderColor: on ? "#16341f" : "var(--line)", background: on ? "#16341f" : "transparent", color: "#fff" }}>
                 {on && <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><polyline points="3.5,8.5 6.5,11.5 12.5,5" /></svg>}
               </span>
               {sel ? <SrcConnectorLogo c={sel} size={20} /> : <span style={{ width: 32, height: 32, borderRadius: 8, background: "var(--chip)", border: "1px solid var(--line)", flexShrink: 0 }} />}
@@ -2379,7 +2379,7 @@ function SrcDiscover({ s, set, sel }) {
               return (
                 <label key={e.id} style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 15px", borderRadius: 10, cursor: "pointer", border: "1px solid var(--line-2)", background: on ? "var(--panel)" : "transparent", opacity: on ? 1 : 0.62, transition: "opacity 120ms" }}>
                   <span style={{ flex: 1, minWidth: 0, fontSize: 14, fontWeight: 600, color: "var(--ink)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{e.name}</span>
-                  <input type="checkbox" checked={on} onChange={() => toggle(e.id)} style={{ accentColor: "#16a34a", width: 16, height: 16, flexShrink: 0 }} />
+                  <input type="checkbox" checked={on} onChange={() => toggle(e.id)} style={{ accentColor: "#16341f", width: 16, height: 16, flexShrink: 0 }} />
                 </label>
               );
             })}
@@ -2638,7 +2638,7 @@ function SrcTransformDrawer({ col, type, sel, list: propList, onChange: propOnCh
                     ))}
                     {/* save output in new field */}
                     <label style={{ display: "flex", alignItems: "center", gap: 9, cursor: forceSave ? "default" : "pointer", opacity: forceSave ? 0.7 : 1 }}>
-                      <input type="checkbox" checked={showNewField} disabled={forceSave} onChange={e => setItem(i, { saveNew: e.target.checked })} style={{ accentColor: "#16a34a", width: 15, height: 15 }} />
+                      <input type="checkbox" checked={showNewField} disabled={forceSave} onChange={e => setItem(i, { saveNew: e.target.checked })} style={{ accentColor: "#16341f", width: 15, height: 15 }} />
                       <span style={{ fontSize: 12.5, color: "var(--ink-2)" }}>Save output in a new field{forceSave ? " (required)" : ""}</span>
                     </label>
                     {showNewField && (
@@ -3593,7 +3593,7 @@ function SrcSchedule({ s, set, srcCols, eyebrow }) {
 
       <FormRow label="Avoid Duplicate Operations" optional hint="Enable duplicate operations prevention in your destination">
         <label style={{ display: "flex", alignItems: "flex-start", gap: 10, cursor: "pointer" }}>
-          <input type="checkbox" checked={!!s.avoidDup} onChange={e => set({ avoidDup: e.target.checked })} style={{ accentColor: "#16a34a", width: 15, height: 15, marginTop: 2 }} />
+          <input type="checkbox" checked={!!s.avoidDup} onChange={e => set({ avoidDup: e.target.checked })} style={{ accentColor: "#16341f", width: 15, height: 15, marginTop: 2 }} />
           <span><span style={{ fontSize: 13.5, fontWeight: 600, color: "var(--ink)" }}>Avoid Duplicate Operations</span><span style={{ display: "block", fontSize: 12, color: "var(--ink-3)", marginTop: 3, lineHeight: 1.5 }}>Avoid duplicate operations and cyclical writes between pipelines. Checks existing record hashes to ensure one-way data flow.</span></span>
         </label>
       </FormRow>
