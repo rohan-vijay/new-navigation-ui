@@ -618,22 +618,18 @@ function NodeDetailPage({ node, onBack, onCanvas }) {
             const on = tab === t
             return (
               <button key={t} onClick={() => setTab(t)} style={{
-                flex: 1, minWidth: 0, border: 'none', background: 'none', cursor: 'pointer',
-                padding: '8px 6px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                flex: 1, minWidth: 0, cursor: 'pointer', border: 'none',
+                margin: '7px 0 9px', padding: '7px 10px', borderRadius: 9, fontSize: 13,
+                fontWeight: on ? 600 : 450, color: on ? '#2a2620' : '#9a948a',
+                background: on ? '#efe9dd' : 'transparent',
+                transition: 'background .15s, color .15s', whiteSpace: 'nowrap',
+                display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6,
               }}
-                onMouseOver={e => { if (!on) e.currentTarget.firstChild.style.background = 'rgba(40,32,18,0.05)' }}
-                onMouseOut={e => { if (!on) e.currentTarget.firstChild.style.background = 'transparent' }}>
-                <span style={{
-                  display: 'inline-flex', alignItems: 'center', gap: 6, padding: '5px 13px', borderRadius: 9,
-                  fontSize: 13, fontWeight: on ? 600 : 450, color: on ? '#16341f' : '#9a948a',
-                  background: on ? '#e6f0e8' : 'transparent',
-                  boxShadow: on ? '0 1px 2px rgba(22,52,31,0.06)' : 'none',
-                  transition: 'background .15s, color .15s', whiteSpace: 'nowrap',
-                }}>
-                  <span style={{ display: 'inline-flex', color: on ? '#1f7a40' : '#bcb5a4', transition: 'color .15s' }}>{TAB_ICON[t]}</span>
-                  {t}
-                  {tabCount[t] > 0 && <span style={{ fontFamily: 'var(--mono)', fontSize: 10, fontWeight: 600, color: on ? '#16341f' : '#a89e88', background: on ? 'rgba(22,52,31,0.1)' : '#f1ede4', borderRadius: 5, padding: '1px 5px' }}>{tabCount[t]}</span>}
-                </span>
+                onMouseOver={e => { if (!on) e.currentTarget.style.background = 'rgba(40,32,18,0.045)' }}
+                onMouseOut={e => { if (!on) e.currentTarget.style.background = 'transparent' }}>
+                <span style={{ display: 'inline-flex', color: on ? '#6b6453' : '#bcb5a4', transition: 'color .15s' }}>{TAB_ICON[t]}</span>
+                {t}
+                {tabCount[t] > 0 && <span style={{ fontFamily: 'var(--mono)', fontSize: 10, fontWeight: 600, color: on ? '#6b6453' : '#a89e88', background: on ? 'rgba(40,32,18,0.07)' : '#f1ede4', borderRadius: 5, padding: '1px 5px' }}>{tabCount[t]}</span>}
               </button>
             )
           })}
