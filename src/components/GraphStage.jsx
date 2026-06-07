@@ -6024,7 +6024,12 @@ function PropertiesPane({ node, properties }) {
               <input className="sample-search" placeholder="Search properties…" value={search} onChange={e => setSearch(e.target.value)} />
             </div>
             <div style={{ position:"relative" }}>
-              <button className="btn-dark" onClick={() => setAddMenuOpen(o => !o)}>+ Add property</button>
+              <button onClick={() => setAddMenuOpen(o => !o)}
+                style={{ display:"inline-flex", alignItems:"center", gap:7, height:32, padding:"0 13px", background:"#fff", color:"#3a3a36", border:"1px solid #e3ddd1", borderRadius:8, fontSize:13, fontWeight:500, fontFamily:"var(--sans)", cursor:"pointer", whiteSpace:"nowrap", boxShadow:"0 1px 2px rgba(60,50,30,0.04)", transition:"background .15s" }}
+                onMouseOver={e => e.currentTarget.style.background = "#faf8f3"} onMouseOut={e => e.currentTarget.style.background = "#fff"}>
+                <svg width="13" height="13" viewBox="0 0 13 13" fill="none"><path d="M6.5 1.5v10M1.5 6.5h10" stroke="#3a3a36" strokeWidth="1.6" strokeLinecap="round" /></svg>
+                Add property
+              </button>
               {addMenuOpen && (
                 <>
                   <div onClick={() => setAddMenuOpen(false)} style={{ position:"fixed", top:0, left:0, right:0, bottom:0, zIndex:199 }} />
