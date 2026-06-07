@@ -17,6 +17,17 @@ function ToolGlyph({ slug, name, size = 22, icon = null }) {
       </svg>
     )
   }
+  if (slug === 'amazons3') {
+    return (
+      <svg width={size} height={size} viewBox="0 0 24 24" style={{ display: 'block' }}>
+        {/* AWS wordmark — "aws" */}
+        <text x="12" y="13" textAnchor="middle" fontFamily="Arial,sans-serif" fontWeight="700" fontSize="8.5" fill="#232F3E" letterSpacing="0.5">aws</text>
+        {/* Orange smile / arrow */}
+        <path d="M6.2 16.5 Q12 19.5 17.8 16.5" stroke="#FF9900" strokeWidth="1.8" strokeLinecap="round" fill="none"/>
+        <polygon points="17.1,15.5 18.5,16.5 17.1,17.3" fill="#FF9900"/>
+      </svg>
+    )
+  }
   if (slug === 'slack') {
     return (
       <svg width={size} height={size} viewBox="0 0 24 24" fill="none" style={{ display: 'block' }}>

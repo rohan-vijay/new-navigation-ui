@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect } from 'react'
 import { ShareDialog, ShareTypeIcon } from './SkillDetail'
-import { StatusBadge } from './SkillsPage'
+import { StatusBadge, Dropdown } from './SkillsPage'
 import CreateAgentPage, { ModelIcon, MODELS } from './CreateAgentModal'
 import BuildWithAIModal from './BuildWithAIModal'
 import { ToolGlyph } from './AddToolPanel'
@@ -18,6 +18,26 @@ const FULL_ONLY_TABS = ['Agents', 'Governance']
 // same button styling as the Skills detail header
 const gBtnGhost = { display: 'inline-flex', alignItems: 'center', gap: 8, background: '#fff', color: '#3a3a36', border: '1px solid #e3ddd1', borderRadius: 9, padding: '0 14px', height: 36, fontSize: 13.5, fontWeight: 500, cursor: 'pointer', boxShadow: '0 1px 2px rgba(60,50,30,0.04)', transition: 'all .15s' }
 const gBtnPrimary = { background: 'var(--green-btn)', color: '#fff', border: 'none', borderRadius: 9, padding: '0 20px', height: 36, fontSize: 13.5, fontWeight: 500, cursor: 'pointer', boxShadow: '0 1px 3px rgba(22,52,31,0.16)', transition: 'all .15s' }
+
+/* Compact table toolbar — sort + filter dropdowns + search, matching the
+   Enterprise Context Graph (records) view. */
+function TableToolbar({ sort, sortOptions, onSort, filter, filterOptions, onFilter, search, onSearch, placeholder }) {
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
+      <Dropdown value={sort} options={sortOptions} onChange={onSort} icon="sort" />
+      <Dropdown value={filter} options={filterOptions} onChange={onFilter} icon="filter" />
+      <div style={{ flex: 1 }} />
+      <div style={{ position: 'relative' }}>
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none" style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }}>
+          <circle cx="6" cy="6" r="4" stroke="#9ca3af" strokeWidth="1.4" /><path d="M10 10l3 3" stroke="#9ca3af" strokeWidth="1.4" strokeLinecap="round" />
+        </svg>
+        <input value={search} onChange={e => onSearch(e.target.value)} placeholder={placeholder}
+          style={{ border: '1px solid #e3e6e3', borderRadius: 8, padding: '6px 12px 6px 30px', fontSize: 13, color: '#374151', outline: 'none', width: 200, height: 32, boxSizing: 'border-box', transition: 'border-color .15s' }}
+          onFocus={e => e.target.style.borderColor = '#9298a0'} onBlur={e => e.target.style.borderColor = '#e3e6e3'} />
+      </div>
+    </div>
+  )
+}
 
 /* MVP ↔ Full-production feature toggle — segmented pill, two outline icons
    in the same line-icon family as the Share icon. Left = MVP (a single
@@ -382,8 +402,26 @@ const CAT_TAG = {
 }
 const fillColor = (v) => v >= 92 ? '#2f9e5a' : v >= 80 ? '#a98c54' : '#c0492f'
 
+const NODE_SORTERS = {
+  'Name (A–Z)': (a, b) => a.label.localeCompare(b.label),
+  'Records': (a, b) => (b.instancesN || 0) - (a.instancesN || 0),
+  'Properties': (a, b) => b.props - a.props,
+  'Edges': (a, b) => b.edges - a.edges,
+  'Fill Rate': (a, b) => b.fill - a.fill,
+}
+const NODE_FILTERS = { 'All categories': null, Core: 'core', Support: 'support', Derived: 'derived', Source: 'source' }
+
 function NodesList({ onAddNode, onOpen }) {
-  const NODES = SIDEBAR_NODES
+  const [sort, setSort] = useState('Name (A–Z)')
+  const [filter, setFilter] = useState('All categories')
+  const [search, setSearch] = useState('')
+  const NODES = useMemo(() => {
+    const fcat = NODE_FILTERS[filter]
+    let rows = SIDEBAR_NODES
+      .filter(n => !fcat || n.cat === fcat)
+      .filter(n => n.label.toLowerCase().includes(search.toLowerCase()))
+    return [...rows].sort(NODE_SORTERS[sort])
+  }, [sort, filter, search])
   return (
     <div style={{ flex: 1, overflowY: 'auto', backgroundColor: '#fcfbf7', padding: '12px 26px 40px' }} className="dark-scroll">
       <div style={{ display: 'flex', alignItems: 'center', marginBottom: 12 }}>
@@ -397,6 +435,11 @@ function NodesList({ onAddNode, onOpen }) {
           New Node
         </button>
       </div>
+
+      <TableToolbar
+        sort={sort} sortOptions={Object.keys(NODE_SORTERS)} onSort={setSort}
+        filter={filter} filterOptions={Object.keys(NODE_FILTERS)} onFilter={setFilter}
+        search={search} onSearch={setSearch} placeholder="Search nodes" />
 
       <div style={{ border: '1px solid #ececea', borderRadius: 12, overflow: 'hidden' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed' }}>
@@ -469,9 +512,19 @@ const EDGE_KIND_TAG = {
   source:   { label: 'Source',   color: '#3a6ea0', bg: '#eef3f9', border: '#d3e0ee' },
 }
 
+const EDGE_SORTERS = {
+  'Relationship': (a, b) => a.label.localeCompare(b.label),
+  'Instances': (a, b) => b.instances - a.instances,
+  'From': (a, b) => a.from.label.localeCompare(b.from.label),
+  'To': (a, b) => a.to.label.localeCompare(b.to.label),
+}
+
 function EdgesList({ onAddEdge }) {
+  const [sort, setSort] = useState('Relationship')
+  const [filter, setFilter] = useState('All kinds')
+  const [search, setSearch] = useState('')
   const byId = useMemo(() => { const m = {}; SIDEBAR_NODES.forEach(n => { m[n.id] = n }); return m }, [])
-  const rows = useMemo(() => GRAPH_EDGES
+  const allEdges = useMemo(() => GRAPH_EDGES
     .map((e, i) => {
       const from = byId[e.s], to = byId[e.t]
       if (!from || !to) return null
@@ -485,6 +538,15 @@ function EdgesList({ onAddEdge }) {
       }
     })
     .filter(Boolean), [byId])
+  const kindOptions = useMemo(() => ['All kinds', ...[...new Set(allEdges.map(e => e.kind))].map(k => (EDGE_KIND_TAG[k] || { label: k }).label)], [allEdges])
+  const rows = useMemo(() => {
+    const fkind = filter === 'All kinds' ? null : filter
+    const q = search.toLowerCase()
+    let r = allEdges
+      .filter(e => !fkind || (EDGE_KIND_TAG[e.kind] || { label: e.kind }).label === fkind)
+      .filter(e => !q || e.label.toLowerCase().includes(q) || e.from.label.toLowerCase().includes(q) || e.to.label.toLowerCase().includes(q))
+    return [...r].sort(EDGE_SORTERS[sort])
+  }, [allEdges, sort, filter, search])
 
   const endpoint = (n) => (
     <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8, whiteSpace: 'nowrap', overflow: 'hidden' }}>
@@ -506,6 +568,11 @@ function EdgesList({ onAddEdge }) {
           New Edge
         </button>
       </div>
+
+      <TableToolbar
+        sort={sort} sortOptions={Object.keys(EDGE_SORTERS)} onSort={setSort}
+        filter={filter} filterOptions={kindOptions} onFilter={setFilter}
+        search={search} onSearch={setSearch} placeholder="Search edges" />
 
       <div style={{ border: '1px solid #ececea', borderRadius: 12, overflow: 'hidden' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed' }}>
@@ -550,13 +617,30 @@ function EdgesList({ onAddEdge }) {
   )
 }
 
+const SOURCE_SORTERS = {
+  'Name (A–Z)': (a, b) => a.name.localeCompare(b.name),
+  'Connection': (a, b) => a.conn.localeCompare(b.conn),
+  'Status': (a, b) => a.status.localeCompare(b.status),
+}
+const SOURCE_STATUS_FILTERS = ['All status', 'Connected', 'Syncing', 'Error', 'Paused']
+
 function SourcesList({ onConnect }) {
+  const [sort, setSort] = useState('Name (A–Z)')
+  const [filter, setFilter] = useState('All status')
+  const [search, setSearch] = useState('')
+  const rows = useMemo(() => {
+    const q = search.toLowerCase()
+    let r = SOURCES
+      .filter(s => filter === 'All status' || s.status === filter)
+      .filter(s => !q || s.name.toLowerCase().includes(q) || s.conn.toLowerCase().includes(q))
+    return [...r].sort(SOURCE_SORTERS[sort])
+  }, [sort, filter, search])
   return (
     <div style={{ flex: 1, overflowY: 'auto', backgroundColor: '#fcfbf7', padding: '12px 26px 40px' }} className="dark-scroll">
       <div style={{ display: 'flex', alignItems: 'center', marginBottom: 12 }}>
         <div style={{ flex: 1, display: 'flex', alignItems: 'baseline', gap: 9 }}>
           <span style={{ fontFamily: 'var(--serif)', fontSize: 23, fontWeight: 500, color: '#1a1a1a', letterSpacing: -0.2 }}>Sources</span>
-          <span style={{ fontFamily: 'var(--sans)', fontSize: 14, color: '#a89e88' }}>{SOURCES.length}</span>
+          <span style={{ fontFamily: 'var(--sans)', fontSize: 14, color: '#a89e88' }}>{rows.length}</span>
         </div>
         <button onClick={() => onConnect?.()} style={{ ...gBtnGhost, height: 32, padding: '0 13px', display: 'inline-flex', alignItems: 'center', gap: 7 }}
           onMouseOver={e => e.currentTarget.style.background = '#faf8f3'} onMouseOut={e => e.currentTarget.style.background = '#fff'}>
@@ -564,6 +648,11 @@ function SourcesList({ onConnect }) {
           Connect Source
         </button>
       </div>
+
+      <TableToolbar
+        sort={sort} sortOptions={Object.keys(SOURCE_SORTERS)} onSort={setSort}
+        filter={filter} filterOptions={SOURCE_STATUS_FILTERS} onFilter={setFilter}
+        search={search} onSearch={setSearch} placeholder="Search sources" />
 
       <div style={{ border: '1px solid #ececea', borderRadius: 12, overflow: 'hidden' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed' }}>
@@ -576,8 +665,8 @@ function SourcesList({ onConnect }) {
             </tr>
           </thead>
           <tbody>
-            {SOURCES.map((s, i) => {
-              const last = i === SOURCES.length - 1
+            {rows.map((s, i) => {
+              const last = i === rows.length - 1
               const cell = { padding: '12px 18px', verticalAlign: 'middle', overflow: 'hidden', borderBottom: last ? 'none' : '1px solid #f1f2f1' }
               return (
                 <tr key={i} style={{ background: '#fff', transition: 'background .12s, box-shadow .12s' }}
