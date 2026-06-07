@@ -5,7 +5,7 @@ import CreateAgentPage, { ModelIcon, MODELS } from './CreateAgentModal'
 import BuildWithAIModal from './BuildWithAIModal'
 import { ToolGlyph } from './AddToolPanel'
 import { LinkSourceFlow } from './LinkSourceFlow'
-import GraphStage, { SIDEBAR_NODES, GRAPH_EDGES, ListGlyph } from './GraphStage'
+import GraphStage, { SIDEBAR_NODES, GRAPH_EDGES, ListGlyph, AddNodeFlow } from './GraphStage'
 import RecordsPage from './RecordsPage'
 import SkillLibrary from './SkillLibrary'
 import { AGENT_LIBRARY, AGENT_GROUP_ORDER } from '../data/agentLibrary'
@@ -232,7 +232,7 @@ function GraphCanvasInner({ title = 'New graph', onBack, onAgentAI }) {
       {tab === 'Graph' ? (
         <GraphStage />
       ) : tab === 'Nodes' ? (
-        <NodesList onAddNode={() => setTab('Graph')} onOpen={() => setTab('Graph')} />
+        <NodesList onOpen={() => setTab('Graph')} />
       ) : tab === 'Edges' ? (
         <EdgesList onAddEdge={() => setTab('Graph')} />
       ) : tab === 'Sources' ? (
@@ -411,10 +411,11 @@ const NODE_SORTERS = {
 }
 const NODE_FILTERS = { 'All categories': null, Core: 'core', Support: 'support', Derived: 'derived', Source: 'source' }
 
-function NodesList({ onAddNode, onOpen }) {
+function NodesList({ onOpen }) {
   const [sort, setSort] = useState('Name (A–Z)')
   const [filter, setFilter] = useState('All categories')
   const [search, setSearch] = useState('')
+  const [addOpen, setAddOpen] = useState(false)
   const NODES = useMemo(() => {
     const fcat = NODE_FILTERS[filter]
     let rows = SIDEBAR_NODES
@@ -429,7 +430,7 @@ function NodesList({ onAddNode, onOpen }) {
           <span style={{ fontFamily: 'var(--serif)', fontSize: 23, fontWeight: 500, color: '#1a1a1a', letterSpacing: -0.2 }}>Nodes</span>
           <span style={{ fontFamily: 'var(--sans)', fontSize: 14, color: '#a89e88' }}>{NODES.length}</span>
         </div>
-        <button onClick={() => onAddNode?.()} style={{ ...gBtnGhost, height: 32, padding: '0 13px', display: 'inline-flex', alignItems: 'center', gap: 7 }}
+        <button onClick={() => setAddOpen(true)} style={{ ...gBtnGhost, height: 32, padding: '0 13px', display: 'inline-flex', alignItems: 'center', gap: 7 }}
           onMouseOver={e => e.currentTarget.style.background = '#faf8f3'} onMouseOut={e => e.currentTarget.style.background = '#fff'}>
           <svg width="13" height="13" viewBox="0 0 13 13" fill="none"><path d="M6.5 1.5v10M1.5 6.5h10" stroke="#3a3a36" strokeWidth="1.6" strokeLinecap="round" /></svg>
           New Node
@@ -491,6 +492,8 @@ function NodesList({ onAddNode, onOpen }) {
           </tbody>
         </table>
       </div>
+
+      {addOpen && <AddNodeFlow onClose={() => setAddOpen(false)} onCreate={() => setAddOpen(false)} />}
     </div>
   )
 }
