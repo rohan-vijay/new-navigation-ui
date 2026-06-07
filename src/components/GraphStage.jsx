@@ -1451,7 +1451,8 @@ export default function GraphStage() {
         <Inspector
           node={selectedNode} edges={edges} nodes={nodes}
           onClose={() => setSelected(null)}
-          onOpenDetail={null}
+          onViewDetails={() => { setEditMode(true); setSidebarOpen(false) }}
+          onEditSchema={() => { setEditMode(true); setSidebarOpen(false) }}
         />
       )}
 
@@ -2351,7 +2352,7 @@ function PermRow({ k, label, list, setList, tone, desc }) {
 // table so each row reads at a glance.
 
 // — Inspector (third pane) + Meter —
-function Inspector({ node, onClose, onOpenDetail, edges: liveEdges, nodes: liveNodes }) {
+function Inspector({ node, onClose, onViewDetails, onEditSchema, edges: liveEdges, nodes: liveNodes }) {
   const [tab, setTab] = useState("Props");
   if (!node) return null;
   const c = colorForNode(node);
@@ -2380,7 +2381,7 @@ function Inspector({ node, onClose, onOpenDetail, edges: liveEdges, nodes: liveN
     <aside className="inspector">
       <div className="inspector-head">
         <div className="ih-icon">
-          <svg width="44" height="44" viewBox="-22 -22 44 44">
+          <svg width="34" height="34" viewBox="-22 -22 44 44">
             {node.type === "agent" ? (
               <polygon points={[0,1,2,3,4,5].map(i=>{const a=(Math.PI/3)*i-Math.PI/2;const r=14;return `${(r*Math.cos(a)).toFixed(2)},${(r*Math.sin(a)).toFixed(2)}`}).join(" ")} fill={c.fill} stroke={c.stroke} strokeWidth="1.6" />
             ) : node.type === "source" ? (
@@ -2401,16 +2402,22 @@ function Inspector({ node, onClose, onOpenDetail, edges: liveEdges, nodes: liveN
         </button>
       </div>
 
-      {onOpenDetail && (
-        <div style={{ display: "flex", gap: 8, padding: "14px 14px 14px", borderBottom: "1px solid var(--line-2)" }}>
-          <button onClick={onOpenDetail} style={{ flex: 1, padding: "8px 0", borderRadius: 6, border: "1px solid var(--line)", background: "transparent", color: "var(--ink-2)", fontSize: 12, fontFamily: "Geist, system-ui", cursor: "pointer", textAlign: "center" }}>
-            View full details →
-          </button>
-          <button onClick={onOpenDetail} style={{ padding: "8px 14px", borderRadius: 6, border: "none", background: "var(--ink)", color: "#fff", fontSize: 12, fontFamily: "Geist, system-ui", cursor: "pointer", fontWeight: 500 }}>
-            Edit schema
-          </button>
-        </div>
-      )}
+      <div style={{ display: "flex", gap: 8, padding: "12px 14px", borderBottom: "1px solid var(--line-2)" }}>
+        <button onClick={onViewDetails}
+          style={{ flex: 1, height: 34, borderRadius: 8, border: "1px solid var(--line)", background: "var(--panel)", color: "var(--ink-2)", fontSize: 12.5, fontWeight: 500, fontFamily: "var(--sans)", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 6, transition: "background .15s, border-color .15s" }}
+          onMouseOver={e => { e.currentTarget.style.background = "var(--panel-2)"; e.currentTarget.style.borderColor = "var(--ink-4)" }}
+          onMouseOut={e => { e.currentTarget.style.background = "var(--panel)"; e.currentTarget.style.borderColor = "var(--line)" }}>
+          View full details
+          <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2.5 6h7M6.5 3l3 3-3 3" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" /></svg>
+        </button>
+        <button onClick={onEditSchema}
+          style={{ flex: 1, height: 34, borderRadius: 8, border: "none", background: "var(--green-btn, #16341f)", color: "#fff", fontSize: 12.5, fontWeight: 500, fontFamily: "var(--sans)", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 6, boxShadow: "0 1px 3px rgba(22,52,31,0.16)", transition: "background .15s" }}
+          onMouseOver={e => e.currentTarget.style.background = "#1d4228"}
+          onMouseOut={e => e.currentTarget.style.background = "var(--green-btn, #16341f)"}>
+          <svg width="12" height="12" viewBox="0 0 14 14" fill="none"><path d="M9.5 1.8l2.7 2.7L4.8 11.9 1.5 12.5l.6-3.3 7.4-7.4z" stroke="#fff" strokeWidth="1.3" strokeLinejoin="round" /></svg>
+          Edit schema
+        </button>
+      </div>
 
       <div className="ih-stats">
         <div><div className="ih-stat-label">Records</div><div className="ih-stat-v">{node.instances}</div></div>
