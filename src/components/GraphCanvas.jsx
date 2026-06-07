@@ -484,6 +484,44 @@ function genActivity(node) {
   return base.slice(0, 3 + (seed % 3))
 }
 
+const DETAIL_TAB_CFG = {
+  Properties: {
+    sorters: { 'Name (A–Z)': (a, b) => a.name.localeCompare(b.name), 'Fill Rate': (a, b) => b.fill - a.fill, 'Type': (a, b) => a.type.localeCompare(b.type) },
+    filters: { 'All attributes': null, Required: p => p.required, Indexed: p => p.indexed, PII: p => p.pii, 'Primary key': p => p.pk },
+    search: p => p.name + ' ' + p.type, placeholder: 'Search properties',
+  },
+  Edges: {
+    sorters: { 'Relationship': (a, b) => a.label.localeCompare(b.label), 'Instances': (a, b) => b.instances - a.instances, 'Connected Node': (a, b) => a.other.label.localeCompare(b.other.label) },
+    filters: { 'All kinds': null, Direct: e => e.kind === 'direct', Inferred: e => e.kind === 'inferred', Agent: e => e.kind === 'agent', Source: e => e.kind === 'source' },
+    search: e => e.label + ' ' + e.other.label, placeholder: 'Search edges',
+  },
+  Survivorship: {
+    sorters: { 'Rule (A–Z)': (a, b) => a.title.localeCompare(b.title), 'Property': (a, b) => a.property.localeCompare(b.property) },
+    filters: { 'All status': null, Active: r => r.on, Off: r => !r.on },
+    search: r => r.title + ' ' + r.property, placeholder: 'Search rules',
+  },
+  'Data Enrichment': {
+    sorters: { 'Rule (A–Z)': (a, b) => a.title.localeCompare(b.title), 'Compliance': (a, b) => b.compliance - a.compliance, 'Severity': (a, b) => a.severity.localeCompare(b.severity) },
+    filters: { 'All status': null, Active: r => r.on, Off: r => !r.on, Errors: r => r.severity === 'ERROR', Warnings: r => r.severity === 'WARN' },
+    search: r => r.title + ' ' + r.kind, placeholder: 'Search rules',
+  },
+  'Data Matching': {
+    sorters: { 'Rule (A–Z)': (a, b) => a.title.localeCompare(b.title) },
+    filters: { 'All status': null, Active: r => r.on, Off: r => !r.on },
+    search: r => r.title, placeholder: 'Search rules',
+  },
+  Computation: {
+    sorters: { 'Field (A–Z)': (a, b) => a.field.localeCompare(b.field), 'Kind': (a, b) => a.kind.localeCompare(b.kind) },
+    filters: { 'All status': null, Healthy: c => c.status === 'Healthy', Stale: c => c.status === 'Stale' },
+    search: c => c.field + ' ' + c.expr + ' ' + c.kind, placeholder: 'Search computations',
+  },
+  Activity: {
+    sorters: { 'Most recent': null, 'Event': (a, b) => a.event.localeCompare(b.event) },
+    filters: { 'All events': null },
+    search: a => a.event + ' ' + a.detail + ' ' + a.actor, placeholder: 'Search activity',
+  },
+}
+
 function NodeDetailPage({ node, onBack, onCanvas }) {
   const [tab, setTab] = useState('Properties')
   const [menuOpen, setMenuOpen] = useState(false)
@@ -494,11 +532,30 @@ function NodeDetailPage({ node, onBack, onCanvas }) {
   const comps = useMemo(() => genComputations(node), [node])
   const activity = useMemo(() => genActivity(node), [node])
 
-  const tabCount = {
-    Properties: props.length, Edges: edges.length,
-    Survivorship: rules.survivorship.length, 'Data Enrichment': rules.quality.length,
-    'Data Matching': rules.match.length, Computation: comps.length, Activity: activity.length,
-  }
+  const RAW = { Properties: props, Edges: edges, Survivorship: rules.survivorship, 'Data Enrichment': rules.quality, 'Data Matching': rules.match, Computation: comps, Activity: activity }
+  const tabCount = Object.fromEntries(Object.entries(RAW).map(([k, v]) => [k, v.length]))
+
+  // Per-tab toolbar state; reset to the tab's defaults whenever the tab changes.
+  const cfg = DETAIL_TAB_CFG[tab]
+  const [sort, setSort] = useState(Object.keys(DETAIL_TAB_CFG.Properties.sorters)[0])
+  const [filter, setFilter] = useState(Object.keys(DETAIL_TAB_CFG.Properties.filters)[0])
+  const [search, setSearch] = useState('')
+  useEffect(() => {
+    setSort(Object.keys(DETAIL_TAB_CFG[tab].sorters)[0])
+    setFilter(Object.keys(DETAIL_TAB_CFG[tab].filters)[0])
+    setSearch('')
+  }, [tab])
+
+  const view = useMemo(() => {
+    let arr = RAW[tab] || []
+    const q = search.trim().toLowerCase()
+    if (q) arr = arr.filter(it => cfg.search(it).toLowerCase().includes(q))
+    const f = cfg.filters[filter]
+    if (typeof f === 'function') arr = arr.filter(f)
+    if (cfg.sorters[sort]) arr = [...arr].sort(cfg.sorters[sort])
+    return arr
+    // eslint-disable-next-line
+  }, [tab, sort, filter, search, props, edges, rules, comps, activity])
 
   return (
     <div style={{ flex: 1, overflowY: 'auto', backgroundColor: '#fcfbf7', padding: '12px 26px 40px' }} className="dark-scroll">
@@ -560,11 +617,17 @@ function NodeDetailPage({ node, onBack, onCanvas }) {
         </div>
       </div>
 
+      {/* per-tab toolbar */}
+      <TableToolbar
+        sort={sort} sortOptions={Object.keys(cfg.sorters)} onSort={setSort}
+        filter={filter} filterOptions={Object.keys(cfg.filters)} onFilter={setFilter}
+        search={search} onSearch={setSearch} placeholder={cfg.placeholder} />
+
       {/* tab body */}
       {tab === 'Properties' && (
         <DetailTable
           cols={[{ label: 'Property', w: '32%' }, { label: 'Type', w: '18%' }, { label: 'Attributes', w: '30%' }, { label: 'Fill Rate', w: '20%' }]}
-          rows={props.map(p => [
+          rows={view.map(p => [
             <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
               {p.pk && <span className="snap-tag snap-pk">PK</span>}
               {p.pii && <span className="snap-tag snap-pii">PII</span>}
@@ -580,7 +643,7 @@ function NodeDetailPage({ node, onBack, onCanvas }) {
       {tab === 'Edges' && (
         <DetailTable
           cols={[{ label: 'Relationship', w: '24%' }, { label: 'Direction', w: '12%', cellStyle: { textAlign: 'center' } }, { label: 'Connected Node', w: '24%' }, { label: 'Kind', w: '14%' }, { label: 'Cardinality', w: '13%' }, { label: 'Instances', w: '13%' }]}
-          rows={edges.map(e => {
+          rows={view.map(e => {
             const k = EDGE_KIND_TAG[e.kind] || EDGE_KIND_TAG.direct
             return [
               monoCell(':' + e.label, '#5b5547'),
@@ -597,7 +660,7 @@ function NodeDetailPage({ node, onBack, onCanvas }) {
       {tab === 'Survivorship' && (
         <DetailTable
           cols={[{ label: 'Rule', w: '34%' }, { label: 'Property', w: '16%' }, { label: 'Strategy', w: '18%' }, { label: 'Status', w: '16%' }, { label: 'Last Run', w: '16%' }]}
-          rows={rules.survivorship.map(r => [
+          rows={view.map(r => [
             <span style={{ fontSize: 13.5, fontWeight: 500, color: '#1a1a1a' }}>{r.title}</span>,
             monoCell(r.property), monoCell(r.strategy, '#374151'),
             <StatusPill on={r.on} />, <span style={{ fontSize: 13, color: '#9097a0' }}>{r.last}</span>,
@@ -608,7 +671,7 @@ function NodeDetailPage({ node, onBack, onCanvas }) {
       {tab === 'Data Enrichment' && (
         <DetailTable
           cols={[{ label: 'Rule', w: '32%' }, { label: 'Kind', w: '14%' }, { label: 'Severity', w: '14%' }, { label: 'Compliance', w: '14%' }, { label: 'Status', w: '13%' }, { label: 'Last Run', w: '13%' }]}
-          rows={rules.quality.map(r => [
+          rows={view.map(r => [
             <span style={{ fontSize: 13.5, fontWeight: 500, color: '#1a1a1a' }}>{r.title}</span>,
             monoCell(r.kind, '#374151'),
             <span style={{ fontFamily: 'var(--mono)', fontSize: 11.5, color: r.severity === 'ERROR' ? '#c0492f' : '#a98c54' }}>{r.severity}</span>,
@@ -621,7 +684,7 @@ function NodeDetailPage({ node, onBack, onCanvas }) {
       {tab === 'Data Matching' && (
         <DetailTable
           cols={[{ label: 'Rule', w: '30%' }, { label: 'Signals', w: '22%' }, { label: 'Auto / Review', w: '18%' }, { label: 'Status', w: '15%' }, { label: 'Last Run', w: '15%' }]}
-          rows={rules.match.map(r => [
+          rows={view.map(r => [
             <span style={{ fontSize: 13.5, fontWeight: 500, color: '#1a1a1a' }}>{r.title}</span>,
             monoCell(r.signals.map(s => s.strategy).join(', '), '#374151'),
             monoCell(`${r.threshold_auto} / ${r.threshold_review}`, '#374151'),
@@ -633,7 +696,7 @@ function NodeDetailPage({ node, onBack, onCanvas }) {
       {tab === 'Computation' && (
         <DetailTable
           cols={[{ label: 'Computed Field', w: '24%' }, { label: 'Kind', w: '14%' }, { label: 'Expression', w: '32%' }, { label: 'Status', w: '15%' }, { label: 'Refreshed', w: '15%' }]}
-          rows={comps.map(c => [
+          rows={view.map(c => [
             <span style={{ fontFamily: 'var(--mono)', fontSize: 12.5, fontWeight: 600, color: '#1a1a1a' }}>{c.field}</span>,
             <span style={{ fontFamily: 'var(--mono)', fontSize: 11.5, color: '#6b5aa6', border: '1px solid #ddd5ef', background: '#f2effa', padding: '2px 8px', borderRadius: 6 }}>{c.kind}</span>,
             monoCell(c.expr, '#5b5547'),
@@ -646,7 +709,7 @@ function NodeDetailPage({ node, onBack, onCanvas }) {
       {tab === 'Activity' && (
         <DetailTable
           cols={[{ label: 'Event', w: '24%' }, { label: 'Detail', w: '40%' }, { label: 'Actor', w: '20%' }, { label: 'When', w: '16%' }]}
-          rows={activity.map(a => [
+          rows={view.map(a => [
             <span style={{ fontSize: 13.5, fontWeight: 500, color: '#1a1a1a' }}>{a.event}</span>,
             <span style={{ fontSize: 13, color: '#5b5547' }}>{a.detail}</span>,
             <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8, fontSize: 13, color: '#374151' }}><span style={{ width: 22, height: 22, borderRadius: '50%', background: '#ede4d2', color: '#8a7648', fontSize: 10.5, fontWeight: 700, border: '1px solid #e3d8c0', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>{a.actor.charAt(0)}</span>{a.actor}</span>,
