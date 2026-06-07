@@ -128,7 +128,7 @@ function EmptyState({ meta, onCta, actions, onAction }) {
 
 export default function GraphCanvas(props) {
   return (
-    <FeatureModeProvider initial="full">
+    <FeatureModeProvider initial="mvp">
       <GraphCanvasInner {...props} />
     </FeatureModeProvider>
   )
