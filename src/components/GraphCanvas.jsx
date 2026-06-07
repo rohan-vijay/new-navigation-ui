@@ -388,33 +388,33 @@ const SOURCE_COLS = [
 // Icon component with 3-tier fallback: Simple Icons → Google Favicon → text glyph
 // Handles brands not on Simple Icons (Apollo, NetSuite, Monday, UnifyApps)
 // Clearbit gives full-color brand logos; Google favicon API for Google products
+const _fav = (d) => `https://www.google.com/s2/favicons?sz=128&domain=${d}`
 const FAVICON_OVERRIDES = {
-  hubspot:       'https://logo.clearbit.com/hubspot.com',
-  netsuite:      'https://logo.clearbit.com/netsuite.com',
-  slack:         'https://logo.clearbit.com/slack.com',
-  monday:        'https://logo.clearbit.com/monday.com',
-  docusign:      'https://logo.clearbit.com/docusign.com',
-  zendesk:       'https://logo.clearbit.com/zendesk.com',
-  apollo:        'https://logo.clearbit.com/apollo.io',
-  postgresql:    'https://logo.clearbit.com/postgresql.org',
-  gitbook:       'https://logo.clearbit.com/gitbook.com',
-  // Google products — use the precise subdomain favicon for correct colored icon
-  gmail:         'https://www.google.com/s2/favicons?domain=mail.google.com&sz=64',
-  googledrive:   'https://www.google.com/s2/favicons?domain=drive.google.com&sz=64',
-  gcal:          'https://www.google.com/s2/favicons?domain=calendar.google.com&sz=64',
-  googlecalendar:'https://www.google.com/s2/favicons?domain=calendar.google.com&sz=64',
-  googlechrome:  'https://www.google.com/s2/favicons?domain=google.com&sz=64',
-  // UnifyApps products
-  productdocs:   'https://www.google.com/s2/favicons?domain=unifyapps.com&sz=64',
-  productusage:  'https://www.google.com/s2/favicons?domain=unifyapps.com&sz=64',
-  support:       'https://www.google.com/s2/favicons?domain=unifyapps.com&sz=64',
-  unifyapps:     'https://www.google.com/s2/favicons?domain=unifyapps.com&sz=64',
+  hubspot:        '/logos/hubspot.png',
+  netsuite:       '/logos/netsuite.svg',
+  slack:          _fav('slack.com'),
+  monday:         _fav('monday.com'),
+  docusign:       _fav('docusign.com'),
+  zendesk:        _fav('zendesk.com'),
+  apollo:         _fav('apollo.io'),
+  postgresql:     _fav('postgresql.org'),
+  gitbook:        _fav('gitbook.com'),
+  salesforce:     _fav('salesforce.com'),
+  gmail:          '/logos/gmail.png',
+  googledrive:    '/logos/googledrive.png',
+  gcal:           '/logos/gcal.png',
+  googlecalendar: '/logos/gcal.png',
+  googlemeet:     _fav('meet.google.com'),
+  googlechrome:   _fav('google.com'),
+  productdocs:    _fav('unifyapps.com'),
+  productusage:   _fav('unifyapps.com'),
+  support:        _fav('unifyapps.com'),
+  unifyapps:      _fav('unifyapps.com'),
 }
 function SourceIcon({ slug, name, size = 20 }) {
-  const [stage, setStage] = useState(0) // 0=primary, 1=favicon, 2=letter
-  const override = FAVICON_OVERRIDES[slug]
-  const primary = override || (slug ? `https://cdn.simpleicons.org/${slug}` : null)
-  if (!primary || stage === 2) {
+  const [failed, setFailed] = useState(false)
+  const primary = FAVICON_OVERRIDES[slug] || _fav((slug || 'unknown') + '.com')
+  if (failed) {
     return (
       <span style={{ width: size, height: size, borderRadius: 5, background: '#eee7da', color: '#7a6f5c',
         fontSize: size * 0.5, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -422,11 +422,7 @@ function SourceIcon({ slug, name, size = 20 }) {
       </span>
     )
   }
-  if (stage === 1) {
-    const fb = `https://www.google.com/s2/favicons?domain=${slug}&sz=64`
-    return <img src={fb} width={size} height={size} alt="" onError={() => setStage(2)} style={{ display: 'block', objectFit: 'contain', borderRadius: 3 }} />
-  }
-  return <img src={primary} width={size} height={size} alt="" onError={() => setStage(override ? 2 : 1)} style={{ display: 'block', objectFit: 'contain' }} />
+  return <img src={primary} width={size} height={size} alt="" onError={() => setFailed(true)} style={{ display: 'block', objectFit: 'contain' }} />
 }
 const SRC_STATUS = {
   Connected: '#2f9e5a', Syncing: '#d99214', Error: '#c0492f', Paused: '#9097a0',

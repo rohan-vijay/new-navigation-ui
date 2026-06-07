@@ -1848,35 +1848,37 @@ const GOOGLE_FAVICON_DOMAINS = {
   gmail: "mail.google.com", googledrive: "drive.google.com",
   googlecalendar: "calendar.google.com", googlemeet: "meet.google.com",
 };
+const FAV = (d) => `https://www.google.com/s2/favicons?sz=128&domain=${d}`;
 const CONNECTOR_LOGO_OVERRIDES = {
-  hubspot:        "https://logo.clearbit.com/hubspot.com",
-  netsuite:       "https://logo.clearbit.com/netsuite.com",
-  slack:          "https://logo.clearbit.com/slack.com",
-  monday:         "https://logo.clearbit.com/monday.com",
-  docusign:       "https://logo.clearbit.com/docusign.com",
-  apollo:         "https://logo.clearbit.com/apollo.io",
-  postgresql:     "https://logo.clearbit.com/postgresql.org",
-  salesforce:     "https://logo.clearbit.com/salesforce.com",
-  zendesk:        "https://logo.clearbit.com/zendesk.com",
-  gmail:          "https://www.google.com/s2/favicons?sz=64&domain=mail.google.com",
-  googledrive:    "https://www.google.com/s2/favicons?sz=64&domain=drive.google.com",
-  gcal:           "https://www.google.com/s2/favicons?sz=64&domain=calendar.google.com",
-  googlecalendar: "https://www.google.com/s2/favicons?sz=64&domain=calendar.google.com",
-  googlemeet:     "https://www.google.com/s2/favicons?sz=64&domain=meet.google.com",
-  support:        "https://www.google.com/s2/favicons?sz=64&domain=unifyapps.com",
-  productdocs:    "https://www.google.com/s2/favicons?sz=64&domain=unifyapps.com",
-  productusage:   "https://www.google.com/s2/favicons?sz=64&domain=unifyapps.com",
-  unifyapps:      "https://www.google.com/s2/favicons?sz=64&domain=unifyapps.com",
+  hubspot:        "/logos/hubspot.png",
+  netsuite:       "/logos/netsuite.svg",
+  slack:          FAV("slack.com"),
+  monday:         FAV("monday.com"),
+  docusign:       FAV("docusign.com"),
+  apollo:         FAV("apollo.io"),
+  postgresql:     FAV("postgresql.org"),
+  salesforce:     FAV("salesforce.com"),
+  zendesk:        FAV("zendesk.com"),
+  gitbook:        FAV("gitbook.com"),
+  gmail:          "/logos/gmail.png",
+  googledrive:    "/logos/googledrive.png",
+  gcal:           "/logos/gcal.png",
+  googlecalendar: "/logos/gcal.png",
+  googlemeet:     FAV("meet.google.com"),
+  support:        FAV("unifyapps.com"),
+  productdocs:    FAV("unifyapps.com"),
+  productusage:   FAV("unifyapps.com"),
+  unifyapps:      FAV("unifyapps.com"),
 };
 
 function SrcConnectorLogo({ c, size }) {
   size = size || 22;
   const box = size + 12;
   const slug = c.slug || "";
-  // Use explicit override first, then Clearbit, then Google favicon, then text glyph.
+  // Use explicit override first, then Google favicon API, then text glyph.
   const override = CONNECTOR_LOGO_OVERRIDES[slug];
-  const primary = override || (c.domain ? "https://logo.clearbit.com/" + c.domain : "");
-  const favicon = "https://www.google.com/s2/favicons?sz=64&domain=" + (c.domain || slug + ".com");
+  const favicon = FAV(c.domain || slug + ".com");
+  const primary = override || favicon;
   const [src, setSrc] = useState(primary || favicon);
   const [failed, setFailed] = useState(!primary && !favicon);
   const onErr = () => {
@@ -2573,6 +2575,9 @@ const TRANSFORM_FUNCTIONS = [
   { id: "duplicate",  label: "Duplicate Field",  glyph: "⧉",   fields: [], alwaysSaveNew: true },
   { id: "dl_s3",      label: "Download from S3",  glyph: "↓",  fields: [{ key: "conn", label: "S3 connection", type: "select", options: ["s3-prod", "s3-archive"], placeholder: "Select connection" }, { key: "path", label: "Path / key", type: "text", placeholder: "bucket/prefix/" }] },
   { id: "ul_s3",      label: "Upload to S3",      glyph: "↑",  fields: [{ key: "conn", label: "S3 connection", type: "select", options: ["s3-prod", "s3-archive"], placeholder: "Select connection" }, { key: "path", label: "Path / key", type: "text", placeholder: "bucket/prefix/" }] },
+  { id: "trim",       label: "Trim Whitespace",   glyph: "↔",  fields: [] },
+  { id: "round",      label: "Round",             glyph: "≈",  fields: [{ key: "dp", label: "Decimal places", type: "text", placeholder: "2" }] },
+  { id: "fmt_date",   label: "Format Date",       glyph: "📅", fields: [{ key: "fmt", label: "Format", type: "text", placeholder: "YYYY-MM-DD" }] },
 ];
 function tfDef(id){ return TRANSFORM_FUNCTIONS.find(f => f.id === id) || null; }
 function tfLabel(id){ return (tfDef(id) || {}).label || ""; }
@@ -3208,7 +3213,7 @@ function SrcMapping({ s, set, groups, activeObj, nodeProps, node, sel, openCol, 
         return (
           <div style={{ border: "1px solid var(--line)", borderRadius: 11, background: "var(--panel)", overflow: "hidden" }}>
             {/* active object caption */}
-            <div style={{ display: "flex", alignItems: "center", gap: 11, padding: "11px 16px", borderBottom: "1px solid var(--line)", background: "var(--panel-2)" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 11, padding: "11px 16px", borderBottom: "1px solid var(--line)", background: "#f0eeeb" }}>
               {!singleGroup && sel && <SrcConnectorLogo c={sel} size={18} />}
               <code style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 13, fontWeight: 600, color: "var(--ink)" }}>{current.name}</code>
               <span style={{ fontSize: 11.5, color: "var(--ink-4)" }}>{(current.type || "Object") + " · " + current.cols.length + " columns" + (hasAgents ? " · " + agentFields.length + " from agents" : "")}</span>
@@ -3317,7 +3322,24 @@ function buildEditState(es, node, base) {
     if (!destId) return;
     if (destId === "__new__") { (cols || []).forEach(c => { st.mapping[group + "::" + c.col] = "new:" + (c.name || c.col); }); return; }
     const pn = propsFor(destId); if (!pn.length) return;
-    (cols || []).forEach(c => { const p = pickProp(c.name || c.col, pn); if (p) st.mapping[group + "::" + c.col] = p; });
+    (cols || []).forEach(c => {
+      const p = pickProp(c.name || c.col, pn); if (p) st.mapping[group + "::" + c.col] = p;
+      // Add sensible pre-filled transforms for obvious cases
+      const mk2 = group + "::" + c.col;
+      const t = c.type || "";
+      const cn = (c.name || c.col).toLowerCase();
+      if (t === "timestamp" || /_at$|_date$|^date$/.test(cn)) {
+        st.transforms[mk2] = [{ fn: "fmt_date", cfg: { fmt: "YYYY-MM-DD HH:mm" } }];
+      } else if ((t === "decimal" || t === "float") && /revenue|amount|arr|mrr|price|value|cost|budget|total|due/.test(cn)) {
+        st.transforms[mk2] = [{ fn: "round", cfg: { dp: "2" } }];
+      } else if (/status|state/.test(cn)) {
+        st.transforms[mk2] = [{ fn: "upper", cfg: {} }];
+      } else if (/email/.test(cn)) {
+        st.transforms[mk2] = [{ fn: "lower", cfg: {} }];
+      } else if (/name|title/.test(cn) && !/domain/.test(cn)) {
+        st.transforms[mk2] = [{ fn: "trim", cfg: {} }];
+      }
+    });
   };
   // Full mappable column set for an unstructured entity = file metadata + the fields
   // its extraction agent pulls out of the document body. Agent fields use the same
