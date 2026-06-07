@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { ShareDialog, ShareTypeIcon } from './SkillDetail'
 import { StatusBadge } from './SkillsPage'
 import CreateAgentPage, { ModelIcon, MODELS } from './CreateAgentModal'
@@ -12,6 +12,8 @@ import { AGENT_LIBRARY, AGENT_GROUP_ORDER } from '../data/agentLibrary'
 import { FeatureModeProvider, useFeatureMode } from '../featureMode'
 
 const TABS = ['Graph', 'Nodes', 'Edges', 'Sources', 'Agents', 'Records', 'Governance']
+// Tabs shown only in Full production mode (hidden in MVP).
+const FULL_ONLY_TABS = ['Agents', 'Governance']
 
 // same button styling as the Skills detail header
 const gBtnGhost = { display: 'inline-flex', alignItems: 'center', gap: 8, background: '#fff', color: '#3a3a36', border: '1px solid #e3ddd1', borderRadius: 9, padding: '0 14px', height: 36, fontSize: 13.5, fontWeight: 500, cursor: 'pointer', boxShadow: '0 1px 2px rgba(60,50,30,0.04)', transition: 'all .15s' }
@@ -135,6 +137,10 @@ export default function GraphCanvas(props) {
 function GraphCanvasInner({ title = 'New graph', onBack, onAgentAI }) {
   const { mode, setMode } = useFeatureMode()
   const [tab, setTab] = useState('Graph')
+  // If we drop into MVP while on a Full-only tab, fall back to Graph.
+  useEffect(() => {
+    if (mode !== 'full' && FULL_ONLY_TABS.includes(tab)) setTab('Graph')
+  }, [mode, tab])
   const [shareOpen, setShareOpen] = useState(false)
   const [shareType, setShareType] = useState('team')
   const [agentOpen, setAgentOpen] = useState(false)
@@ -175,7 +181,7 @@ function GraphCanvasInner({ title = 'New graph', onBack, onAgentAI }) {
         {/* segmented tabs */}
         <div style={{ flex: 1, display: 'flex', justifyContent: 'center', minWidth: 0, overflowX: 'auto' }} className="no-scrollbar">
           <div style={{ display: 'flex', background: '#f2f1ee', borderRadius: 11, padding: 4, gap: 2 }}>
-            {TABS.map(t => (
+            {TABS.filter(t => mode === 'full' || !FULL_ONLY_TABS.includes(t)).map(t => (
               <button key={t} onClick={() => setTab(t)} style={{
                 padding: '7px 16px', borderRadius: 8, border: 'none', cursor: 'pointer', fontSize: 13.5,
                 background: tab === t ? '#fff' : 'transparent',
