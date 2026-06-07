@@ -6064,7 +6064,7 @@ function PropertiesPane({ node, properties }) {
           {/* Columns: Name | Key | Type | Fill | Conformance | Flags | chevron.
               All headers are left-aligned (including the numeric Fill / Conformance),
               so the column label sits flush with where the data starts reading. */}
-          <div className="props-head" style={{ gridTemplateColumns:"2fr 1.6fr 1fr 150px 170px 96px 32px" }}>
+          <div className="props-head" style={{ gridTemplateColumns:"1.6fr 1.2fr 1.2fr 1fr 1fr 0.8fr 30px" }}>
             <button className="props-th" onClick={() => onSort("name")}>Name{sortIcon("name")}</button>
             <button className="props-th" onClick={() => onSort("name")}>Key{sortIcon("name")}</button>
             <button className="props-th" onClick={() => onSort("type")}>Type{sortIcon("type")}</button>
@@ -6133,7 +6133,7 @@ function PropertiesPane({ node, properties }) {
               var nestable = p.type === "struct" || p.type === "array" || p.type === "object";
               var rowHovered = hoverRowKey === keyId;
               return (
-                <div key={keyId} className="props-row" style={{ gridTemplateColumns:"2fr 1.6fr 1fr 150px 170px 96px 32px", position:"relative" }}
+                <div key={keyId} className="props-row" style={{ gridTemplateColumns:"1.6fr 1.2fr 1.2fr 1fr 1fr 0.8fr 30px", position:"relative" }}
                   onMouseEnter={function(){ setHoverRowKey(keyId); }}
                   onMouseLeave={function(){ setHoverRowKey(function(k){ return k === keyId ? null : k; }); }}
                   onClick={function(){ setPropEditRow(p); setPropFlowParent(""); setPropFlowMode("manual"); setPropFlowOpen(true); }}>
