@@ -213,7 +213,7 @@ function GraphCanvasInner({ title = 'New graph', onBack, onAgentAI }) {
         <div style={{ flexShrink: 0, display: 'flex', justifyContent: 'center', minWidth: 0, overflowX: 'auto' }} className="no-scrollbar">
           <div style={{ display: 'flex', background: '#f2f1ee', borderRadius: 11, padding: 4, gap: 2 }}>
             {TABS.filter(t => mode === 'full' || !FULL_ONLY_TABS.includes(t)).map(t => (
-              <button key={t} onClick={() => setTab(t)} style={{
+              <button key={t} onClick={() => { setTab(t); setNodeDetail(null) }} style={{
                 padding: '7px 16px', borderRadius: 8, border: 'none', cursor: 'pointer', fontSize: 13.5,
                 background: tab === t ? '#fff' : 'transparent',
                 color: tab === t ? '#1a1a1a' : '#6b6b66', fontWeight: tab === t ? 500 : 400,
@@ -568,13 +568,9 @@ function NodeDetailPage({ node, onBack, onCanvas }) {
   return (
     <div style={{ flex: 1, overflowY: 'auto', backgroundColor: '#fcfbf7', padding: '12px 26px 40px' }} className="dark-scroll">
       {/* node header */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 18 }}>
-        <button onClick={onBack} title="Back to nodes" style={{ width: 32, height: 32, borderRadius: 8, border: '1px solid #e3ddd1', background: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}
-          onMouseOver={e => e.currentTarget.style.background = '#faf8f3'} onMouseOut={e => e.currentTarget.style.background = '#fff'}>
-          <svg width="15" height="15" viewBox="0 0 16 16" fill="none"><path d="M9.5 3.5L5 8l4.5 4.5" stroke="#5b5547" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" /></svg>
-        </button>
-        <NodeIcon node={node} size={34} />
-        <span style={{ fontFamily: 'var(--serif)', fontSize: 22, fontWeight: 500, color: '#1a1a1a', letterSpacing: -0.2 }}>{node.label}</span>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 18 }}>
+        <NodeIcon node={node} size={30} />
+        <span style={{ fontFamily: 'var(--serif)', fontSize: 22, fontWeight: 500, color: '#1a1a1a', letterSpacing: -0.2, marginLeft: -2 }}>{node.label}</span>
         <span style={{ fontFamily: 'var(--mono)', fontSize: 11.5, color: cat.color, border: `1px solid ${cat.border}`, background: cat.bg, padding: '2px 8px', borderRadius: 6 }}>{cat.label}</span>
 
         <div style={{ flex: 1 }} />
