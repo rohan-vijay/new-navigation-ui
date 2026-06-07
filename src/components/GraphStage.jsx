@@ -2401,7 +2401,7 @@ function Inspector({ node, onClose, onViewDetails, onEditSchema, edges: liveEdge
         </button>
       </div>
 
-      <div style={{ display: "flex", gap: 8, padding: "12px 14px", borderBottom: "1px solid var(--line-2)" }}>
+      <div style={{ display: "flex", gap: 8, padding: "4px 14px 14px", borderBottom: "1px solid var(--line-2)" }}>
         <button onClick={onViewDetails}
           style={{ flex: 1, height: 34, borderRadius: 8, border: "1px solid var(--line)", background: "var(--panel)", color: "var(--ink-2)", fontSize: 12.5, fontWeight: 500, fontFamily: "var(--sans)", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 6, transition: "background .15s, border-color .15s" }}
           onMouseOver={e => { e.currentTarget.style.background = "var(--panel-2)"; e.currentTarget.style.borderColor = "var(--ink-4)" }}

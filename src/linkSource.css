@@ -153,7 +153,7 @@
 
   /* ---------- INSPECTOR ---------- */
   .inspector { width: 360px; background: var(--panel); border-left: 1px solid var(--line); display: flex; flex-direction: column; flex-shrink: 0; overflow: hidden; }
-  .inspector-head { display: flex; align-items: center; gap: 11px; padding: 16px 16px 14px; }
+  .inspector-head { display: flex; align-items: center; gap: 11px; padding: 16px 16px 10px; }
   .ih-icon { flex-shrink: 0; display: flex; align-items: center; }
   .ih-text { flex: 1; min-width: 0; }
   .ih-row { display: flex; align-items: center; gap: 8px; }
