@@ -4026,27 +4026,6 @@ function NewEdgeFlow({ onClose, onCreate, fromNode, toNode, initialLabel, nodes:
                   <div style={{ fontFamily:"JetBrains Mono", fontSize:10, color:"var(--ink-3)", marginTop:5 }}>Lets queries traverse the reverse direction by name without recomputing.</div>
                 </div>
 
-                <div>
-                  <label style={lbl}>FLAGS</label>
-                  <div style={{ display:"flex", gap:10 }}>
-                    {[
-                      { v:requiredAtFrom, set:setRequiredAtFrom, l:"Required at From", d:"Every source instance must have at least one of these edges." },
-                      { v:symmetric,      set:setSymmetric,      l:"Symmetric / undirected", d:"Direction doesn't matter — useful for peer relationships." }
-                    ].map(function(o, i){
-                      return (
-                        <label key={i} title={o.d}
-                          style={{ flex:1, display:"flex", alignItems:"center", gap:8, padding:"10px 12px", border:"1px solid var(--line)", borderRadius:7, background:"var(--panel)", cursor:"pointer" }}>
-                          <input type="checkbox" checked={o.v} onChange={function(){ o.set(!o.v); }} style={{ accentColor:"var(--ink)", width:14, height:14 }} />
-                          <div>
-                            <div style={{ fontSize:13, fontWeight:500, color:"var(--ink)" }}>{o.l}</div>
-                            <div style={{ fontFamily:"JetBrains Mono", fontSize:10, color:"var(--ink-3)", marginTop:2 }}>{o.d}</div>
-                          </div>
-                        </label>
-                      );
-                    })}
-                  </div>
-                </div>
-
                 {/* HOW IS THIS POPULATED — was its own step */}
                 <div>
                   <label style={lbl}>HOW IS THIS POPULATED?</label>

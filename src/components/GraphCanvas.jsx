@@ -6,6 +6,8 @@ import BuildWithAIModal from './BuildWithAIModal'
 import { ToolGlyph } from './AddToolPanel'
 import { LinkSourceFlow } from './LinkSourceFlow'
 import GraphStage, { SIDEBAR_NODES, GRAPH_EDGES, ListGlyph, colorForNode, AddNodeFlow, NewEdgeFlow, generateProps, generateRules, PropertiesPane } from './GraphStage'
+// Make node schema available to LinkSourceFlow.buildEditState (runs at module load time)
+if (typeof window !== 'undefined') { window.NODES = SIDEBAR_NODES; window.generateProps = generateProps; }
 import RecordsPage from './RecordsPage'
 import SkillLibrary from './SkillLibrary'
 import { AGENT_LIBRARY, AGENT_GROUP_ORDER } from '../data/agentLibrary'
@@ -175,6 +177,7 @@ function GraphCanvasInner({ title = 'New graph', onBack, onAgentAI }) {
   const [agentLib, setAgentLib] = useState(false)
   const [agents, setAgents] = useState([])
   const [sourceFlow, setSourceFlow] = useState(false)
+  const [editSourceSpec, setEditSourceSpec] = useState(null)
   const [nodeDetail, setNodeDetail] = useState(null)
 
   const AGENT_BY_ID = useMemo(() => { const m = {}; AGENT_LIBRARY.forEach(c => c.skills.forEach(s => { m[s.id] = { ...s, cat: c.cat } })); return m }, [])
@@ -246,7 +249,7 @@ function GraphCanvasInner({ title = 'New graph', onBack, onAgentAI }) {
       ) : tab === 'Edges' ? (
         <EdgesList />
       ) : tab === 'Sources' ? (
-        <SourcesList onConnect={() => setSourceFlow(true)} />
+        <SourcesList onConnect={() => setSourceFlow(true)} onEdit={spec => setEditSourceSpec(spec)} />
       ) : tab === 'Agents' && agents.length > 0 ? (
         <AgentsList agents={agents} onAction={onAgentAction} onRemove={i => setAgents(a => a.filter((_, j) => j !== i))} />
       ) : tab === 'Records' ? (
@@ -255,7 +258,7 @@ function GraphCanvasInner({ title = 'New graph', onBack, onAgentAI }) {
         <EmptyState meta={EMPTY[tab]} actions={tab === 'Agents' ? AGENT_MENU : undefined} onAction={onAgentAction} />
       )}
 
-      {sourceFlow && <LinkSourceFlow node={null} existingSources={[]} onClose={() => setSourceFlow(false)} />}
+      {(sourceFlow || editSourceSpec) && <LinkSourceFlow node={null} existingSources={[]} editSource={editSourceSpec} onClose={() => { setSourceFlow(false); setEditSourceSpec(null); }} />}
       {shareOpen && <ShareDialog skill={{ name: title, sharedType: shareType, owner: 'James Carter', ownerInit: 'J' }} initialType={shareType} onTypeChange={setShareType} onClose={() => setShareOpen(false)} />}
       {agentAi && (
         <BuildWithAIModal
@@ -373,26 +376,270 @@ const meta = (i) => { const owner = A_OWNERS[i % A_OWNERS.length]; return { owne
 
 /* ── Sources table ─────────────────────────────────────── */
 const SOURCE_COLS = [
-  { key: 'name', label: 'Source', w: '18%' },
-  { key: 'conn', label: 'Connection Name', w: '16%' },
-  { key: 'status', label: 'Connection Status', w: '15%' },
-  { key: 'freq', label: 'Frequency', w: '11%' },
-  { key: 'lastSync', label: 'Last Sync', w: '12%' },
-  { key: 'owner', label: 'Owner', w: '14%' },
-  { key: 'modified', label: 'Last Modified', w: '11%' },
+  { key: 'name',     label: 'Source',          w: '20%' },
+  { key: 'conn',     label: 'Connection',      w: '16%' },
+  { key: 'status',   label: 'Status',          w: '11%' },
+  { key: 'freq',     label: 'Frequency',       w: '11%' },
+  { key: 'lastSync', label: 'Last Sync',       w: '11%' },
+  { key: 'owner',    label: 'Owner',           w: '16%' },
+  { key: 'modified', label: 'Last Modified',   w: '11%' },
 ]
+
+// Icon component with 3-tier fallback: Simple Icons → Google Favicon → text glyph
+// Handles brands not on Simple Icons (Apollo, NetSuite, Monday, UnifyApps)
+// Clearbit gives full-color brand logos; Google favicon API for Google products
+const FAVICON_OVERRIDES = {
+  hubspot:       'https://logo.clearbit.com/hubspot.com',
+  netsuite:      'https://logo.clearbit.com/netsuite.com',
+  slack:         'https://logo.clearbit.com/slack.com',
+  monday:        'https://logo.clearbit.com/monday.com',
+  docusign:      'https://logo.clearbit.com/docusign.com',
+  zendesk:       'https://logo.clearbit.com/zendesk.com',
+  apollo:        'https://logo.clearbit.com/apollo.io',
+  postgresql:    'https://logo.clearbit.com/postgresql.org',
+  gitbook:       'https://logo.clearbit.com/gitbook.com',
+  // Google products — use the precise subdomain favicon for correct colored icon
+  gmail:         'https://www.google.com/s2/favicons?domain=mail.google.com&sz=64',
+  googledrive:   'https://www.google.com/s2/favicons?domain=drive.google.com&sz=64',
+  gcal:          'https://www.google.com/s2/favicons?domain=calendar.google.com&sz=64',
+  googlecalendar:'https://www.google.com/s2/favicons?domain=calendar.google.com&sz=64',
+  googlechrome:  'https://www.google.com/s2/favicons?domain=google.com&sz=64',
+  // UnifyApps products
+  productdocs:   'https://www.google.com/s2/favicons?domain=unifyapps.com&sz=64',
+  productusage:  'https://www.google.com/s2/favicons?domain=unifyapps.com&sz=64',
+  support:       'https://www.google.com/s2/favicons?domain=unifyapps.com&sz=64',
+  unifyapps:     'https://www.google.com/s2/favicons?domain=unifyapps.com&sz=64',
+}
+function SourceIcon({ slug, name, size = 20 }) {
+  const [stage, setStage] = useState(0) // 0=primary, 1=favicon, 2=letter
+  const override = FAVICON_OVERRIDES[slug]
+  const primary = override || (slug ? `https://cdn.simpleicons.org/${slug}` : null)
+  if (!primary || stage === 2) {
+    return (
+      <span style={{ width: size, height: size, borderRadius: 5, background: '#eee7da', color: '#7a6f5c',
+        fontSize: size * 0.5, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        {(name || '?').charAt(0).toUpperCase()}
+      </span>
+    )
+  }
+  if (stage === 1) {
+    const fb = `https://www.google.com/s2/favicons?domain=${slug}&sz=64`
+    return <img src={fb} width={size} height={size} alt="" onError={() => setStage(2)} style={{ display: 'block', objectFit: 'contain', borderRadius: 3 }} />
+  }
+  return <img src={primary} width={size} height={size} alt="" onError={() => setStage(override ? 2 : 1)} style={{ display: 'block', objectFit: 'contain' }} />
+}
 const SRC_STATUS = {
   Connected: '#2f9e5a', Syncing: '#d99214', Error: '#c0492f', Paused: '#9097a0',
 }
+// One row per real source from the UnifyApps Brain architecture doc.
+// The `edit` spec is passed as `editSource` to <LinkSourceFlow> — it calls
+// buildEditState() internally to pre-fill every wizard step.
 const SOURCES = [
-  { name: 'Snowflake', slug: 'snowflake', conn: 'prod-warehouse', status: 'Connected', freq: 'Hourly', lastSync: '12 min ago', owner: 'James Carter', modified: '2 hours ago' },
-  { name: 'Salesforce', slug: 'salesforce', conn: 'acme-crm', status: 'Connected', freq: 'Real-time', lastSync: 'Just now', owner: 'Emily Rodriguez', modified: '5 hours ago' },
-  { name: 'Google Drive', slug: 'googledrive', conn: 'shared-drive', status: 'Syncing', freq: 'Daily', lastSync: '15 min ago', owner: 'Olivia Bennett', modified: 'Yesterday' },
-  { name: 'PostgreSQL', slug: 'postgresql', conn: 'app-db', status: 'Connected', freq: 'Real-time', lastSync: 'Just now', owner: 'Michael Brooks', modified: '2 days ago' },
-  { name: 'Amazon S3', slug: 'amazons3', conn: 'data-lake', status: 'Paused', freq: 'Daily', lastSync: '1 day ago', owner: 'David Sullivan', modified: '3 days ago' },
-  { name: 'HubSpot', slug: 'hubspot', conn: 'marketing-hub', status: 'Error', freq: 'Hourly', lastSync: '3 hours ago', owner: 'Emily Rodriguez', modified: '4 days ago' },
-  { name: 'Notion', slug: 'notion', conn: 'team-workspace', status: 'Connected', freq: 'Hourly', lastSync: '40 min ago', owner: 'Olivia Bennett', modified: '1 week ago' },
-  { name: 'Slack', slug: 'slack', conn: 'acme-slack', status: 'Connected', freq: 'Real-time', lastSync: 'Just now', owner: 'James Carter', modified: '2 weeks ago' },
+  {
+    name: 'HubSpot', slug: 'hubspot',
+    objects: 'Account · Contact · Lead · Opportunity · Campaign · Renewal · Proposal',
+    conn: 'Marketing hub', status: 'Connected', freq: 'Streaming', lastSync: 'Just now',
+    owner: 'Emily Rodriguez', modified: '5 min ago',
+    edit: {
+      system: 'hubspot', connection: 'hs-mkt',
+      tables: ['Account', 'Contact', 'Lead', 'Opportunity', 'Campaign', 'Renewal', 'Proposal'],
+      tableNode: { Account: 'account', Contact: 'person', Lead: 'person', Opportunity: 'agreement', Campaign: 'interaction', Renewal: 'subscription', Proposal: 'agreement' },
+      tableAgent: { Account: ['enrich_company', 'sentiment'], Contact: ['contact_enricher', 'dedupe'], Lead: ['lead_score', 'contact_enricher'], Opportunity: ['deal_intelligence'], Campaign: ['campaign_scorer'], Renewal: ['renewal_risk'], Proposal: ['deal_intelligence'] },
+      settings: { refresh: true, loadStrategy: 'cdc', cadence: 'real_time', pipelineType: 'realtime',
+                  resourceTier: 'Medium', onError: 'retry', retryCount: 3, freshnessSLO: '5m',
+                  alertChannel: '#sales-wins', owner: 'emily.r@unifyapps.com' },
+    },
+  },
+  {
+    name: 'NetSuite ERP', slug: 'netsuite',
+    objects: 'Invoice · Payment · Subscription · Renewal · Order · Customer',
+    conn: 'Production org', status: 'Connected', freq: 'Hourly', lastSync: '18 min ago',
+    owner: 'James Carter', modified: '1 hour ago',
+    edit: {
+      system: 'netsuite',
+      tables: ['Invoice', 'Payment', 'Subscription', 'Renewal', 'Order', 'Customer'],
+      tableNode: { Invoice: 'invoice', Payment: 'invoice', Subscription: 'subscription', Renewal: 'subscription', Order: 'invoice', Customer: 'account' },
+      tableAgent: { Invoice: ['payment_risk', 'revenue_classifier'], Payment: ['payment_risk'], Subscription: ['renewal_risk', 'revenue_classifier'], Renewal: ['renewal_risk'], Order: ['revenue_classifier'], Customer: ['enrich_company', 'churn_predictor'] },
+      settings: { refresh: true, loadStrategy: 'incremental', incrementalCol: 'date_created',
+                  cadence: '1h', pipelineType: 'scheduled', resourceTier: 'Medium',
+                  onError: 'retry', retryCount: 3, freshnessSLO: '2h',
+                  alertChannel: '#finance-ops', owner: 'james.c@unifyapps.com' },
+    },
+  },
+  {
+    name: 'Monday.com', slug: 'monday',
+    objects: 'Issue · Project · Task · Incident',
+    conn: 'unifyapps.monday.com', status: 'Connected', freq: 'Every 30m', lastSync: '12 min ago',
+    owner: 'Priya Sharma', modified: '30 min ago',
+    edit: {
+      system: 'monday',
+      tables: ['Issue', 'Project', 'Task', 'Incident'],
+      tableNode: { Issue: 'incident', Project: 'ticket', Task: 'ticket', Incident: 'incident' },
+      tableAgent: { Issue: ['ticket_intelligence'], Project: ['summarize'], Task: ['summarize'], Incident: ['ticket_intelligence'] },
+      settings: { refresh: true, loadStrategy: 'incremental', cadence: '30m',
+                  pipelineType: 'scheduled', resourceTier: 'Small', onError: 'skip',
+                  freshnessSLO: '1h', alertChannel: '#delivery-alerts', owner: 'priya.s@unifyapps.com' },
+    },
+  },
+  {
+    name: 'Support Portal', slug: 'support',
+    objects: 'Ticket · Incident · Knowledge Article · Conversation',
+    conn: 'support.unifyapps.com', status: 'Connected', freq: 'Streaming', lastSync: '1 min ago',
+    owner: 'Alex Kim', modified: '2 min ago',
+    edit: {
+      system: 'support',
+      tables: ['Ticket', 'Incident', 'Article', 'Conversation'],
+      tableNode: { Ticket: 'ticket', Incident: 'incident', Article: 'interaction', Conversation: 'interaction' },
+      tableAgent: { Ticket: ['ticket_intelligence', 'sentiment'], Incident: ['ticket_intelligence'], Article: ['kb_gap_detector', 'summarize'], Conversation: ['sentiment', 'ticket_intelligence'] },
+      settings: { refresh: true, loadStrategy: 'cdc', cadence: 'real_time',
+                  pipelineType: 'realtime', resourceTier: 'Medium', onError: 'retry',
+                  retryCount: 3, freshnessSLO: '5m', alertChannel: '#cs-alerts',
+                  owner: 'alex.k@unifyapps.com' },
+    },
+  },
+  {
+    name: 'Product Usage DB', slug: 'postgresql',
+    objects: 'usage_events · feature_adoption · account_signals · sessions',
+    conn: 'prod-analytics-db', status: 'Connected', freq: 'Streaming', lastSync: 'Just now',
+    owner: 'Michael Brooks', modified: '10 min ago',
+    edit: {
+      system: 'productusage',
+      tables: ['usage_events', 'feature_adoption', 'account_signals', 'sessions'],
+      tableNode: { usage_events: 'signal', feature_adoption: 'signal', account_signals: 'signal', sessions: 'interaction' },
+      tableAgent: { usage_events: ['churn_predictor', 'expansion_signal'], feature_adoption: ['expansion_signal', 'churn_predictor'], account_signals: ['churn_predictor', 'expansion_signal'], sessions: ['churn_predictor'] },
+      settings: { refresh: true, loadStrategy: 'cdc', cadence: 'real_time',
+                  pipelineType: 'realtime', resourceTier: 'Large', onError: 'retry',
+                  retryCount: 5, freshnessSLO: '2m', alertChannel: '#data-platform',
+                  owner: 'michael.b@unifyapps.com' },
+    },
+  },
+  {
+    name: 'Apollo', slug: 'apollo',
+    objects: 'Company · Contact · Lead · Intent Signal',
+    conn: 'unifyapps-apollo', status: 'Connected', freq: 'Daily', lastSync: '12h ago',
+    owner: 'Emily Rodriguez', modified: '12 hours ago',
+    edit: {
+      system: 'apollo',
+      tables: ['Company', 'Contact', 'Lead', 'IntentSignal'],
+      tableNode: { Company: 'account', Contact: 'person', Lead: 'person', IntentSignal: 'signal' },
+      tableAgent: { Company: ['enrich_company', 'lead_score'], Contact: ['contact_enricher', 'dedupe'], Lead: ['lead_score', 'buying_intent'], IntentSignal: ['buying_intent'] },
+      settings: { refresh: true, loadStrategy: 'full', cadence: 'daily',
+                  pipelineType: 'scheduled', resourceTier: 'Small', onError: 'skip',
+                  freshnessSLO: '24h', alertChannel: '#sales-wins', owner: 'emily.r@unifyapps.com' },
+    },
+  },
+  {
+    name: 'DocuSign', slug: 'docusign',
+    objects: 'Envelope · Signature Event · Recipient · Template',
+    conn: 'legal-docusign', status: 'Connected', freq: 'Real time', lastSync: '4 min ago',
+    owner: 'Sarah Chen', modified: '4 min ago',
+    edit: {
+      system: 'docusign',
+      tables: ['Envelope', 'SignatureEvent', 'Recipient'],
+      tableNode: { Envelope: 'agreement', SignatureEvent: 'signal', Recipient: 'person' },
+      tableAgent: { Envelope: ['contract_risk', 'summarize'], SignatureEvent: ['contract_risk'], Recipient: ['contact_enricher'] },
+      settings: { refresh: true, loadStrategy: 'cdc', cadence: 'real_time',
+                  pipelineType: 'realtime', resourceTier: 'Small', onError: 'retry',
+                  retryCount: 3, freshnessSLO: '10m', alertChannel: '#legal',
+                  owner: 'sarah.c@unifyapps.com' },
+    },
+  },
+  {
+    name: 'Google Drive', slug: 'googledrive',
+    objects: 'Contract · SOW · Proposal · Policy · Knowledge Article · Case Study',
+    conn: 'unifyapps-drive', status: 'Connected', freq: 'Every 6h', lastSync: '2h ago',
+    owner: 'Sarah Chen', modified: '2 hours ago',
+    edit: {
+      system: 'googledrive', scope: 'folders',
+      locations: ['Legal / Contracts', 'Sales / SOWs', 'Sales / Proposals', 'Legal / Policies', 'Docs / Knowledge', 'Marketing / Case Studies'],
+      contentMode: 'mixed',
+      includeOnly: ['contract', 'sow', 'proposal', 'policy', 'knowledge_article', 'case_study'],
+      entityNode: { contract: 'agreement', sow: '__new__', proposal: '__new__', policy: '__new__', knowledge_article: '__new__', case_study: '__new__' },
+      settings: { refresh: true, retention: true, cadence: '6h', pipelineType: 'scheduled',
+                  resourceTier: 'Medium', onError: 'skip', freshnessSLO: '12h',
+                  alertChannel: '#docs-pipeline', owner: 'sarah.c@unifyapps.com' },
+    },
+  },
+  {
+    name: 'Gmail', slug: 'gmail',
+    objects: 'Email thread · Attachment · Outreach history',
+    conn: 'sales@unifyapps.com', status: 'Connected', freq: 'Every 1h', lastSync: '22 min ago',
+    owner: 'Emily Rodriguez', modified: '30 min ago',
+    edit: {
+      system: 'gmail', scope: 'folders',
+      locations: ['Sales inbox', 'Success inbox', 'BD inbox'],
+      contentMode: 'mixed',
+      includeOnly: ['gm_sales', 'gm_renewal', 'gm_support', 'gm_legal', 'gm_exec'],
+      entityNode: { gm_sales: 'interaction', gm_renewal: 'interaction', gm_support: 'interaction', gm_legal: 'interaction', gm_exec: 'interaction' },
+      settings: { refresh: true, cadence: '1h', pipelineType: 'scheduled',
+                  resourceTier: 'Small', onError: 'skip', freshnessSLO: '2h',
+                  alertChannel: '#sales-wins', owner: 'emily.r@unifyapps.com' },
+    },
+  },
+  {
+    name: 'Google Calendar', slug: 'googlecalendar',
+    objects: 'Meeting · QBR · Demo · Kickoff event',
+    conn: 'sales@unifyapps.com', status: 'Connected', freq: 'Every 1h', lastSync: '35 min ago',
+    owner: 'Emily Rodriguez', modified: '35 min ago',
+    edit: {
+      system: 'gcal', scope: 'folders',
+      locations: ['Sales calendar', 'CS calendar', 'SE calendar'],
+      contentMode: 'mixed',
+      includeOnly: ['gc_discovery', 'gc_demo', 'gc_qbr', 'gc_renewal', 'gc_exec'],
+      entityNode: { gc_discovery: 'interaction', gc_demo: 'interaction', gc_qbr: 'interaction', gc_renewal: 'interaction', gc_exec: 'interaction' },
+      settings: { refresh: true, cadence: '1h', pipelineType: 'scheduled',
+                  resourceTier: 'Small', onError: 'skip', freshnessSLO: '2h',
+                  alertChannel: '#cs-alerts', owner: 'emily.r@unifyapps.com' },
+    },
+  },
+  {
+    name: 'Slack', slug: 'slack',
+    objects: 'Thread · Decision · Incident · Alert',
+    conn: 'unifyapps.slack.com', status: 'Connected', freq: 'Streaming', lastSync: '1 min ago',
+    owner: 'James Carter', modified: '1 min ago',
+    edit: {
+      system: 'slack', scope: 'folders',
+      locations: ['#sales-wins', '#deal-desk', '#oncall', '#cs-alerts', '#escalations'],
+      contentMode: 'mixed',
+      includeOnly: ['thread', 'decision', 'incident', 'alert'],
+      entityNode: { thread: 'interaction', decision: 'signal', incident: 'incident', alert: '__new__' },
+      settings: { refresh: true, skipperms: true, cadence: 'real_time', pipelineType: 'realtime',
+                  resourceTier: 'Medium', onError: 'retry', retryCount: 3, freshnessSLO: '5m',
+                  alertChannel: '#oncall', owner: 'james.c@unifyapps.com' },
+    },
+  },
+  {
+    name: 'Product Docs', slug: 'productdocs',
+    objects: 'Knowledge Article · Product Guide · Release Note',
+    conn: 'docs.unifyapps.com', status: 'Connected', freq: 'Daily', lastSync: '9h ago',
+    owner: 'Priya Sharma', modified: '9 hours ago',
+    edit: {
+      system: 'productdocs', scope: 'folders',
+      locations: ['Docs / Guides', 'Docs / API Reference', 'Docs / Release Notes', 'Docs / FAQs'],
+      contentMode: 'mixed',
+      includeOnly: ['pd_article', 'pd_guide', 'pd_release'],
+      entityNode: { pd_article: '__new__', pd_guide: '__new__', pd_release: '__new__' },
+      settings: { refresh: true, cadence: 'daily', pipelineType: 'scheduled',
+                  resourceTier: 'Small', onError: 'skip', freshnessSLO: '24h',
+                  alertChannel: '#docs-pipeline', owner: 'priya.s@unifyapps.com' },
+    },
+  },
+  {
+    name: 'Web / Market Intel', slug: 'googlechrome',
+    objects: 'Competitor Page · News Article · Market Signal',
+    conn: 'web-crawler', status: 'Connected', freq: 'Daily', lastSync: '9h ago',
+    owner: 'James Carter', modified: '9 hours ago',
+    edit: {
+      system: 'web', scope: 'folders',
+      locations: ['rival.com', 'techcrunch.com', 'Industry analyst reports', 'G2 competitor pages'],
+      contentMode: 'mixed',
+      includeOnly: ['web_competitor', 'web_news', 'web_market'],
+      entityNode: { web_competitor: '__new__', web_news: '__new__', web_market: 'signal' },
+      settings: { refresh: true, cadence: 'daily', pipelineType: 'scheduled',
+                  resourceTier: 'Small', onError: 'skip', freshnessSLO: '24h',
+                  alertChannel: '#market-intel', owner: 'james.c@unifyapps.com' },
+    },
+  },
 ]
 
 /* ── Node detail page ──────────────────────────────────── */
@@ -995,7 +1242,7 @@ const SOURCE_SORTERS = {
 }
 const SOURCE_STATUS_FILTERS = ['All status', 'Connected', 'Syncing', 'Error', 'Paused']
 
-function SourcesList({ onConnect }) {
+function SourcesList({ onConnect, onEdit }) {
   const [sort, setSort] = useState('Name (A–Z)')
   const [filter, setFilter] = useState('All status')
   const [search, setSearch] = useState('')
@@ -1040,18 +1287,19 @@ function SourcesList({ onConnect }) {
               const last = i === rows.length - 1
               const cell = { padding: '12px 18px', verticalAlign: 'middle', overflow: 'hidden', borderBottom: last ? 'none' : '1px solid #f1f2f1' }
               return (
-                <tr key={i} style={{ background: '#fff', transition: 'background .12s, box-shadow .12s' }}
+                <tr key={i} style={{ background: '#fff', cursor: s.edit ? 'pointer' : 'default', transition: 'background .12s, box-shadow .12s' }}
+                  onClick={() => s.edit && onEdit?.(s.edit)}
                   onMouseOver={e => { e.currentTarget.style.background = '#f7f6f3'; e.currentTarget.style.boxShadow = 'inset 3px 0 0 #16341f' }}
                   onMouseOut={e => { e.currentTarget.style.background = '#fff'; e.currentTarget.style.boxShadow = 'none' }}>
                   <td style={cell}>
                     <span style={{ display: 'inline-flex', alignItems: 'center', gap: 10, whiteSpace: 'nowrap' }}>
-                      <span style={{ width: 28, height: 28, borderRadius: 7, background: '#fff', border: '1px solid #eee7da', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}><ToolGlyph slug={s.slug} name={s.name} size={16} /></span>
+                      <span style={{ width: 30, height: 30, borderRadius: 8, background: '#fff', border: '1px solid #eee7da', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}><SourceIcon slug={s.slug} name={s.name} size={18} /></span>
                       <span style={{ fontSize: 13.5, fontWeight: 500, color: '#1a1a1a' }}>{s.name}</span>
                     </span>
                   </td>
-                  <td style={cell}><span style={{ fontFamily: 'var(--mono)', fontSize: 12.5, color: '#5b5547' }}>{s.conn}</span></td>
+                  <td style={cell}><span style={{ fontFamily: 'var(--mono)', fontSize: 12, color: '#8a7a60' }}>{s.conn}</span></td>
                   <td style={cell}>
-                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 7, fontSize: 13, color: '#374151', whiteSpace: 'nowrap' }}>
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12.5, color: '#374151', whiteSpace: 'nowrap' }}>
                       <span style={{ width: 7, height: 7, borderRadius: '50%', background: SRC_STATUS[s.status], flexShrink: 0 }} />{s.status}
                     </span>
                   </td>
@@ -1063,8 +1311,8 @@ function SourcesList({ onConnect }) {
                       {s.owner}
                     </span>
                   </td>
-                  <td style={{ ...cell, color: '#9097a0', fontSize: 13 }}>{s.modified}</td>
-                  <td style={{ ...cell, textAlign: 'center' }}>
+                  <td style={{ ...cell, fontSize: 13, color: '#9097a0' }}>{s.modified}</td>
+                  <td style={{ ...cell, textAlign: 'center' }} onClick={e => e.stopPropagation()}>
                     <button style={{ border: 'none', background: 'none', cursor: 'pointer', padding: 4 }}>
                       <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="3.5" r="1.2" fill="#b8bcb8" /><circle cx="8" cy="8" r="1.2" fill="#b8bcb8" /><circle cx="8" cy="12.5" r="1.2" fill="#b8bcb8" /></svg>
                     </button>

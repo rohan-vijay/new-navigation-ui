@@ -86,8 +86,8 @@ function FlowStyles() {
 .flow-step { display: flex; gap: 12px; padding: 10px 12px; border-radius: 8px; border: 1px solid transparent; background: transparent; cursor: pointer; font-family: inherit; text-align: left; }
 .flow-step:hover { background: #f3f0eb; border-color: #d8cfbb; }
 .flow-step.on { background: #edeae4; border: 1px solid #c8baa8; box-shadow: 0 1px 4px rgba(40,32,18,0.07); }
-.flow-step.done .flow-step-n { background: #16341f; color: #fff; border-color: #16341f; }
-.flow-step.on .flow-step-n { background: var(--ink); color: var(--bg-canvas); border-color: var(--ink); }
+.flow-step.done .flow-step-n { background: #1a7a40; color: #fff; border-color: #1a7a40; }
+.flow-step.on .flow-step-n { background: #6b6b5e; color: #fff; border-color: #6b6b5e; }
 .flow-step-n { width: 28px; height: 28px; border-radius: 50%; border: 1.5px solid var(--line); display: grid; place-items: center; font-family: "JetBrains Mono", monospace; font-size: 12px; font-weight: 700; color: var(--ink-3); background: var(--panel); flex-shrink: 0; transition: background 120ms, border-color 120ms; }
 .flow-step-text { min-width: 0; }
 .flow-step-label { font-size: 13.5px; color: var(--ink); font-weight: 500; line-height: 1.1; }
@@ -304,7 +304,7 @@ const SOURCE_SYSTEMS = [
   { id: "asana", cat: "Project & Support", domain: "asana.com",       name: "Asana",                 tag: "Tasks",        kind: "structured",   status: "healthy",  icon: "As",  slug: "asana",               color: "#F06A6A", desc: "Projects, tasks and portfolios." },
   { id: "linear", cat: "Project & Support", domain: "linear.app",      name: "Linear",                tag: "Issues",       kind: "structured",   status: "healthy",  icon: "Ln",  slug: "linear",              color: "#5E6AD2", desc: "Issues, cycles and project updates." },
   // ── Unstructured sources (docs, files, messages, wikis) ──
-  { id: "googledrive", cat: "Files & Storage", domain: "google.com", name: "Google Drive",          tag: "Files",        kind: "unstructured", status: "healthy",  icon: "GD",  slug: "googledrive",         color: "#1FA463", desc: "Docs, Sheets, Slides and stored files." },
+  { id: "googledrive", cat: "Files & Storage", domain: "drive.google.com", name: "Google Drive",     tag: "Files",        kind: "unstructured", status: "healthy",  icon: "GD",  slug: "googledrive",         color: "#1FA463", desc: "Docs, Sheets, Slides and stored files." },
   { id: "slack", cat: "Messaging & Email", domain: "slack.com",       name: "Slack",                 tag: "Messaging",    kind: "unstructured", status: "healthy",  icon: "Sl",  slug: "slack",               color: "#4A154B", desc: "Channels, threads and message history." },
   { id: "teams", cat: "Messaging & Email", domain: "microsoft.com",   name: "Microsoft Teams",       tag: "Messaging",    kind: "unstructured", status: "healthy",  icon: "Tm",  slug: "microsoftteams",      color: "#5059C9", desc: "Channels, chats, meetings and shared files." },
   { id: "confluence", cat: "Docs & Wikis", domain: "atlassian.com",  name: "Confluence",            tag: "Wiki",         kind: "unstructured", status: "healthy",  icon: "Cf",  slug: "confluence",          color: "#172B4D", desc: "Spaces, pages and knowledge bases." },
@@ -315,7 +315,7 @@ const SOURCE_SYSTEMS = [
   { id: "box", cat: "Files & Storage", domain: "box.com",         name: "Box",                   tag: "Files",        kind: "unstructured", status: "healthy",  icon: "Bx",  slug: "box",                 color: "#0061D5", desc: "Enterprise content and shared files." },
   { id: "s3", cat: "Files & Storage", domain: "aws.amazon.com",          name: "Amazon S3",             tag: "Object store", kind: "unstructured", status: "healthy",  icon: "S3",  slug: "amazons3",            color: "#569A31", desc: "Objects and files in S3 buckets." },
   { id: "gcs", cat: "Files & Storage", domain: "cloud.google.com",         name: "Google Cloud Storage",  tag: "Object store", kind: "unstructured", status: "healthy",  icon: "GCS", slug: "googlecloud",         color: "#4285F4", desc: "Objects and files in GCS buckets." },
-  { id: "gmail", cat: "Messaging & Email", domain: "google.com",       name: "Gmail",                 tag: "Email",        kind: "unstructured", status: "healthy",  icon: "GM",  slug: "gmail",               color: "#EA4335", desc: "Email threads, messages and attachments." },
+  { id: "gmail", cat: "Messaging & Email", domain: "mail.google.com",   name: "Gmail",                 tag: "Email",        kind: "unstructured", status: "healthy",  icon: "GM",  slug: "gmail",               color: "#EA4335", desc: "Email threads, messages and attachments." },
   { id: "outlook", cat: "Messaging & Email", domain: "outlook.com",     name: "Outlook",               tag: "Email",        kind: "unstructured", status: "healthy",  icon: "Ol",  slug: "microsoftoutlook",    color: "#0078D4", desc: "Mailboxes, threads and calendar items." },
   { id: "github", cat: "Dev & Code", domain: "github.com",      name: "GitHub",                tag: "Code",         kind: "unstructured", status: "healthy",  icon: "GH",  slug: "github",              color: "#181717", desc: "Repos, pull requests, issues and READMEs." },
   { id: "gitlab", cat: "Dev & Code", domain: "gitlab.com",      name: "GitLab",                tag: "Code",         kind: "unstructured", status: "healthy",  icon: "GL",  slug: "gitlab",              color: "#FC6D26", desc: "Repositories, merge requests and CI." },
@@ -938,7 +938,7 @@ function WizardShell({ eyebrow, plainTitle, titleFrom, titleTo, titleLabel, titl
                       const complete = total > 0 && mapped >= total;
                       const frac = total > 0 ? Math.min(1, mapped / total) : 0;
                       const R = 9, C = 2 * Math.PI * R;
-                      const ringColor = complete ? "var(--green)" : "var(--ink)";
+                      const ringColor = frac === 0 ? "var(--line)" : frac >= 0.75 ? "#1a7a40" : frac >= 0.5 ? "#d99214" : "#c0492f";
                       const initials = (si.label || "").replace(/^.*[.]/, "").slice(0, 2).toUpperCase();
                       if (!rich) {
                         return (
@@ -964,14 +964,14 @@ function WizardShell({ eyebrow, plainTitle, titleFrom, titleTo, titleLabel, titl
                             </svg>
                             {complete && (
                               <span style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                                <svg width="11" height="11" viewBox="0 0 16 16" fill="none" stroke="var(--green)" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"><polyline points="3.5,8.5 6.5,11.5 12.5,5" /></svg>
+                                <svg width="11" height="11" viewBox="0 0 16 16" fill="none" stroke="#1a7a40" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"><polyline points="3.5,8.5 6.5,11.5 12.5,5" /></svg>
                               </span>
                             )}
                           </span>
                           {/* name + sub */}
                           <span style={{ flex: 1, minWidth: 0 }}>
                             <span style={{ display: "block", fontSize: 12.5, fontWeight: on ? 600 : 500, color: on ? "var(--ink)" : "var(--ink-2)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", lineHeight: 1.2 }}>{si.label}</span>
-                            <span style={{ display: "block", fontFamily: "'JetBrains Mono', monospace", fontSize: 9.5, color: complete ? "var(--green)" : (mapped > 0 ? "var(--ink-3)" : "var(--ink-4)"), marginTop: 2 }}>{mapped + " / " + total}</span>
+                            <span style={{ display: "block", fontFamily: "'JetBrains Mono', monospace", fontSize: 9.5, color: frac === 0 ? "var(--ink-4)" : ringColor, marginTop: 2 }}>{mapped + " / " + total}</span>
                           </span>
                         </button>
                       );
@@ -1837,15 +1837,33 @@ function LinkSourceFlow({ node, existingSources, onClose, editSource }) {
 // Logo with a graceful fallback chain: Simple Icons brand mark → the brand's
 // favicon (covers logos removed from Simple Icons, e.g. Salesforce, Slack,
 // Microsoft & AWS products) → a coloured text glyph.
+// Clearbit gives full-color brand logos; Google favicon API for Google products
+const CLEARBIT_DOMAINS = {
+  hubspot: "hubspot.com", netsuite: "netsuite.com", slack: "slack.com",
+  monday: "monday.com", docusign: "docusign.com", zendesk: "zendesk.com",
+  apolloio: "apollo.io", amplitude: "amplitude.com", monday2: "monday.com",
+};
+// Google product domains mapped by slug so favicons resolve to the right colorful icon
+const GOOGLE_FAVICON_DOMAINS = {
+  gmail: "mail.google.com", googledrive: "drive.google.com",
+  googlecalendar: "calendar.google.com", googlemeet: "meet.google.com",
+};
 function SrcConnectorLogo({ c, size }) {
   size = size || 22;
   const box = size + 12;
-  const simple = c.slug ? "https://cdn.simpleicons.org/" + c.slug + "/" + c.color.replace("#", "") : "";
-  const favicon = c.domain ? "https://www.google.com/s2/favicons?sz=64&domain=" + c.domain : "";
-  const [src, setSrc] = useState(simple || favicon);
-  const [failed, setFailed] = useState(!simple && !favicon);
+  // Choose primary URL: Clearbit for rich color, Google favicon for Google products,
+  // then simple icons colored, then generic favicon as final fallback.
+  const slug = c.slug || "";
+  const gDomain = GOOGLE_FAVICON_DOMAINS[slug];
+  const cDomain = c.domain && !gDomain ? "https://logo.clearbit.com/" + c.domain : "";
+  const primary = gDomain
+    ? "https://www.google.com/s2/favicons?sz=64&domain=" + gDomain
+    : cDomain || (slug ? "https://cdn.simpleicons.org/" + slug + "/" + (c.color || "444").replace("#", "") : "");
+  const favicon = "https://www.google.com/s2/favicons?sz=64&domain=" + (c.domain || slug + ".com");
+  const [src, setSrc] = useState(primary || favicon);
+  const [failed, setFailed] = useState(!primary && !favicon);
   const onErr = () => {
-    if (src === simple && favicon) setSrc(favicon);
+    if (src !== favicon) setSrc(favicon);
     else setFailed(true);
   };
   return (
@@ -2113,7 +2131,7 @@ function SrcRichSelect({ value, onChange, options, emptyLabel, dense, searchable
     <span style={{ width: box, height: box, borderRadius: dense ? 6 : 7, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", background: "var(--chip)", borderWidth: 1, borderStyle: dashed ? "dashed" : "solid", borderColor: "var(--line)", color: "var(--ink-3)" }}>{content}</span>
   );
   const body = (icon, title, sub, ghost) => (
-    <span style={{ display: "flex", alignItems: "center", gap: dense ? 9 : 11, width: "100%", minWidth: 0 }}>
+    <span style={{ display: "flex", alignItems: "center", gap: icon ? (dense ? 9 : 11) : 0, width: "100%", minWidth: 0 }}>
       {icon}
       <span style={{ display: "flex", flexDirection: "column", minWidth: 0, gap: 1 }}>
         <span style={{ fontSize: dense ? 13 : 14, fontWeight: ghost ? 400 : 600, color: ghost ? "var(--ink-3)" : "var(--ink)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{title}</span>
@@ -2126,7 +2144,7 @@ function SrcRichSelect({ value, onChange, options, emptyLabel, dense, searchable
       value={value} onChange={onChange} options={options} className={dense ? "csel-dense" : undefined}
       searchable={searchable} searchPlaceholder={searchPlaceholder}
       placeholder={body(iconBox("+", true), emptyLabel || "Choose…", "Click to choose", true)}
-      renderTrigger={o => body(iconBox(o.icon), o.title, o.desc)}
+      renderTrigger={o => body(null, o.title, o.desc)}
       renderOption={plainOptions ? (o => <span style={{ fontSize: dense ? 13 : 14, fontWeight: 600, color: "var(--ink)" }}>{o.title}</span>) : (o => body(iconBox(o.icon), o.title, o.desc))}
     />
   );
@@ -2204,7 +2222,7 @@ function SrcRead({ s, set, sel }) {
 
       {specific && (
         <div className="wfr">
-          <div style={{ display: "grid", gridTemplateColumns: contentMode === "single" ? "1fr 1fr" : "1fr", gap: 16, maxWidth: contentMode === "single" ? 760 : 460, alignItems: "start" }}>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, maxWidth: 760, alignItems: "start" }}>
             <div>
               <div className="wfr-label">What's in here?</div>
               <SrcRichSelect dense value={contentMode} onChange={v => set(Object.assign({ contentMode: v }, v === "mixed" ? { knownType: "" } : {}))} emptyLabel="How should we read these?"
@@ -2214,11 +2232,20 @@ function SrcRead({ s, set, sel }) {
                 ]} />
               <div className="wfr-hint">{"If every " + entity + " is the same kind, skip discovery."}</div>
             </div>
-            {contentMode === "single" && (
+            {contentMode === "single" ? (
               <div>
                 <div className="wfr-label">{Entity + " type"}</div>
                 <input className="winput" style={{ height: 48 }} placeholder={typeExamples} value={s.knownType || ""} onChange={e => set({ knownType: e.target.value })} />
                 <div className="wfr-hint">{"Whatever these " + entity + "s are — discovery is skipped, you extract & map straight away."}</div>
+              </div>
+            ) : (
+              <div>
+                <div className="wfr-label">Discovery agent</div>
+                <div style={{ height: 48, display: "flex", alignItems: "center", gap: 10, padding: "0 14px", border: "1px solid var(--line)", borderRadius: 8, background: "var(--bg-canvas)", fontSize: 13, color: "var(--ink-2)" }}>
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0, color: "var(--ink-3)" }}><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+                  <span>Auto-detect type per {entity}</span>
+                </div>
+                <div className="wfr-hint">{"Runs once on ingestion — classifies each " + entity + " before extraction."}</div>
               </div>
             )}
           </div>
@@ -2281,9 +2308,9 @@ const ENTITY_SETS = {
     { id: "policy", name: "Policy", records: "410", conf: 92, fields: [{ col: "policy_name", type: "string", sample: "Data Retention" }, { col: "version", type: "string", sample: "v3.2" }, { col: "effective_date", type: "date", sample: "2025-09-01" }, { col: "owner", type: "string", sample: "Legal" }] },
   ],
   slack: [
-    { id: "thread", name: "Message Thread", records: "42,100", conf: 95, fields: [{ col: "thread_id", type: "string", sample: "T-99x" }, { col: "channel", type: "string", sample: "#eng" }, { col: "participants", type: "string[]", sample: "sam, priya" }, { col: "started_at", type: "timestamp", sample: "2026-05-01T10:00Z" }, { col: "summary", type: "string", sample: "Deploy plan" }] },
-    { id: "decision", name: "Decision", records: "1,840", conf: 89, fields: [{ col: "decision", type: "string", sample: "Adopt Postgres" }, { col: "owner", type: "string", sample: "morgan" }, { col: "date", type: "date", sample: "2026-04-20" }, { col: "rationale", type: "string", sample: "Lower cost" }] },
-    { id: "incident", name: "Incident", records: "310", conf: 92, fields: [{ col: "incident_id", type: "string", sample: "INC-204" }, { col: "severity", type: "string", sample: "SEV2" }, { col: "resolved", type: "bool", sample: "true" }, { col: "channel", type: "string", sample: "#oncall" }] },
+    { id: "thread",   name: "Message Thread", records: "42,100", conf: 95, fields: [{ col: "topic", type: "string", sample: "Deploy strategy" }, { col: "sentiment", type: "string", sample: "aligned" }, { col: "action_items", type: "string[]", sample: "Ship by Friday, Update docs" }, { col: "resolution_status", type: "string", sample: "resolved" }, { col: "key_decision", type: "string", sample: "Postgres over MySQL" }] },
+    { id: "decision", name: "Decision",       records: "1,840",  conf: 89, fields: [{ col: "decision_text", type: "string", sample: "Adopt Postgres for new services" }, { col: "rationale", type: "string", sample: "Lower cost, better tooling" }, { col: "stakeholders", type: "string[]", sample: "morgan, priya" }, { col: "deadline", type: "date", sample: "2026-06-01" }, { col: "confidence", type: "string", sample: "high" }] },
+    { id: "incident", name: "Incident",       records: "310",    conf: 92, fields: [{ col: "severity", type: "string", sample: "SEV2" }, { col: "affected_service", type: "string", sample: "Payments API" }, { col: "root_cause_signal", type: "string", sample: "DB connection pool exhausted" }, { col: "resolved", type: "bool", sample: "true" }, { col: "resolution_time_signal", type: "string", sample: "42 min" }] },
   ],
   teams: [
     { id: "tm_message", name: "Channel Message", records: "58,200", conf: 94, fields: [{ col: "message_id", type: "string", sample: "msg-7f21" }, { col: "channel", type: "string", sample: "Engineering" }, { col: "author", type: "string", sample: "priya@acme.com" }, { col: "posted_at", type: "timestamp", sample: "2026-05-12T09:31Z" }, { col: "summary", type: "string", sample: "Release blocked on QA." }] },
@@ -2373,13 +2400,13 @@ function SrcDiscover({ s, set, sel }) {
 
       {ran && (
         <FormRow label={(isAuto ? "Automation" : "Agent") + " output — File types"} hint={"The file types this " + (isAuto ? "automation" : "agent") + " classifies your documents into — " + includedN + " of " + entities.length + " selected. Pick which to bring into the graph."} last>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, maxWidth: 760 }}>
+          <div style={{ display: "flex", flexDirection: "column", gap: 8, maxWidth: 760 }}>
             {entities.map(e => {
               const on = isIncluded(e);
               return (
-                <label key={e.id} style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 15px", borderRadius: 10, cursor: "pointer", border: "1px solid var(--line-2)", background: on ? "var(--panel)" : "transparent", opacity: on ? 1 : 0.62, transition: "opacity 120ms" }}>
-                  <span style={{ flex: 1, minWidth: 0, fontSize: 14, fontWeight: 600, color: "var(--ink)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{e.name}</span>
-                  <input type="checkbox" checked={on} onChange={() => toggle(e.id)} style={{ accentColor: "#16341f", width: 16, height: 16, flexShrink: 0 }} />
+                <label key={e.id} style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 15px", borderRadius: 10, cursor: "pointer", border: "1px solid var(--line-2)", background: on ? "#fff" : "transparent", opacity: on ? 1 : 0.62, transition: "opacity 120ms, background 120ms" }}>
+                  <span style={{ flex: 1, minWidth: 0, fontSize: 14, fontWeight: 600, color: "var(--ink)" }}>{e.name}</span>
+                  <input type="checkbox" checked={on} onChange={() => toggle(e.id)} style={{ accentColor: "#1a7a40", width: 16, height: 16, flexShrink: 0 }} />
                 </label>
               );
             })}
@@ -2749,12 +2776,37 @@ function FilterRecordsPopover({ cols, initial, objName, onApply, onClear, onClos
 // agents (in sequence) that read every record and emit additional fields. The
 // final output (source columns + agent fields) is previewable one step away.
 const OBJECT_AGENTS = [
-  { id: "enrich_company", name: "Company Enricher Agent",     desc: "Appends firmographics from external data providers.", outputs: [{ col: "industry", type: "string", sample: "SaaS" }, { col: "employee_count", type: "int", sample: "540" }, { col: "annual_revenue", type: "decimal", sample: "24500000.00" }, { col: "hq_country", type: "string", sample: "US" }] },
-  { id: "lead_score",     name: "Lead Scorer Agent",          desc: "Scores each record on fit and intent signals.",       outputs: [{ col: "fit_score", type: "int", sample: "82" }, { col: "intent_score", type: "int", sample: "67" }, { col: "priority_tier", type: "string", sample: "A" }] },
-  { id: "dedupe",         name: "Duplicate Detector Agent",   desc: "Flags likely duplicates and proposes a survivor.",     outputs: [{ col: "dup_cluster_id", type: "string", sample: "clu_4f" }, { col: "is_survivor", type: "bool", sample: "true" }, { col: "match_confidence", type: "decimal", sample: "0.94" }] },
-  { id: "sentiment",      name: "Sentiment Classifier Agent", desc: "Reads notes & activity to gauge health.",              outputs: [{ col: "sentiment", type: "string", sample: "positive" }, { col: "health_score", type: "int", sample: "78" }] },
-  { id: "summarize",      name: "Record Summarizer Agent",    desc: "Generates a one-line summary per record.",             outputs: [{ col: "summary", type: "string", sample: "Enterprise SaaS account, expanding." }] },
-  { id: "geocode",        name: "Address Geocoder Agent",     desc: "Normalizes addresses and adds lat/long.",              outputs: [{ col: "lat", type: "decimal", sample: "37.7749" }, { col: "lng", type: "decimal", sample: "-122.4194" }, { col: "normalized_address", type: "string", sample: "548 Market St, SF" }, { col: "timezone", type: "string", sample: "America/Los_Angeles" }] },
+  // ── General purpose ────────────────────────────────────────────────────────
+  { id: "enrich_company",   name: "Company Enricher Agent",        desc: "Appends firmographics from external data providers.",                outputs: [{ col: "industry", type: "string", sample: "SaaS" }, { col: "employee_count", type: "int", sample: "540" }, { col: "annual_revenue", type: "decimal", sample: "24500000.00" }, { col: "hq_country", type: "string", sample: "US" }] },
+  { id: "lead_score",       name: "Lead Scorer Agent",             desc: "Scores each record on ICP fit and intent signals.",                  outputs: [{ col: "fit_score", type: "int", sample: "82" }, { col: "intent_score", type: "int", sample: "67" }, { col: "priority_tier", type: "string", sample: "A" }, { col: "icp_match", type: "bool", sample: "true" }] },
+  { id: "dedupe",           name: "Duplicate Detector Agent",      desc: "Flags likely duplicates and proposes a survivor.",                   outputs: [{ col: "dup_cluster_id", type: "string", sample: "clu_4f" }, { col: "is_survivor", type: "bool", sample: "true" }, { col: "match_confidence", type: "decimal", sample: "0.94" }] },
+  { id: "sentiment",        name: "Sentiment Classifier Agent",    desc: "Reads notes & activity to gauge relationship health.",               outputs: [{ col: "sentiment", type: "string", sample: "positive" }, { col: "health_score", type: "int", sample: "78" }] },
+  { id: "summarize",        name: "Record Summarizer Agent",       desc: "Generates a one-line AI summary per record.",                        outputs: [{ col: "ai_summary", type: "string", sample: "Enterprise SaaS account, expanding." }] },
+  { id: "geocode",          name: "Address Geocoder Agent",        desc: "Normalizes addresses and adds lat/long.",                            outputs: [{ col: "lat", type: "decimal", sample: "37.7749" }, { col: "lng", type: "decimal", sample: "-122.4194" }, { col: "normalized_address", type: "string", sample: "548 Market St, SF" }, { col: "timezone", type: "string", sample: "America/Los_Angeles" }] },
+
+  // ── CRM / HubSpot specific ─────────────────────────────────────────────────
+  { id: "deal_intelligence", name: "Deal Intelligence Agent",      desc: "Analyzes opportunity signals to predict outcome and next action.",   outputs: [{ col: "win_probability", type: "float", sample: "0.68" }, { col: "deal_risk", type: "string", sample: "medium" }, { col: "stuck_stage_days", type: "int", sample: "14" }, { col: "recommended_action", type: "string", sample: "Schedule executive sponsor call" }, { col: "close_quarter_signal", type: "string", sample: "Q3 2026" }] },
+  { id: "contact_enricher",  name: "Contact Intelligence Agent",   desc: "Infers persona, seniority, and engagement intent from contact data.", outputs: [{ col: "persona", type: "string", sample: "Economic Buyer" }, { col: "seniority", type: "string", sample: "VP" }, { col: "engagement_level", type: "string", sample: "high" }, { col: "likely_champion", type: "bool", sample: "true" }] },
+  { id: "renewal_risk",      name: "Renewal Risk Agent",           desc: "Predicts renewal outcome using usage, NPS and engagement signals.",  outputs: [{ col: "renewal_risk_score", type: "int", sample: "72" }, { col: "risk_category", type: "string", sample: "at_risk" }, { col: "primary_risk_factor", type: "string", sample: "low feature adoption" }, { col: "recommended_play", type: "string", sample: "Schedule QBR within 2 weeks" }] },
+  { id: "campaign_scorer",   name: "Campaign Performance Agent",   desc: "Scores campaign effectiveness and surfaces attribution signals.",    outputs: [{ col: "influenced_arr", type: "decimal", sample: "840000.00" }, { col: "pipeline_sourced", type: "decimal", sample: "320000.00" }, { col: "roi_signal", type: "string", sample: "high" }, { col: "top_segment", type: "string", sample: "Enterprise EMEA" }] },
+
+  // ── Finance / NetSuite specific ────────────────────────────────────────────
+  { id: "payment_risk",      name: "Payment Risk Agent",           desc: "Predicts late payment or default risk from invoice patterns.",       outputs: [{ col: "payment_risk", type: "string", sample: "medium" }, { col: "days_late_predicted", type: "int", sample: "12" }, { col: "collection_action", type: "string", sample: "Send reminder" }] },
+  { id: "revenue_classifier", name: "Revenue Classifier Agent",   desc: "Tags revenue type, recognizes ARR vs. one-time and expansion.",      outputs: [{ col: "revenue_type", type: "string", sample: "recurring" }, { col: "expansion_signal", type: "string", sample: "upsell" }, { col: "arr_impact", type: "decimal", sample: "48000.00" }] },
+
+  // ── Support / Zendesk specific ─────────────────────────────────────────────
+  { id: "ticket_intelligence", name: "Ticket Intelligence Agent",  desc: "Classifies tickets, detects churn risk and suggests resolution.",   outputs: [{ col: "ticket_category", type: "string", sample: "billing_dispute" }, { col: "churn_risk_signal", type: "string", sample: "high" }, { col: "escalation_needed", type: "bool", sample: "true" }, { col: "resolution_suggestion", type: "string", sample: "Apply credit, follow up in 24h" }, { col: "sentiment", type: "string", sample: "frustrated" }] },
+  { id: "kb_gap_detector",   name: "Knowledge Gap Agent",          desc: "Detects missing KB articles from recurring ticket patterns.",        outputs: [{ col: "missing_article_topic", type: "string", sample: "API rate limits" }, { col: "recurrence_count", type: "int", sample: "14" }, { col: "deflection_potential", type: "string", sample: "high" }] },
+
+  // ── Product Usage specific ─────────────────────────────────────────────────
+  { id: "expansion_signal",  name: "Expansion Signal Agent",       desc: "Identifies accounts showing upsell or cross-sell readiness.",       outputs: [{ col: "expansion_score", type: "int", sample: "84" }, { col: "expansion_type", type: "string", sample: "seat_upsell" }, { col: "trigger_feature", type: "string", sample: "Automations" }, { col: "recommended_play", type: "string", sample: "Propose Team plan upgrade" }] },
+  { id: "churn_predictor",   name: "Churn Predictor Agent",        desc: "Predicts churn probability from usage drop and engagement signals.", outputs: [{ col: "churn_probability", type: "float", sample: "0.31" }, { col: "days_since_active", type: "int", sample: "18" }, { col: "risk_tier", type: "string", sample: "medium" }, { col: "top_risk_signal", type: "string", sample: "Feature usage dropped 60% MoM" }] },
+
+  // ── Apollo / Enrichment specific ──────────────────────────────────────────
+  { id: "buying_intent",     name: "Buying Intent Agent",          desc: "Scores intent signals and surfaces accounts in active buying mode.", outputs: [{ col: "intent_score", type: "int", sample: "91" }, { col: "intent_topic", type: "string[]", sample: "CRM, data integration" }, { col: "surging_signal", type: "bool", sample: "true" }, { col: "recommended_action", type: "string", sample: "Outbound now — high intent" }] },
+
+  // ── DocuSign / Contract specific ──────────────────────────────────────────
+  { id: "contract_risk",     name: "Contract Risk Agent",          desc: "Analyzes contract events for stall, abandonment or legal risk.",    outputs: [{ col: "contract_risk", type: "string", sample: "medium" }, { col: "stall_days", type: "int", sample: "5" }, { col: "legal_flag", type: "string", sample: "missing_signer" }, { col: "recommended_action", type: "string", sample: "Nudge signer via AE" }] },
 ];
 // Saved automations (pre-built pipelines) that also add fields — the alternative
 // to an agent when running extraction/enrichment on an object.
@@ -2834,7 +2886,7 @@ function SrcObjectAgents({ s, set, groups, sel, agentPoolFor, fileMode }) {
           const bodyOpen = hasAgents || pickerOpen;
           return (
             <div key={g.name} style={{ border: "1px solid var(--line)", borderRadius: 12, background: "var(--panel)" }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 11, padding: "12px 16px", borderBottom: bodyOpen ? "1px solid var(--line-2)" : "none", background: "var(--panel-2)", borderRadius: bodyOpen ? "12px 12px 0 0" : 12 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 11, padding: "12px 16px", borderBottom: bodyOpen ? "1px solid var(--line-2)" : "none", background: "#fff", borderRadius: bodyOpen ? "12px 12px 0 0" : 12 }}>
                 {sel && <SrcConnectorLogo c={sel} size={18} />}
                 <code style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 13, fontWeight: 600, color: "var(--ink)" }}>{g.label || g.name}</code>
                 {!fileMode && <span style={{ fontSize: 11.5, color: "var(--ink-4)" }}>{(g.type || "Object") + " · " + g.cols.length + " columns"}</span>}
@@ -3300,7 +3352,13 @@ function buildEditState(es, node, base) {
     st.tables = names;
     names.forEach(nm => {
       const o = objs.find(x => x.name === nm) || { name: nm };
-      if (es.agent) st.objectAgents[nm] = Array.isArray(es.agent) ? es.agent : [es.agent];
+      // Per-table agents take precedence over the single `agent` fallback
+      const perTableAgents = es.tableAgent && es.tableAgent[nm];
+      if (perTableAgents) {
+        st.objectAgents[nm] = Array.isArray(perTableAgents) ? perTableAgents : [perTableAgents];
+      } else if (es.agent) {
+        st.objectAgents[nm] = Array.isArray(es.agent) ? es.agent : [es.agent];
+      }
       richMap(nm, getObjectCols(o), es.tableNode && es.tableNode[nm] ? es.tableNode[nm] : fallbackNode);
     });
   }
@@ -3313,14 +3371,14 @@ function buildEditState(es, node, base) {
 // `edit` spec re-opens the wizard fully configured (see buildEditState).
 // ── Catalog extension: the 13 sources & their objects from the architecture doc ──
 [
-  { id: "monday",       cat: "Project & Support", name: "Monday",                tag: "Project Mgmt", kind: "structured",   icon: "Mn", slug: "monday",         color: "#FF3D57", desc: "Boards, items, projects, tasks and incidents." },
-  { id: "support",      cat: "Project & Support", name: "Support Portal",        tag: "Ticketing",    kind: "structured",   icon: "Su", slug: "zendesk",        color: "#16A34A", desc: "Support tickets, incidents and help-center articles." },
-  { id: "gcal",         cat: "Messaging & Email", name: "Google Calendar",       tag: "Scheduling",   kind: "unstructured", icon: "GC", slug: "googlecalendar", color: "#4285F4", desc: "Meetings, events and scheduling interactions." },
-  { id: "productusage", cat: "Identity & Events", name: "Product Usage",         tag: "Analytics",    kind: "structured",   icon: "PU", slug: "amplitude",      color: "#1463FF", desc: "Adoption metrics, usage events and expansion signals." },
-  { id: "productdocs",  cat: "Docs & Wikis",      name: "Product Documentation", tag: "Knowledge",    kind: "unstructured", icon: "PD", slug: "gitbook",        color: "#6366F1", desc: "Product guides and feature documentation." },
-  { id: "apollo",       cat: "CRM & Marketing",   name: "Apollo",                tag: "Enrichment",   kind: "structured",   icon: "Ap", slug: "apollo",         color: "#6D28D9", desc: "Company & contact data and buying-intent signals." },
-  { id: "web",          cat: "Files & Storage",   name: "Web",                   tag: "Public Data",  kind: "unstructured", icon: "We", slug: "googlechrome",   color: "#0891B2", desc: "Competitor sites, news and market data." },
-  { id: "docusign",     cat: "Files & Storage",   name: "DocuSign",              tag: "E-signature",  kind: "structured",   icon: "DS", slug: "docusign",       color: "#D4B106", desc: "Envelopes and contract signature events." },
+  { id: "monday",       cat: "Project & Support", domain: "monday.com",          name: "Monday",                tag: "Project Mgmt", kind: "structured",   icon: "Mn", slug: "monday",         color: "#FF3D57", desc: "Boards, items, projects, tasks and incidents." },
+  { id: "support",      cat: "Project & Support", domain: "unifyapps.com",       name: "Support Portal",        tag: "Ticketing",    kind: "structured",   icon: "UA", slug: "unifyapps",      color: "#16341f", desc: "Support tickets, incidents and help-center articles." },
+  { id: "gcal",         cat: "Messaging & Email", domain: "calendar.google.com", name: "Google Calendar",       tag: "Scheduling",   kind: "unstructured", icon: "GC", slug: "googlecalendar", color: "#4285F4", desc: "Meetings, events and scheduling interactions." },
+  { id: "productusage", cat: "Identity & Events", domain: "amplitude.com",       name: "Product Usage",         tag: "Analytics",    kind: "structured",   icon: "PU", slug: "amplitude",      color: "#1463FF", desc: "Adoption metrics, usage events and expansion signals." },
+  { id: "productdocs",  cat: "Docs & Wikis",      domain: "unifyapps.com",       name: "Product Documentation", tag: "Knowledge",    kind: "unstructured", icon: "UA", slug: "unifyapps",      color: "#16341f", desc: "Product guides and feature documentation." },
+  { id: "apollo",       cat: "CRM & Marketing",   domain: "apollo.io",           name: "Apollo",                tag: "Enrichment",   kind: "structured",   icon: "Ap", slug: "apollo",         color: "#6D28D9", desc: "Company & contact data and buying-intent signals." },
+  { id: "web",          cat: "Files & Storage",   domain: "google.com",          name: "Web",                   tag: "Public Data",  kind: "unstructured", icon: "We", slug: "googlechrome",   color: "#0891B2", desc: "Competitor sites, news and market data." },
+  { id: "docusign",     cat: "Files & Storage",   domain: "docusign.com",        name: "DocuSign",              tag: "E-signature",  kind: "structured",   icon: "DS", slug: "docusign",       color: "#D4B106", desc: "Envelopes and contract signature events." },
 ].forEach(c => { if (!SOURCE_SYSTEMS.some(x => x.id === c.id)) SOURCE_SYSTEMS.push(c); });
 
 Object.assign(OBJECTS_BY_SYS, {
@@ -3403,12 +3461,23 @@ Object.assign(ENTITY_SETS, {
     { id: "case_study", name: "Case Study", records: "180", conf: 90, fields: [{ col: "case_id", type: "string", sample: "CS-12" }, { col: "customer", type: "string", sample: "Initech" }, { col: "industry", type: "string", sample: "Fintech" }, { col: "outcome", type: "string", sample: "+38% adoption" }, { col: "published_date", type: "date", sample: "2026-01-30" }] },
   ],
   gcal: [
-    { id: "gc_meeting", name: "Meeting", records: "24,800", conf: 92, fields: [{ col: "event_id", type: "string", sample: "evt-5521" }, { col: "title", type: "string", sample: "QBR — Acme" }, { col: "organizer", type: "string", sample: "ae@acme.com" }, { col: "start_time", type: "timestamp", sample: "2026-03-04T16:00Z" }, { col: "attendees", type: "string[]", sample: "AE, SE, Buyer" }, { col: "location", type: "string", sample: "Meet" }, { col: "notes", type: "string", sample: "Renewal discussed." }] },
+    { id: "gc_discovery", name: "Discovery Call", records: "4,200", conf: 87, fields: [{ col: "qualification_outcome", type: "string", sample: "qualified" }, { col: "pain_points", type: "string[]", sample: "manual reporting, no visibility" }, { col: "budget_signal", type: "string", sample: "confirmed" }, { col: "decision_timeline", type: "string", sample: "Q3 2026" }, { col: "next_step", type: "string", sample: "Technical deep-dive" }, { col: "deal_stage_signal", type: "string", sample: "Discovery" }] },
+    { id: "gc_demo",      name: "Demo / POC",      records: "2,800", conf: 89, fields: [{ col: "demo_outcome", type: "string", sample: "positive" }, { col: "objections_raised", type: "string[]", sample: "integration complexity" }, { col: "champion_identified", type: "bool", sample: "true" }, { col: "competitors_mentioned", type: "string[]", sample: "Salesforce" }, { col: "next_step", type: "string", sample: "POC kickoff" }] },
+    { id: "gc_qbr",       name: "QBR",             records: "1,640", conf: 92, fields: [{ col: "health_score_signal", type: "string", sample: "green" }, { col: "expansion_signal", type: "string", sample: "upsell discussed" }, { col: "risk_factors", type: "string[]", sample: "low adoption in team B" }, { col: "renewal_likelihood", type: "string", sample: "high" }, { col: "action_items", type: "string[]", sample: "Enable SSO, Train team B" }] },
+    { id: "gc_renewal",   name: "Renewal Review",  records: "980",   conf: 94, fields: [{ col: "renewal_outcome", type: "string", sample: "at_risk" }, { col: "arr_discussed", type: "decimal", sample: "120000.00" }, { col: "objections", type: "string[]", sample: "pricing, ROI unclear" }, { col: "decision_maker_present", type: "bool", sample: "true" }, { col: "close_probability", type: "float", sample: "0.72" }, { col: "next_step", type: "string", sample: "Commercial proposal" }] },
+    { id: "gc_exec",      name: "Executive Sync",  records: "620",   conf: 90, fields: [{ col: "strategic_theme", type: "string", sample: "expansion" }, { col: "sentiment", type: "string", sample: "positive" }, { col: "decisions_made", type: "string[]", sample: "Increase seats by 50" }, { col: "risk_signals", type: "string[]", sample: "budget freeze mentioned" }, { col: "follow_up_owner", type: "string", sample: "AE" }] },
+  ],
+  gmail: [
+    { id: "gm_sales",   name: "Sales Outreach",     records: "28,400", conf: 88, fields: [{ col: "email_category", type: "string", sample: "inbound_inquiry" }, { col: "deal_stage_signal", type: "string", sample: "evaluation" }, { col: "products_mentioned", type: "string[]", sample: "Brain, Automations" }, { col: "competitors_mentioned", type: "string[]", sample: "Salesforce" }, { col: "urgency", type: "string", sample: "high" }, { col: "next_step", type: "string", sample: "Schedule demo" }, { col: "sentiment", type: "string", sample: "positive" }] },
+    { id: "gm_renewal", name: "Renewal Discussion",  records: "6,200",  conf: 91, fields: [{ col: "renewal_risk", type: "string", sample: "medium" }, { col: "arr_mentioned", type: "decimal", sample: "84000.00" }, { col: "decision_maker_present", type: "bool", sample: "true" }, { col: "timeline_signal", type: "string", sample: "Q3 2026" }, { col: "objections", type: "string[]", sample: "price, feature gap" }, { col: "action_required", type: "string", sample: "Send revised proposal" }] },
+    { id: "gm_support", name: "Support Escalation",  records: "12,100", conf: 93, fields: [{ col: "escalation_reason", type: "string", sample: "API timeout" }, { col: "severity_signal", type: "string", sample: "SEV2" }, { col: "churn_risk", type: "string", sample: "high" }, { col: "product_area", type: "string", sample: "Integrations" }, { col: "sentiment", type: "string", sample: "frustrated" }, { col: "action_required", type: "string", sample: "Escalate to engineering" }] },
+    { id: "gm_legal",   name: "Contract / Legal",    records: "3,800",  conf: 95, fields: [{ col: "document_type", type: "string", sample: "MSA redline" }, { col: "parties_mentioned", type: "string[]", sample: "Acme, Globex" }, { col: "deal_value_signal", type: "decimal", sample: "240000.00" }, { col: "legal_blocker", type: "string", sample: "indemnification clause" }, { col: "action_required", type: "string", sample: "Legal review needed" }] },
+    { id: "gm_exec",    name: "Executive Thread",    records: "4,500",  conf: 89, fields: [{ col: "strategic_topic", type: "string", sample: "partnership" }, { col: "sentiment", type: "string", sample: "neutral" }, { col: "commitment_signal", type: "string", sample: "verbal yes" }, { col: "risk_signal", type: "string", sample: "executive leaving" }, { col: "next_step", type: "string", sample: "Follow-up call" }] },
   ],
   productdocs: [
-    { id: "pd_article", name: "Knowledge Article", records: "3,120", conf: 90, fields: [{ col: "article_id", type: "string", sample: "DOC-204" }, { col: "title", type: "string", sample: "Webhooks" }, { col: "category", type: "string", sample: "API" }, { col: "author", type: "string", sample: "Docs" }, { col: "updated_at", type: "timestamp", sample: "2026-04-10" }, { col: "summary", type: "string", sample: "How to register webhooks." }] },
-    { id: "pd_guide", name: "Product Guide", records: "640", conf: 91, fields: [{ col: "guide_id", type: "string", sample: "GD-12" }, { col: "title", type: "string", sample: "Getting started" }, { col: "product_area", type: "string", sample: "Onboarding" }, { col: "steps", type: "int", sample: "8" }, { col: "updated_at", type: "timestamp", sample: "2026-03-22" }] },
-    { id: "pd_release", name: "Release Note", records: "410", conf: 94, fields: [{ col: "release_id", type: "string", sample: "REL-2026.4" }, { col: "version", type: "string", sample: "2026.4" }, { col: "date", type: "date", sample: "2026-04-01" }, { col: "highlights", type: "string[]", sample: "SSO, Audit log" }] },
+    { id: "pd_article",  name: "Knowledge Article", records: "3,120", conf: 90, fields: [{ col: "summary", type: "string", sample: "How to register webhooks." }, { col: "key_concepts", type: "string[]", sample: "webhooks, event payloads, retry logic" }, { col: "feature_names", type: "string[]", sample: "Webhooks API, HMAC signing" }, { col: "use_cases", type: "string[]", sample: "Real-time sync, event-driven automation" }, { col: "version_applicability", type: "string", sample: "2026.2+" }] },
+    { id: "pd_guide",    name: "Product Guide",     records: "640",   conf: 91, fields: [{ col: "summary", type: "string", sample: "Step-by-step onboarding walkthrough." }, { col: "target_audience", type: "string", sample: "Admins" }, { col: "prerequisites", type: "string[]", sample: "Admin access, SSO configured" }, { col: "key_features", type: "string[]", sample: "Role setup, Integration wizard" }, { col: "common_issues", type: "string[]", sample: "SAML mismatch, token expiry" }] },
+    { id: "pd_release",  name: "Release Note",      records: "410",   conf: 94, fields: [{ col: "highlights", type: "string[]", sample: "SSO, Audit log" }, { col: "breaking_changes", type: "string[]", sample: "Legacy auth removed" }, { col: "affected_areas", type: "string[]", sample: "Integrations, Settings" }, { col: "sentiment_signal", type: "string", sample: "high_value" }] },
   ],
   web: [
     { id: "web_competitor", name: "Competitor Page", records: "1,420", conf: 86, fields: [{ col: "page_url", type: "string", sample: "https://rival.com/pricing" }, { col: "competitor", type: "string", sample: "Rival Inc" }, { col: "title", type: "string", sample: "Pricing" }, { col: "captured_at", type: "timestamp", sample: "2026-05-01" }, { col: "summary", type: "string", sample: "New enterprise tier." }] },
@@ -3416,7 +3485,7 @@ Object.assign(ENTITY_SETS, {
     { id: "web_market", name: "Market Signal", records: "3,300", conf: 82, fields: [{ col: "signal_url", type: "string", sample: "https://market.com/y" }, { col: "topic", type: "string", sample: "AI governance" }, { col: "signal", type: "string", sample: "rising demand" }, { col: "captured_at", type: "timestamp", sample: "2026-05-03" }, { col: "relevance", type: "float", sample: "0.82" }] },
   ],
 });
-ENTITY_SETS.slack.push({ id: "alert", name: "Alert", records: "5,200", conf: 90, fields: [{ col: "alert_id", type: "string", sample: "ALR-91" }, { col: "severity", type: "string", sample: "SEV2" }, { col: "channel", type: "string", sample: "#oncall" }, { col: "triggered_at", type: "timestamp", sample: "2026-05-12T09:31Z" }, { col: "message", type: "string", sample: "Error rate spike." }] });
+ENTITY_SETS.slack.push({ id: "alert", name: "Alert", records: "5,200", conf: 90, fields: [{ col: "severity", type: "string", sample: "SEV2" }, { col: "affected_service", type: "string", sample: "Auth service" }, { col: "alert_type", type: "string", sample: "error_rate_spike" }, { col: "escalation_needed", type: "bool", sample: "true" }, { col: "action_taken", type: "string", sample: "Rolled back deploy" }, { col: "impact_signal", type: "string", sample: "~200 users affected" }] });
 
 // New entity types need their extraction agents built (the original build ran before these were added).
 Object.keys(ENTITY_SETS).forEach(k => ENTITY_SETS[k].forEach(e => {
@@ -3469,10 +3538,10 @@ const DEMO_PIPELINES = [
       includeOnly: ["contract", "sow", "proposal", "policy", "knowledge_article", "case_study"], entityNode: { contract: "agreement", sow: "__new__", proposal: "__new__", policy: "__new__", knowledge_article: "__new__", case_study: "__new__" }, settings: { refresh: true, retention: true } } },
   // Gmail (Email) → Interaction (email)
   { id: "gml", name: "Gmail", system: "Gmail", sysId: "gmail", nodeId: "interaction", nodeLabel: "Interaction", type: "Email", freq: "Every 1h", last: "22m ago", rows: "184K", rowsN: 184500, errors: 0, status: "healthy",
-    edit: { system: "gmail", node: "interaction", scope: "folders", locations: ["Sales inbox", "Success inbox"], contentMode: "single", knownType: "Email", settings: { refresh: true } } },
+    edit: { system: "gmail", node: "interaction", scope: "folders", locations: ["Sales inbox", "Success inbox"], contentMode: "mixed", includeOnly: ["gm_sales", "gm_renewal", "gm_support", "gm_legal", "gm_exec"], entityNode: { gm_sales: "interaction", gm_renewal: "interaction", gm_support: "interaction", gm_legal: "interaction", gm_exec: "interaction" }, settings: { refresh: true } } },
   // Google Calendar (Scheduling) → Interaction (meeting)
   { id: "gcl", name: "Google Calendar", system: "Google Calendar", sysId: "gcal", nodeId: "interaction", nodeLabel: "Interaction", type: "Scheduling", freq: "Every 1h", last: "35m ago", rows: "24K", rowsN: 24800, errors: 0, status: "healthy",
-    edit: { system: "gcal", node: "interaction", scope: "folders", locations: ["Sales calendar", "CS calendar"], contentMode: "single", knownType: "Meeting", settings: { refresh: true } } },
+    edit: { system: "gcal", node: "interaction", scope: "folders", locations: ["Sales calendar", "CS calendar"], contentMode: "mixed", includeOnly: ["gc_discovery", "gc_demo", "gc_qbr", "gc_renewal", "gc_exec"], entityNode: { gc_discovery: "interaction", gc_demo: "interaction", gc_qbr: "interaction", gc_renewal: "interaction", gc_exec: "interaction" }, settings: { refresh: true } } },
   // Slack (Communication) → Interaction, Decision, Incident, Alert
   { id: "slk", name: "Slack", system: "Slack", sysId: "slack", nodeId: "interaction", nodeLabel: "Interaction +3", type: "Communication", freq: "Streaming", last: "1m ago", rows: "44K", rowsN: 44250, errors: 3, status: "degraded",
     edit: { system: "slack", node: "interaction", scope: "folders", locations: ["#sales-wins", "#oncall", "#cs-alerts"], contentMode: "mixed",
