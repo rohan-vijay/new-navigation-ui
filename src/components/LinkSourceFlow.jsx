@@ -11,18 +11,19 @@ function FlowStyles() {
     const el = document.createElement('style');
     el.id = id;
     el.textContent = `
-:root {
-  --bg: #fcfbf7;
-  --bg-canvas: #fcfbf7;
-  --panel: #fff;
-  --panel-2: #fcfbf7;
+/* Scope all flow variables to the overlay so they don't bleed into the rest of the app */
+.flow-overlay {
+  --bg: #f0efe9;
+  --bg-canvas: #e8e7e1;
+  --panel: #ffffff;
+  --panel-2: #f7f6f2;
   --ink: #1a1a1a;
   --ink-2: #4a4a4a;
-  --ink-3: #9a948a;
-  --ink-4: #c4bdb0;
-  --line: #ececea;
-  --line-2: #f1f2f1;
-  --chip: #f4f3ef;
+  --ink-3: #8a857e;
+  --ink-4: #afa89f;
+  --line: #d5d3cc;
+  --line-2: #dedad3;
+  --chip: #e5e3dc;
   --green: #16341f;
   --green-soft: #b8d4bb;
   --green-fill: #e8f0e9;
@@ -85,7 +86,7 @@ function FlowStyles() {
 .flow-step { display: flex; gap: 12px; padding: 10px 12px; border-radius: 8px; border: 0; background: transparent; cursor: pointer; font-family: inherit; text-align: left; }
 .flow-step:hover { background: var(--bg-canvas); }
 .flow-step.on { background: var(--bg-canvas); border: 1px solid var(--line); }
-.flow-step.done .flow-step-n { background: var(--green); color: var(--bg-canvas); border-color: var(--green); }
+.flow-step.done .flow-step-n { background: #16a34a; color: #fff; border-color: #16a34a; }
 .flow-step.on .flow-step-n { background: var(--ink); color: var(--bg-canvas); border-color: var(--ink); }
 .flow-step-n { width: 28px; height: 28px; border-radius: 50%; border: 1px solid var(--line); display: grid; place-items: center; font-family: "JetBrains Mono", monospace; font-size: 12px; font-weight: 700; color: var(--ink-3); background: var(--bg-canvas); flex-shrink: 0; }
 .flow-step-text { min-width: 0; }
@@ -116,7 +117,7 @@ function FlowStyles() {
 .switch input { opacity: 0; width: 0; height: 0; }
 .switch-track { position: absolute; inset: 0; background: var(--line); border-radius: 999px; transition: background 120ms; }
 .switch-track::before { content: ""; position: absolute; top: 2px; left: 2px; width: 14px; height: 14px; background: var(--panel); border-radius: 50%; transition: transform 120ms; box-shadow: 0 1px 2px rgba(0,0,0,0.15); }
-.switch input:checked ~ .switch-track { background: var(--ink); }
+.switch input:checked ~ .switch-track { background: #16a34a; }
 .switch input:checked ~ .switch-track::before { transform: translateX(14px); }
 
 .review-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
@@ -218,9 +219,9 @@ function FlowStyles() {
 .wrl { display: flex; flex-direction: column; gap: 2px; }
 .wrl-item { display: flex; align-items: flex-start; gap: 12px; padding: 12px 14px; border: 1px solid var(--line); border-radius: 8px; background: var(--panel); cursor: pointer; font-family: inherit; text-align: left; transition: border-color 80ms, background 80ms; width: 100%; }
 .wrl-item:hover { background: var(--bg-canvas); }
-.wrl-item.on { border-color: var(--ink); background: var(--bg-canvas); }
+.wrl-item.on { border-color: #16a34a; background: color-mix(in oklab, #16a34a 6%, var(--panel)); }
 .wrl-radio { width: 16px; height: 16px; border-radius: 50%; border: 1.5px solid var(--line); flex-shrink: 0; margin-top: 2px; transition: border-color 80ms, border-width 80ms; }
-.wrl-radio.on { border: 5px solid var(--ink); }
+.wrl-radio.on { border: 5px solid #16a34a; }
 .wrl-body { flex: 1; min-width: 0; }
 .wrl-label { font-size: 13.5px; font-weight: 500; color: var(--ink); display: flex; align-items: center; gap: 8px; }
 .wrl-tag { font-family: "JetBrains Mono", monospace; font-size: 9.5px; padding: 1px 6px; border-radius: 3px; letter-spacing: 0.4px; }
@@ -247,11 +248,11 @@ function FlowStyles() {
 .wflag-row { display: flex; gap: 6px; flex-wrap: wrap; }
 .wflag { display: inline-flex; align-items: center; gap: 7px; padding: 8px 14px; border: 1px solid var(--line); border-radius: 7px; background: var(--panel); cursor: pointer; font-size: 13px; color: var(--ink-2); user-select: none; }
 .wflag:hover { background: var(--bg-canvas); }
-.wflag.on { background: var(--bg-canvas); border-color: var(--ink); color: var(--ink); font-weight: 500; }
-.wflag input { accent-color: var(--ink); }
+.wflag.on { background: color-mix(in oklab, #16a34a 7%, var(--panel)); border-color: #16a34a; color: var(--ink); font-weight: 500; }
+.wflag input { accent-color: #16a34a; }
 
 .wslider { display: flex; align-items: center; gap: 14px; }
-.wslider-input { flex: 1; accent-color: var(--ink); height: 4px; }
+.wslider-input { flex: 1; accent-color: #16a34a; height: 4px; }
 .wslider-val { font-family: "JetBrains Mono", monospace; font-size: 13px; color: var(--ink); min-width: 64px; text-align: right; }
 
 .wenum-tokens { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; padding: 8px 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--panel); min-height: 44px; }
@@ -2062,10 +2063,10 @@ function SrcObject({ s, set, sel }) {
           const on = selected.indexOf(o.name) >= 0;
           return (
             <button key={o.name} onClick={() => toggle(o.name)}
-              style={{ display: "flex", alignItems: "center", gap: 14, width: "100%", padding: "14px 16px", border: "none", borderTop: i ? "1px solid var(--line-2)" : "none", background: on ? "var(--bg-canvas)" : "transparent", cursor: "pointer", textAlign: "left", fontFamily: "inherit" }}
+              style={{ display: "flex", alignItems: "center", gap: 14, width: "100%", padding: "14px 16px", border: "none", borderTop: i ? "1px solid var(--line-2)" : "none", background: on ? "color-mix(in oklab, #16a34a 8%, #fff)" : "transparent", cursor: "pointer", textAlign: "left", fontFamily: "inherit" }}
               onMouseEnter={e => { if (!on) e.currentTarget.style.background = "var(--panel-2)"; }}
               onMouseLeave={e => { if (!on) e.currentTarget.style.background = "transparent"; }}>
-              <span style={{ width: 20, height: 20, borderRadius: 5, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", borderWidth: 1.5, borderStyle: "solid", borderColor: on ? "var(--ink)" : "var(--line)", background: on ? "var(--ink)" : "transparent", color: "var(--bg-canvas)" }}>
+              <span style={{ width: 20, height: 20, borderRadius: 5, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", borderWidth: 1.5, borderStyle: "solid", borderColor: on ? "#16a34a" : "var(--line)", background: on ? "#16a34a" : "transparent", color: "#fff" }}>
                 {on && <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><polyline points="3.5,8.5 6.5,11.5 12.5,5" /></svg>}
               </span>
               {sel ? <SrcConnectorLogo c={sel} size={20} /> : <span style={{ width: 32, height: 32, borderRadius: 8, background: "var(--chip)", border: "1px solid var(--line)", flexShrink: 0 }} />}
@@ -2378,7 +2379,7 @@ function SrcDiscover({ s, set, sel }) {
               return (
                 <label key={e.id} style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 15px", borderRadius: 10, cursor: "pointer", border: "1px solid var(--line-2)", background: on ? "var(--panel)" : "transparent", opacity: on ? 1 : 0.62, transition: "opacity 120ms" }}>
                   <span style={{ flex: 1, minWidth: 0, fontSize: 14, fontWeight: 600, color: "var(--ink)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{e.name}</span>
-                  <input type="checkbox" checked={on} onChange={() => toggle(e.id)} style={{ accentColor: "var(--ink)", width: 16, height: 16, flexShrink: 0 }} />
+                  <input type="checkbox" checked={on} onChange={() => toggle(e.id)} style={{ accentColor: "#16a34a", width: 16, height: 16, flexShrink: 0 }} />
                 </label>
               );
             })}
@@ -2637,7 +2638,7 @@ function SrcTransformDrawer({ col, type, sel, list: propList, onChange: propOnCh
                     ))}
                     {/* save output in new field */}
                     <label style={{ display: "flex", alignItems: "center", gap: 9, cursor: forceSave ? "default" : "pointer", opacity: forceSave ? 0.7 : 1 }}>
-                      <input type="checkbox" checked={showNewField} disabled={forceSave} onChange={e => setItem(i, { saveNew: e.target.checked })} style={{ accentColor: "var(--ink)", width: 15, height: 15 }} />
+                      <input type="checkbox" checked={showNewField} disabled={forceSave} onChange={e => setItem(i, { saveNew: e.target.checked })} style={{ accentColor: "#16a34a", width: 15, height: 15 }} />
                       <span style={{ fontSize: 12.5, color: "var(--ink-2)" }}>Save output in a new field{forceSave ? " (required)" : ""}</span>
                     </label>
                     {showNewField && (
@@ -3592,7 +3593,7 @@ function SrcSchedule({ s, set, srcCols, eyebrow }) {
 
       <FormRow label="Avoid Duplicate Operations" optional hint="Enable duplicate operations prevention in your destination">
         <label style={{ display: "flex", alignItems: "flex-start", gap: 10, cursor: "pointer" }}>
-          <input type="checkbox" checked={!!s.avoidDup} onChange={e => set({ avoidDup: e.target.checked })} style={{ accentColor: "var(--ink)", width: 15, height: 15, marginTop: 2 }} />
+          <input type="checkbox" checked={!!s.avoidDup} onChange={e => set({ avoidDup: e.target.checked })} style={{ accentColor: "#16a34a", width: 15, height: 15, marginTop: 2 }} />
           <span><span style={{ fontSize: 13.5, fontWeight: 600, color: "var(--ink)" }}>Avoid Duplicate Operations</span><span style={{ display: "block", fontSize: 12, color: "var(--ink-3)", marginTop: 3, lineHeight: 1.5 }}>Avoid duplicate operations and cyclical writes between pipelines. Checks existing record hashes to ensure one-way data flow.</span></span>
         </label>
       </FormRow>
