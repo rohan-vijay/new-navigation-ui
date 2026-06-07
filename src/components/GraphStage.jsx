@@ -1275,7 +1275,7 @@ function Sidebar({ open, onToggle, filter, setFilter, query, setQuery, selected,
 
 
 // ── Stage 1 host: provides graph state + view/edit toggle, renders the canvas ──
-export { SIDEBAR_NODES, EDGES as GRAPH_EDGES, ListGlyph, colorForNode, AddNodeFlow }
+export { SIDEBAR_NODES, EDGES as GRAPH_EDGES, ListGlyph, colorForNode, AddNodeFlow, NewEdgeFlow }
 
 export default function GraphStage() {
   // Agents aren't part of the graph here — drop them and any edges touching them.

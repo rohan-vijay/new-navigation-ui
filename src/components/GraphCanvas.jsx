@@ -5,7 +5,7 @@ import CreateAgentPage, { ModelIcon, MODELS } from './CreateAgentModal'
 import BuildWithAIModal from './BuildWithAIModal'
 import { ToolGlyph } from './AddToolPanel'
 import { LinkSourceFlow } from './LinkSourceFlow'
-import GraphStage, { SIDEBAR_NODES, GRAPH_EDGES, ListGlyph, AddNodeFlow } from './GraphStage'
+import GraphStage, { SIDEBAR_NODES, GRAPH_EDGES, ListGlyph, AddNodeFlow, NewEdgeFlow } from './GraphStage'
 import RecordsPage from './RecordsPage'
 import SkillLibrary from './SkillLibrary'
 import { AGENT_LIBRARY, AGENT_GROUP_ORDER } from '../data/agentLibrary'
@@ -234,7 +234,7 @@ function GraphCanvasInner({ title = 'New graph', onBack, onAgentAI }) {
       ) : tab === 'Nodes' ? (
         <NodesList onOpen={() => setTab('Graph')} />
       ) : tab === 'Edges' ? (
-        <EdgesList onAddEdge={() => setTab('Graph')} />
+        <EdgesList />
       ) : tab === 'Sources' ? (
         <SourcesList onConnect={() => setSourceFlow(true)} />
       ) : tab === 'Agents' && agents.length > 0 ? (
@@ -522,10 +522,11 @@ const EDGE_SORTERS = {
   'To': (a, b) => a.to.label.localeCompare(b.to.label),
 }
 
-function EdgesList({ onAddEdge }) {
+function EdgesList() {
   const [sort, setSort] = useState('Relationship')
   const [filter, setFilter] = useState('All kinds')
   const [search, setSearch] = useState('')
+  const [addOpen, setAddOpen] = useState(false)
   const byId = useMemo(() => { const m = {}; SIDEBAR_NODES.forEach(n => { m[n.id] = n }); return m }, [])
   const allEdges = useMemo(() => GRAPH_EDGES
     .map((e, i) => {
@@ -565,7 +566,7 @@ function EdgesList({ onAddEdge }) {
           <span style={{ fontFamily: 'var(--serif)', fontSize: 23, fontWeight: 500, color: '#1a1a1a', letterSpacing: -0.2 }}>Edges</span>
           <span style={{ fontFamily: 'var(--sans)', fontSize: 14, color: '#a89e88' }}>{rows.length}</span>
         </div>
-        <button onClick={() => onAddEdge?.()} style={{ ...gBtnGhost, height: 32, padding: '0 13px', display: 'inline-flex', alignItems: 'center', gap: 7 }}
+        <button onClick={() => setAddOpen(true)} style={{ ...gBtnGhost, height: 32, padding: '0 13px', display: 'inline-flex', alignItems: 'center', gap: 7 }}
           onMouseOver={e => e.currentTarget.style.background = '#faf8f3'} onMouseOut={e => e.currentTarget.style.background = '#fff'}>
           <svg width="13" height="13" viewBox="0 0 13 13" fill="none"><path d="M6.5 1.5v10M1.5 6.5h10" stroke="#3a3a36" strokeWidth="1.6" strokeLinecap="round" /></svg>
           New Edge
@@ -616,6 +617,8 @@ function EdgesList({ onAddEdge }) {
           </tbody>
         </table>
       </div>
+
+      {addOpen && <NewEdgeFlow nodes={SIDEBAR_NODES} onClose={() => setAddOpen(false)} onCreate={() => setAddOpen(false)} />}
     </div>
   )
 }
