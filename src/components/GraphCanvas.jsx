@@ -611,22 +611,27 @@ function NodeDetailPage({ node, onBack, onCanvas }) {
           </div>
         </div>
 
-        {/* tab zone — same background as the top header; edge-to-edge bottom rule */}
-        <div style={{ background: '#FEFDFB', borderBottom: '1px solid #efece6', padding: '0 26px' }}>
+        {/* tab zone — active tab becomes a folder tab that overlaps the rule
+            and flows into the content surface (#fcfbf7) below. */}
+        <div style={{ background: '#FEFDFB', borderBottom: '1px solid #e6dfd1', padding: '6px 26px 0' }}>
           <div style={{ display: 'flex' }}>
           {DETAIL_TABS.map(t => {
             const on = tab === t
             return (
               <button key={t} onClick={() => setTab(t)} style={{
-                flex: 1, minWidth: 0, cursor: 'pointer', border: 'none',
-                margin: '7px 0 9px', padding: '7px 10px', borderRadius: 9, fontSize: 13,
+                flex: 1, minWidth: 0, cursor: 'pointer', position: 'relative',
+                marginBottom: on ? -1 : 0,
+                padding: '9px 12px 11px', fontSize: 13,
                 fontWeight: on ? 600 : 450, color: on ? '#2a2620' : '#9a948a',
-                background: on ? '#efe9dd' : 'transparent',
-                transition: 'background .15s, color .15s', whiteSpace: 'nowrap',
+                background: on ? '#fcfbf7' : 'transparent',
+                border: on ? '1px solid #e6dfd1' : '1px solid transparent',
+                borderBottom: on ? '1px solid #fcfbf7' : '1px solid transparent',
+                borderRadius: '10px 10px 0 0',
+                transition: 'color .15s', whiteSpace: 'nowrap',
                 display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6,
               }}
-                onMouseOver={e => { if (!on) e.currentTarget.style.background = 'rgba(40,32,18,0.045)' }}
-                onMouseOut={e => { if (!on) e.currentTarget.style.background = 'transparent' }}>
+                onMouseOver={e => { if (!on) e.currentTarget.style.color = '#5b5547' }}
+                onMouseOut={e => { if (!on) e.currentTarget.style.color = '#9a948a' }}>
                 <span style={{ display: 'inline-flex', color: on ? '#6b6453' : '#bcb5a4', transition: 'color .15s' }}>{TAB_ICON[t]}</span>
                 {t}
                 {tabCount[t] > 0 && <span style={{ fontFamily: 'var(--mono)', fontSize: 10, fontWeight: 600, color: on ? '#6b6453' : '#a89e88', background: on ? 'rgba(40,32,18,0.07)' : '#f1ede4', borderRadius: 5, padding: '1px 5px' }}>{tabCount[t]}</span>}
