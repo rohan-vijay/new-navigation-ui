@@ -28,7 +28,7 @@ function StatusGlyph({ status, size = 19 }) {
   return <svg width={size} height={size} viewBox="0 0 16 16" fill="none" style={{ flexShrink: 0, display: 'block' }}>{ic.glyph}</svg>
 }
 
-function StatusBadge({ status }) {
+export function StatusBadge({ status }) {
   return (
     <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, whiteSpace: 'nowrap' }}>
       <StatusGlyph status={status} />
@@ -250,7 +250,7 @@ export default function SkillsPage({ tab = 'Skills', onTabChange, onCreate, onBu
                   const active = SORT_COL[sort] === c.key
                   return (
                   <th key={c.key} style={{
-                    width: c.w, textAlign: 'left', padding: '13px 18px',
+                    width: c.w, textAlign: 'left', padding: '10px 18px',
                     fontSize: 10.5, fontWeight: 600, color: active ? '#5b6066' : '#9aa0a6', letterSpacing: 1,
                     textTransform: 'uppercase', borderBottom: '1px solid #eaecea',
                     whiteSpace: 'nowrap', cursor: 'pointer', userSelect: 'none',
@@ -278,7 +278,7 @@ export default function SkillsPage({ tab = 'Skills', onTabChange, onCreate, onBu
                     onMouseOut={e => { e.currentTarget.style.background = '#fff'; e.currentTarget.style.boxShadow = 'none' }}>
                     {/* Skill Name */}
                     <td style={{ ...cell, paddingLeft: 22 }}>
-                      <span style={{ fontFamily: 'var(--serif)', fontSize: 15.5, fontWeight: 500, color: '#1a1a1a', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s.name}</span>
+                      <span style={{ fontFamily: 'var(--serif)', fontSize: 14, fontWeight: 500, color: '#1a1a1a', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s.name}</span>
                     </td>
                     {/* Version — outlined mono chip */}
                     <td style={cell}>
@@ -434,7 +434,7 @@ function CreateGroupModal({ onClose, onCreate }) {
   )
 }
 
-const td = { padding: '17px 18px', verticalAlign: 'middle', overflow: 'hidden' }
+const td = { padding: '11px 18px', verticalAlign: 'middle', overflow: 'hidden' }
 const SORT_COL = { 'Last Updated': 'updated', 'Name (A–Z)': 'name', 'Version': 'version', 'Status': 'status' }
 
 /* ─── Skill Groups table ────────────────────────────────── */
@@ -448,7 +448,7 @@ function GroupsTable({ rows, sort, onOpenGroup }) {
               const active = SORT_COL[sort] === c.key
               return (
                 <th key={c.key} style={{
-                  width: c.w, textAlign: 'left', padding: '13px 18px',
+                  width: c.w, textAlign: 'left', padding: '10px 18px',
                   fontSize: 10.5, fontWeight: 600, color: active ? '#5b6066' : '#9aa0a6', letterSpacing: 1,
                   textTransform: 'uppercase', borderBottom: '1px solid #eaecea',
                   whiteSpace: 'nowrap', cursor: 'pointer', userSelect: 'none', paddingLeft: ci === 0 ? 22 : 18,
@@ -473,7 +473,7 @@ function GroupsTable({ rows, sort, onOpenGroup }) {
                 onMouseOut={e => { e.currentTarget.style.background = '#fff'; e.currentTarget.style.boxShadow = 'none' }}>
                 {/* Group Name */}
                 <td style={{ ...cell, paddingLeft: 22 }}>
-                  <span style={{ fontFamily: 'var(--serif)', fontSize: 15.5, fontWeight: 500, color: '#1a1a1a', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{g.name}</span>
+                  <span style={{ fontFamily: 'var(--serif)', fontSize: 14, fontWeight: 500, color: '#1a1a1a', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{g.name}</span>
                 </td>
                 {/* Skills count — emphasized */}
                 <td style={cell}>

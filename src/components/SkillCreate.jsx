@@ -121,7 +121,7 @@ export default function SkillCreate({ onBack, imported }) {
           <button style={{
             background: 'var(--green-btn)', color: '#fff', border: 'none', borderRadius: 9,
             padding: '0 20px', height: 36, fontSize: 13.5, fontWeight: 500, cursor: 'pointer',
-            boxShadow: '0 4px 14px rgba(22,52,31,0.28), 0 1px 2px rgba(0,0,0,0.1)', transition: 'all .15s',
+            boxShadow: '0 1px 3px rgba(22,52,31,0.16)', transition: 'all .15s',
           }}
             onMouseOver={e => e.currentTarget.style.background = '#1d4228'}
             onMouseOut={e => e.currentTarget.style.background = '#16341f'}>

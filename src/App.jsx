@@ -11,7 +11,10 @@ import { findSkill } from './data/skills'
 import { GROUPS } from './components/SkillsPage'
 import AIPanel from './components/AIPanel'
 import StatusBar from './components/StatusBar'
-import { BuildContext, useBuildDraft } from './components/aiBuild'
+import { BuildContext, useBuildDraft, useAgentDraft } from './components/aiBuild'
+import { AgentCanvas } from './components/CreateAgentModal'
+import ContextGraphsPage from './components/ContextGraphsPage'
+import GraphCanvas from './components/GraphCanvas'
 import BuildWithAIModal from './components/BuildWithAIModal'
 import ScratchSkillModal from './components/ScratchSkillModal'
 
@@ -49,6 +52,18 @@ export default function App() {
   const [scratchOpen, setScratchOpen] = useState(false)
   const [runSkill, setRunSkill] = useState(null) // null | { slug, name }
   const build = useBuildDraft()
+  const agentDraft = useAgentDraft()
+  const agentMode = view === 'agent-create'
+
+  // Launch the agent AI build: agent form on canvas + real AI FDE dock on the right.
+  const startAgentBuild = (seed) => {
+    setImportedSkill(null); build.stop(); agentDraft.reset(); setRunSkill(null)
+    setView('agent-create'); setAiBuild(true); setAiSide('right'); setLeftSession(false)
+    setAiSeed(seed); setAiNonce(n => n + 1); setAiOpen(true)
+  }
+  const exitAgentBuild = () => {
+    agentDraft.stop(); setAiBuild(false); setAiOpen(false); setAiSeed(null); setView('blank-canvas')
+  }
 
   const slugify = (s) => (s || 'skill').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '')
 
@@ -130,10 +145,11 @@ export default function App() {
 
   const handleNavigate = (label) => {
     if (label === 'Skills') { setView('skills'); setActiveNav('agents'); setSkillsTab('Skills') }
+    else if (label === 'Enterprise Context Graph') { setView('context-graphs'); setActiveNav('ontology') }
   }
 
   return (
-    <BuildContext.Provider value={build}>
+    <BuildContext.Provider value={agentMode ? agentDraft : build}>
     <div style={{
       display: 'flex', height: '100vh', width: '100vw',
       overflow: 'hidden', background: 'var(--green-frame)',
@@ -158,6 +174,15 @@ export default function App() {
           </div>
           {view === 'graphs' && (
             <GraphsPage onOpenGraph={g => { setSelectedGraph(g); setView('detail') }} />
+          )}
+          {view === 'context-graphs' && (
+            <ContextGraphsPage onCreate={() => setView('blank-canvas')} onOpenGraph={() => setView('blank-canvas')} />
+          )}
+          {view === 'agent-create' && (
+            <AgentCanvas draft={agentDraft} onBack={exitAgentBuild} onCreate={exitAgentBuild} />
+          )}
+          {view === 'blank-canvas' && (
+            <GraphCanvas onBack={() => setView('context-graphs')} onAgentAI={startAgentBuild} />
           )}
           {view === 'detail' && (
             <GraphDetailPage graph={selectedGraph} onBack={() => setView('graphs')} />

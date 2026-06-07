@@ -32,7 +32,7 @@ function CopyRefButton({ text, visible }) {
   )
 }
 
-function ShareTypeIcon({ type, c = '#4a463e' }) {
+export function ShareTypeIcon({ type, c = '#4a463e' }) {
   if (type === 'org') return <svg width="15" height="15" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="6" stroke={c} strokeWidth="1.3" /><path d="M2 8h12M8 2c1.8 1.6 1.8 10.4 0 12M8 2c-1.8 1.6-1.8 10.4 0 12" stroke={c} strokeWidth="1.1" /></svg>
   if (type === 'private' || !type) return <svg width="15" height="15" viewBox="0 0 18 18" fill="none"><rect x="3.5" y="8" width="11" height="7.2" rx="1.6" stroke={c} strokeWidth="1.3" /><path d="M5.9 8V5.9a3.1 3.1 0 016.2 0V8" stroke={c} strokeWidth="1.3" /></svg>
   // team / teams / users — people group
@@ -222,8 +222,9 @@ export default function SkillDetail({ skill, onBack, onTest }) {
                   </>
                 )}
               </div>
-              <button onClick={() => onTest?.()} title="Test skill" style={{ ...btnGhost, width: 36, padding: 0, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }} onMouseOver={e => e.currentTarget.style.background = '#faf8f3'} onMouseOut={e => e.currentTarget.style.background = '#fff'}>
+              <button onClick={() => onTest?.()} title="Test skill" style={{ ...btnGhost, display: 'inline-flex', alignItems: 'center', gap: 7 }} onMouseOver={e => e.currentTarget.style.background = '#faf8f3'} onMouseOut={e => e.currentTarget.style.background = '#fff'}>
                 <svg width="15" height="15" viewBox="0 0 16 16" fill="none"><path d="M5 3.2v3.1L2.4 11a1.4 1.4 0 001.2 2.1h8.8A1.4 1.4 0 0013.6 11L11 6.3V3.2" stroke="#4a463e" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" /><path d="M4.3 3.2h7.4" stroke="#4a463e" strokeWidth="1.3" strokeLinecap="round" /><path d="M6.4 9.2h3.2" stroke="#4a463e" strokeWidth="1.3" strokeLinecap="round" /></svg>
+                Test
               </button>
               <button onClick={() => setShareOpen(true)} style={{ ...btnGhost, display: 'inline-flex', alignItems: 'center', gap: 8, paddingRight: 12 }} onMouseOver={e => e.currentTarget.style.background = '#faf8f3'} onMouseOut={e => e.currentTarget.style.background = '#fff'}>
                 <ShareTypeIcon type={shareType} />
@@ -719,9 +720,6 @@ function RestoreModal({ skillName, version, liveVersion, onClose, onConfirm }) {
     <div onMouseDown={onClose} style={{ position: 'fixed', inset: 0, zIndex: 80, background: 'rgba(28,24,18,0.40)', backdropFilter: 'blur(2px)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
       <div onMouseDown={e => e.stopPropagation()} style={{ width: 480, maxWidth: '92vw', background: '#FEFDFB', borderRadius: 16, border: '1px solid #ece5d7', boxShadow: '0 24px 70px rgba(40,32,18,0.30)', overflow: 'hidden', animation: 'fdeFadeUp .18s ease-out' }}>
         <div style={{ display: 'flex', gap: 13, padding: '20px 22px 14px' }}>
-          <span style={{ width: 40, height: 40, borderRadius: 11, background: '#fcf3e1', border: '1px solid #f0e2c4', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-            <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M10 2.5l8 14H2l8-14z" stroke="#b07a16" strokeWidth="1.5" strokeLinejoin="round" /><path d="M10 8v3.2M10 13.6h.01" stroke="#b07a16" strokeWidth="1.5" strokeLinecap="round" /></svg>
-          </span>
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ fontFamily: 'var(--serif)', fontSize: 18, fontWeight: 500, color: '#1a1a1a' }}>Restore {version}?</div>
             <div style={{ fontSize: 12.5, color: '#8a8170', marginTop: 2, lineHeight: 1.45 }}>This replaces what's live for <strong style={{ color: '#3a3a36', fontWeight: 600 }}>{skillName}</strong>. Review before you continue — it affects every agent using this skill.</div>
@@ -1413,5 +1411,5 @@ function FileGlyph({ selected }) {
 }
 
 const btnGhost = { background: '#fff', color: '#3a3a36', border: '1px solid #e3ddd1', borderRadius: 9, padding: '0 16px', height: 36, fontSize: 13.5, fontWeight: 500, cursor: 'pointer', boxShadow: '0 1px 2px rgba(60,50,30,0.04)', transition: 'all .15s' }
-const btnPrimary = { background: 'var(--green-btn)', color: '#fff', border: 'none', borderRadius: 9, padding: '0 20px', height: 36, fontSize: 13.5, fontWeight: 500, cursor: 'pointer', boxShadow: '0 4px 14px rgba(22,52,31,0.28), 0 1px 2px rgba(0,0,0,0.1)', transition: 'all .15s' }
+const btnPrimary = { background: 'var(--green-btn)', color: '#fff', border: 'none', borderRadius: 9, padding: '0 20px', height: 36, fontSize: 13.5, fontWeight: 500, cursor: 'pointer', boxShadow: '0 1px 3px rgba(22,52,31,0.16)', transition: 'all .15s' }
 const addBtn = { width: 24, height: 24, background: '#fff', border: '1px solid #e6dfd1', borderRadius: 7, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }

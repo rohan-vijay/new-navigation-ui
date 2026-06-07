@@ -1,7 +1,12 @@
 import { useState } from 'react'
 
 /* Asks the user to describe the skill in natural language before launching AI FDE. */
-export default function BuildWithAIModal({ onClose, onSubmit }) {
+export default function BuildWithAIModal({
+  onClose, onSubmit,
+  title = 'Build a skill with AI',
+  cta = 'Build skill',
+  placeholder = 'Describe the skill that you want to build with AI.\n\nExample: Handle post-call follow-up for my sales meetings — use the transcript, Salesforce record, email and Slack to draft a follow-up email and a CRM-ready deal summary.',
+}) {
   const [desc, setDesc] = useState('')
   const submit = () => { const v = desc.trim(); if (v) onSubmit?.(v) }
 
@@ -18,7 +23,7 @@ export default function BuildWithAIModal({ onClose, onSubmit }) {
             </svg>
           </span>
           <div style={{ flex: 1, minWidth: 0, display: 'flex', alignItems: 'center', height: 32 }}>
-            <div style={{ fontFamily: 'var(--serif)', fontSize: 19, fontWeight: 500, color: '#1a1a1a' }}>Build a skill with AI</div>
+            <div style={{ fontFamily: 'var(--serif)', fontSize: 19, fontWeight: 500, color: '#1a1a1a' }}>{title}</div>
           </div>
           <button onClick={onClose} style={{ border: 'none', background: 'none', cursor: 'pointer', padding: 6, color: '#9a917f', flexShrink: 0 }}>
             <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M4.5 4.5l9 9M13.5 4.5l-9 9" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" /></svg>
@@ -29,19 +34,18 @@ export default function BuildWithAIModal({ onClose, onSubmit }) {
         <div style={{ padding: '0 22px 4px' }}>
           <textarea autoFocus value={desc} onChange={e => setDesc(e.target.value)}
             onKeyDown={e => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) submit() }}
-            placeholder="Describe the skill that you want to build with AI.&#10;&#10;Example: Handle post-call follow-up for my sales meetings — use the transcript, Salesforce record, email and Slack to draft a follow-up email and a CRM-ready deal summary."
+            placeholder={placeholder}
             style={{ width: '100%', minHeight: 184, border: '1px solid #d8cfbb', borderRadius: 12, padding: '14px 16px', fontSize: 14.5, lineHeight: 1.55, color: '#3a3a36', background: '#fff', outline: 'none', resize: 'vertical', boxSizing: 'border-box', fontFamily: 'inherit' }}
             onFocus={e => e.target.style.borderColor = '#16341f'} onBlur={e => e.target.style.borderColor = '#d8cfbb'} />
         </div>
 
         {/* footer */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '12px 22px 18px' }}>
-          <span style={{ fontSize: 11.5, color: '#a89e88' }}>⌘↵ to continue</span>
           <div style={{ flex: 1 }} />
           <button onClick={onClose} style={{ height: 38, padding: '0 16px', background: '#fff', color: '#3a3a36', border: '1px solid #e3ddd1', borderRadius: 9, fontSize: 13.5, fontWeight: 500, cursor: 'pointer' }}>Cancel</button>
           <button onClick={submit} disabled={!desc.trim()} style={{ display: 'inline-flex', alignItems: 'center', gap: 7, height: 38, padding: '0 20px', background: 'var(--green-btn)', color: '#fff', border: 'none', borderRadius: 9, fontSize: 13.5, fontWeight: 500, cursor: desc.trim() ? 'pointer' : 'default', opacity: desc.trim() ? 1 : 0.45 }}
             onMouseOver={e => { if (desc.trim()) e.currentTarget.style.background = '#1d4228' }} onMouseOut={e => { if (desc.trim()) e.currentTarget.style.background = '#16341f' }}>
-            Build skill
+            {cta}
             <svg width="15" height="15" viewBox="0 0 16 16" fill="none"><path d="M3 8h10M9 4l4 4-4 4" stroke="#fff" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg>
           </button>
         </div>

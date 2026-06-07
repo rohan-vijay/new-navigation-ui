@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom'
 import { RichMarkdown } from './SkillCreate'
 import { GROUPS, GroupIcon } from './SkillsPage'
 import { ToolGlyph } from './AddToolPanel'
+import AgentPreviewModal from './AgentPreviewModal'
 
 const CP = { strokeWidth: 1.5, strokeLinecap: 'round', strokeLinejoin: 'round', fill: 'none' }
 function CatIcon({ id, color = '#7a6f5c', size = 18 }) {
@@ -232,7 +233,9 @@ const LIBRARY = RAW_ALL.map(c => ({ ...c, skills: c.skills.map(s => ({ ...s, id:
 
 const ALL_COUNT = LIBRARY.reduce((n, c) => n + c.skills.length, 0)
 
-export default function SkillLibrary({ onBack, onImport }) {
+export default function SkillLibrary({ onBack, onImport, library = LIBRARY, groupOrder = GROUP_ORDER, title = 'Skill Library', noun = 'skill' }) {
+  const nounPlural = noun + 's'
+  const allCount = useMemo(() => library.reduce((n, c) => n + c.skills.length, 0), [library])
   const [query, setQuery] = useState('')
   const [activeCat, setActiveCat] = useState('all')
   const [selected, setSelected] = useState(() => new Set())
@@ -241,11 +244,11 @@ export default function SkillLibrary({ onBack, onImport }) {
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase()
-    return LIBRARY
+    return library
       .filter(c => activeCat === 'all' || c.cat === activeCat)
       .map(c => ({ ...c, skills: c.skills.filter(s => !q || s.name.toLowerCase().includes(q) || s.desc.toLowerCase().includes(q)) }))
       .filter(c => c.skills.length > 0)
-  }, [query, activeCat])
+  }, [query, activeCat, library])
 
   const toggle = (id) => setSelected(s => { const n = new Set(s); n.has(id) ? n.delete(id) : n.add(id); return n })
   const catIds = (cat) => cat.skills.map(s => s.id)
@@ -263,12 +266,12 @@ export default function SkillLibrary({ onBack, onImport }) {
       {/* Top bar */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, height: 60, padding: '0 22px', borderBottom: '1px solid #efece6', flexShrink: 0 }}>
         <div style={{ flex: 1, minWidth: 0, display: 'flex', alignItems: 'baseline', gap: 10 }}>
-          <span style={{ fontFamily: 'var(--serif)', fontSize: 19, fontWeight: 500, color: '#1a1a1a', whiteSpace: 'nowrap' }}>Skill Library</span>
-          <span style={{ fontSize: 12.5, color: '#a89e88', whiteSpace: 'nowrap' }}>{ALL_COUNT} skills</span>
+          <span style={{ fontFamily: 'var(--serif)', fontSize: 19, fontWeight: 500, color: '#1a1a1a', whiteSpace: 'nowrap' }}>{title}</span>
+          <span style={{ fontSize: 12.5, color: '#a89e88', whiteSpace: 'nowrap' }}>{allCount} {nounPlural}</span>
         </div>
         <div style={{ position: 'relative', flexShrink: 0, width: 540, maxWidth: '52%' }}>
           <svg width="17" height="17" viewBox="0 0 18 18" fill="none" style={{ position: 'absolute', left: 15, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }}><circle cx="8" cy="8" r="5.2" stroke="#9a917f" strokeWidth="1.5" /><path d="M12 12l3.5 3.5" stroke="#9a917f" strokeWidth="1.5" strokeLinecap="round" /></svg>
-          <input value={query} onChange={e => setQuery(e.target.value)} autoFocus placeholder="Search skills…"
+          <input value={query} onChange={e => setQuery(e.target.value)} autoFocus placeholder={`Search ${nounPlural}…`}
             style={{ width: '100%', height: 40, border: '1px solid #e7dcc1', borderRadius: 10, padding: '0 38px 0 42px', fontSize: 14.5, color: '#2a2620', background: '#fff', outline: 'none', boxShadow: '0 1px 3px rgba(60,50,30,0.05)', transition: 'border-color .15s, box-shadow .15s' }}
             onFocus={e => { e.target.style.borderColor = '#16341f'; e.target.style.boxShadow = '0 2px 10px rgba(22,52,31,0.08)' }} onBlur={e => { e.target.style.borderColor = '#e7dcc1'; e.target.style.boxShadow = '0 1px 3px rgba(60,50,30,0.05)' }} />
           {query && (
@@ -289,9 +292,9 @@ export default function SkillLibrary({ onBack, onImport }) {
       <div style={{ flex: 1, display: 'flex', minHeight: 0 }}>
         {/* Category rail */}
         <div style={{ width: 268, flexShrink: 0, borderRight: '1px solid #efe9dd', background: '#fcfbf7', padding: '16px 14px', overflowY: 'auto' }}>
-          <RailItem active={activeCat === 'all'} onClick={() => setActiveCat('all')} label="All skills" count={ALL_COUNT} icon={<svg width="17" height="17" viewBox="0 0 18 18" fill="none"><rect x="3" y="3" width="5" height="5" rx="1.2" {...CP} stroke="#7a6f5c" /><rect x="10" y="3" width="5" height="5" rx="1.2" {...CP} stroke="#7a6f5c" /><rect x="3" y="10" width="5" height="5" rx="1.2" {...CP} stroke="#7a6f5c" /><rect x="10" y="10" width="5" height="5" rx="1.2" {...CP} stroke="#7a6f5c" /></svg>} />
-          {GROUP_ORDER.map(g => {
-            const cats = LIBRARY.filter(c => c.group === g)
+          <RailItem active={activeCat === 'all'} onClick={() => setActiveCat('all')} label={`All ${nounPlural}`} count={allCount} icon={<svg width="17" height="17" viewBox="0 0 18 18" fill="none"><rect x="3" y="3" width="5" height="5" rx="1.2" {...CP} stroke="#7a6f5c" /><rect x="10" y="3" width="5" height="5" rx="1.2" {...CP} stroke="#7a6f5c" /><rect x="3" y="10" width="5" height="5" rx="1.2" {...CP} stroke="#7a6f5c" /><rect x="10" y="10" width="5" height="5" rx="1.2" {...CP} stroke="#7a6f5c" /></svg>} />
+          {groupOrder.map(g => {
+            const cats = library.filter(c => c.group === g)
             if (!cats.length) return null
             return (
               <div key={g} style={{ marginTop: 12 }}>
@@ -314,7 +317,7 @@ export default function SkillLibrary({ onBack, onImport }) {
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
                   <span style={{ width: 30, height: 30, borderRadius: 8, background: '#f1ede4', border: '1px solid #e6e0d4', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><CatVisual c={c} size={17} /></span>
                   <span style={{ fontFamily: 'var(--serif)', fontSize: 17, fontWeight: 500, color: '#1a1a1a' }}>{c.cat}</span>
-                  <span style={{ fontSize: 12, color: '#a89e88' }}>{c.skills.length} skills</span>
+                  <span style={{ fontSize: 12, color: '#a89e88' }}>{c.skills.length} {nounPlural}</span>
                   <div style={{ flex: 1 }} />
                   <button onClick={() => toggleCat(c)} style={{
                     display: 'inline-flex', alignItems: 'center', gap: 7, height: 30, padding: '0 12px', borderRadius: 8, cursor: 'pointer', fontSize: 12.5, fontWeight: 500,
@@ -334,7 +337,7 @@ export default function SkillLibrary({ onBack, onImport }) {
             )
           })}
           {filtered.length === 0 && (
-            <div style={{ padding: '80px 0', textAlign: 'center', color: '#9a917f', fontSize: 14 }}>No skills match “{query}”.</div>
+            <div style={{ padding: '80px 0', textAlign: 'center', color: '#9a917f', fontSize: 14 }}>No {nounPlural} match “{query}”.</div>
           )}
         </div>
       </div>
@@ -342,25 +345,25 @@ export default function SkillLibrary({ onBack, onImport }) {
       {/* Sticky footer (always visible) */}
       <div style={{ position: 'absolute', left: 0, right: 0, bottom: 0, display: 'flex', alignItems: 'center', gap: 14, padding: '14px 24px', background: 'rgba(254,253,251,0.94)', backdropFilter: 'blur(6px)', borderTop: '1px solid #ece5d7' }}>
         <span style={{ fontSize: 13.5, color: selected.size ? '#3a3a36' : '#9a917f' }}>
-          {selected.size ? <><strong style={{ fontWeight: 700 }}>{selected.size}</strong> skill{selected.size > 1 ? 's' : ''} selected</> : 'No skills selected'}
+          {selected.size ? <><strong style={{ fontWeight: 700 }}>{selected.size}</strong> {noun}{selected.size > 1 ? 's' : ''} selected</> : `No ${nounPlural} selected`}
         </span>
         {selected.size > 0 && <button onClick={clear} style={{ fontSize: 12.5, color: '#8a8170', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline' }}>Clear</button>}
         <div style={{ flex: 1 }} />
         <button onClick={onBack} style={{ height: 38, padding: '0 16px', background: '#fff', color: '#3a3a36', border: '1px solid #e3ddd1', borderRadius: 9, fontSize: 13.5, fontWeight: 500, cursor: 'pointer' }}>Cancel</button>
-        <button onClick={() => selected.size && setImporting(true)} disabled={selected.size === 0}
-          style={{ height: 38, padding: '0 20px', background: 'var(--green-btn)', color: '#fff', border: 'none', borderRadius: 9, fontSize: 13.5, fontWeight: 500, cursor: selected.size ? 'pointer' : 'default', opacity: selected.size ? 1 : 0.45, boxShadow: selected.size ? '0 4px 14px rgba(22,52,31,0.25)' : 'none' }}
+        <button onClick={() => { if (!selected.size) return; if (noun === 'agent') { onImport?.([...selected]); onBack?.() } else setImporting(true) }} disabled={selected.size === 0}
+          style={{ height: 38, padding: '0 20px', background: 'var(--green-btn)', color: '#fff', border: 'none', borderRadius: 9, fontSize: 13.5, fontWeight: 500, cursor: selected.size ? 'pointer' : 'default', opacity: selected.size ? 1 : 0.45, boxShadow: selected.size ? '0 1px 3px rgba(22,52,31,0.16)' : 'none' }}
           onMouseOver={e => { if (selected.size) e.currentTarget.style.background = '#1d4228' }} onMouseOut={e => { if (selected.size) e.currentTarget.style.background = '#16341f' }}>
-          {selected.size ? `Add ${selected.size} to skills` : 'Add to skills'}
+          {selected.size ? `Add ${selected.size} ${nounPlural}` : `Add ${nounPlural}`}
         </button>
       </div>
 
-      {preview && (
-        <PreviewModal entry={preview} selected={selected.has(preview.skill.id)}
-          onToggle={() => toggle(preview.skill.id)} onClose={() => setPreview(null)} />
+      {preview && (noun === 'agent'
+        ? <AgentPreviewModal entry={preview} selected={selected.has(preview.skill.id)} onToggle={() => toggle(preview.skill.id)} onClose={() => setPreview(null)} />
+        : <PreviewModal entry={preview} selected={selected.has(preview.skill.id)} onToggle={() => toggle(preview.skill.id)} onClose={() => setPreview(null)} />
       )}
 
       {importing && (
-        <ImportFlow count={selected.size} onClose={() => setImporting(false)}
+        <ImportFlow count={selected.size} noun={noun} onClose={() => setImporting(false)}
           onDone={(opts) => { onImport?.([...selected], opts); onBack?.() }} />
       )}
     </div>
@@ -373,7 +376,7 @@ const IMPORT_ACCESS = [
   { id: 'org', title: 'Everyone at Acme', sub: 'Anyone in the workspace can use them' },
 ]
 
-function ImportFlow({ count, onClose, onDone }) {
+function ImportFlow({ count, noun = 'skill', onClose, onDone }) {
   const [step, setStep] = useState(1)
   const [access, setAccess] = useState('private')
   const [invite, setInvite] = useState('')
@@ -401,7 +404,7 @@ function ImportFlow({ count, onClose, onDone }) {
         <div style={{ padding: '18px 22px 14px', borderBottom: '1px solid #f2ede3' }}>
           <div style={{ display: 'flex', alignItems: 'center' }}>
             <div style={{ flex: 1 }}>
-              <div style={{ fontFamily: 'var(--serif)', fontSize: 18, fontWeight: 500, color: '#1a1a1a' }}>Add {count} skill{count > 1 ? 's' : ''} to your workspace</div>
+              <div style={{ fontFamily: 'var(--serif)', fontSize: 18, fontWeight: 500, color: '#1a1a1a' }}>Add {count} {noun}{count > 1 ? 's' : ''} to your workspace</div>
               <div style={{ fontSize: 12.5, color: '#8a8170', marginTop: 2 }}>{step === 1 ? 'Step 1 of 2 · Set who can access them' : 'Step 2 of 2'}</div>
             </div>
             <button onClick={onClose} style={{ border: 'none', background: 'none', cursor: 'pointer', padding: 6, color: '#9a917f' }}>
@@ -776,7 +779,7 @@ def analyze(data, rules, cfg):
   ]
 }
 
-function PreviewModal({ entry, selected, onToggle, onClose }) {
+export function PreviewModal({ entry, selected, onToggle, onClose }) {
   const { skill, cat } = entry
   const files = useMemo(() => libFiles(skill, cat.cat), [skill, cat])
   const { rows, map } = useMemo(() => flattenPreview(files), [files])

@@ -130,6 +130,23 @@ const RUN_TEXT = {
   maxHeight: 120, overflowY: 'hidden', boxSizing: 'border-box',
 }
 
+// past AI FDE sessions, grouped by recency
+const HISTORY = [
+  { group: 'Today', items: [
+    { title: 'Lead Qualifier — test run', preview: 'Qualified an inbound from Northwind…', time: '2h ago' },
+    { title: 'Build: Renewal Risk Monitor', preview: 'Drafted SKILL.md, added Salesforce…', time: '4h ago' },
+  ] },
+  { group: 'Yesterday', items: [
+    { title: 'Outreach Email Writer', preview: 'Generated a follow-up for the demo…', time: '1d ago' },
+    { title: 'Discovery Call Summarizer', preview: 'Summarized the Acme discovery call…', time: '1d ago' },
+  ] },
+  { group: 'Previous 7 days', items: [
+    { title: 'Build: Proposal Generator', preview: 'Scaffolded workflow + references…', time: '3d ago' },
+    { title: 'Deal Risk Analyzer', preview: 'Flagged 2 stalled deals in pipeline…', time: '5d ago' },
+    { title: 'Objection Handler', preview: 'Drafted responses to pricing pushback…', time: '6d ago' },
+  ] },
+]
+
 const BUILD_OPENER =
   "Hi — I'm AI FDE. Tell me what skill you'd like to build: who uses it, what inputs it works from, and what it should produce.\n\nFor example: *\"Handle post-call follow-up for my sales meetings — use the transcript, Salesforce record, email and Slack to draft a follow-up email and a CRM-ready deal summary.\"*"
 
@@ -146,6 +163,7 @@ export default function AIPanel({ onClose, context = 'graphs', buildMode = false
   const [tall, setTall] = useState(false)
   const [model, setModel] = useState('sonnet')
   const [modelOpen, setModelOpen] = useState(false)
+  const [showHistory, setShowHistory] = useState(false)
   const curModel = MODELS.find(m => m.id === model) || MODELS[0]
   const [files, setFiles] = useState([])
   const fileRef = useRef(null)
@@ -194,9 +212,11 @@ export default function AIPanel({ onClose, context = 'graphs', buildMode = false
     const info = build.analyze(desc)
     setBPhase('intro')
     setTyping(true)
+    const introText = build.copy?.intro ?? "Using the **skill_creator** skill since you want a reusable agent behavior, not just a one-off draft."
+    const askText = build.copy?.ask ?? "A few quick questions — answer them below and I'll build the skill."
     after(700, () => {
       setTyping(false)
-      setMessages(m => [...m, { role: 'ai', text: "Using the **skill_creator** skill since you want a reusable agent behavior, not just a one-off draft.", work: info.work }])
+      setMessages(m => [...m, { role: 'ai', text: introText, work: info.work }])
       setTyping(true)
     })
     after(1700, () => {
@@ -206,7 +226,7 @@ export default function AIPanel({ onClose, context = 'graphs', buildMode = false
     })
     after(2500, () => {
       setTyping(false)
-      setMessages(m => [...m, { role: 'ai', text: "A few quick questions — answer them below and I'll build the skill.", subtle: true }])
+      setMessages(m => [...m, { role: 'ai', text: askText, subtle: true }])
       setBPhase('questions')
     })
   }
@@ -216,7 +236,7 @@ export default function AIPanel({ onClose, context = 'graphs', buildMode = false
     build.recordAnswers(answers)
     setMessages(m => [...m, { type: 'answers', answers }])
     setBPhase('building')
-    setMessages(m => [...m, { role: 'ai', text: "On it — building your skill now. Watch the files take shape on the left." }])
+    setMessages(m => [...m, { role: 'ai', text: build.copy?.building ?? "On it — building your skill now. Watch the files take shape on the left." }])
     await build.setBasics()
     await build.addWorkflow()
     await build.addTools()
@@ -305,7 +325,7 @@ export default function AIPanel({ onClose, context = 'graphs', buildMode = false
       {/* ── Header ── */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '12px 12px 12px 18px', flexShrink: 0, borderBottom: '1px solid rgba(16,52,31,0.06)' }}>
         <span style={{ flex: 1 }} />
-        <HeaderIconButton title="History" onClick={() => {}}>
+        <HeaderIconButton title="History" onClick={() => setShowHistory(h => !h)} active={showHistory}>
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#5e685b" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="9" /><polyline points="12 7 12 12 15.5 14" /></svg>
         </HeaderIconButton>
         <HeaderIconButton title="New chat" onClick={() => setMessages(buildMode ? [{ role: 'ai', text: BUILD_OPENER }] : [])}>
@@ -315,6 +335,34 @@ export default function AIPanel({ onClose, context = 'graphs', buildMode = false
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#5e685b" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
         </HeaderIconButton>
       </div>
+      {showHistory && (
+        <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 20, background: '#fff', display: 'flex', flexDirection: 'column', animation: 'fdeFadeUp .18s ease' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '12px 12px 12px 18px', flexShrink: 0, borderBottom: '1px solid rgba(16,52,31,0.06)' }}>
+            <span style={{ flex: 1, fontFamily: 'var(--serif)', fontSize: 15.5, fontWeight: 500, color: '#1a1a1a' }}>History</span>
+            <HeaderIconButton title="Close history" onClick={() => setShowHistory(false)}>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#5e685b" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
+            </HeaderIconButton>
+          </div>
+          <div className="dark-scroll" style={{ flex: 1, overflowY: 'auto', padding: '8px 10px 16px' }}>
+            {HISTORY.map(sec => (
+              <div key={sec.group} style={{ marginTop: 6 }}>
+                <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: 0.3, textTransform: 'uppercase', color: '#9aa3a0', padding: '8px 10px 4px' }}>{sec.group}</div>
+                {sec.items.map((it, i) => (
+                  <button key={i} onClick={() => setShowHistory(false)}
+                    style={{ display: 'block', width: '100%', textAlign: 'left', background: 'transparent', border: 'none', borderRadius: 10, padding: '9px 10px', cursor: 'pointer', transition: 'background .12s' }}
+                    onMouseOver={e => e.currentTarget.style.background = '#f5f8f5'} onMouseOut={e => e.currentTarget.style.background = 'transparent'}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <span style={{ fontSize: 13.5, fontWeight: 500, color: '#2a2620', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{it.title}</span>
+                      <span style={{ fontSize: 11.5, color: '#9aa3a0', flexShrink: 0 }}>{it.time}</span>
+                    </div>
+                    <div style={{ fontSize: 12, color: '#8a9290', marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{it.preview}</div>
+                  </button>
+                ))}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
       {!started ? (
         /* ── Empty state: greeting + quick starters ── */
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '0 28px', overflowY: 'auto' }}>
@@ -484,11 +532,11 @@ export default function AIPanel({ onClose, context = 'graphs', buildMode = false
   )
 }
 
-function HeaderIconButton({ title, onClick, children }) {
+function HeaderIconButton({ title, onClick, children, active = false }) {
   const [hov, setHov] = useState(false)
   return (
     <button title={title} onClick={onClick} onMouseEnter={() => setHov(true)} onMouseLeave={() => setHov(false)}
-      style={{ width: 30, height: 30, borderRadius: 8, border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', background: hov ? 'rgba(16,52,31,0.06)' : 'transparent', transition: 'background .12s' }}>
+      style={{ width: 30, height: 30, borderRadius: 8, border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', background: (active || hov) ? 'rgba(16,52,31,0.06)' : 'transparent', transition: 'background .12s' }}>
       {children}
     </button>
   )
@@ -652,7 +700,7 @@ function QuestionCard({ onDone, questions }) {
         <button onClick={advance} style={{
           display: 'inline-flex', alignItems: 'center', gap: 7, background: 'var(--green-btn)', color: '#fff',
           border: 'none', borderRadius: 9, padding: '0 15px', height: 34, fontSize: 13, fontWeight: 500, cursor: 'pointer',
-          boxShadow: '0 3px 10px rgba(22,52,31,0.25)', flexShrink: 0, whiteSpace: 'nowrap',
+          boxShadow: '0 1px 3px rgba(22,52,31,0.16)', flexShrink: 0, whiteSpace: 'nowrap',
         }}>
           <span style={{ fontSize: 11, opacity: 0.7 }}>↵</span>
           {last ? 'Done' : 'Continue'}

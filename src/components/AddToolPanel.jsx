@@ -90,44 +90,168 @@ const APPS = [
   { id: 'mailchimp', name: 'Mailchimp', slug: 'mailchimp', desc: 'Manage campaigns and audiences' },
 ]
 
+// logical grouping order for actions
+const CAT_ORDER = ['Read', 'Write', 'Organize', 'Manage']
+
 const GENERIC_ACTIONS = [
-  { id: 'create', name: 'Create record', desc: 'Add a new item' },
-  { id: 'update', name: 'Update record', desc: 'Modify an existing item' },
-  { id: 'find', name: 'Find records', desc: 'Search items by criteria' },
-  { id: 'delete', name: 'Delete record', desc: 'Remove an item' },
+  { id: 'find', cat: 'Read', name: 'Find records', desc: 'Search items by criteria' },
+  { id: 'get', cat: 'Read', name: 'Get record', desc: 'Fetch a single item by ID' },
+  { id: 'list', cat: 'Read', name: 'List records', desc: 'Return a page of items' },
+  { id: 'report', cat: 'Read', name: 'Run report', desc: 'Aggregate items into a summary' },
+  { id: 'create', cat: 'Write', name: 'Create record', desc: 'Add a new item' },
+  { id: 'update', cat: 'Write', name: 'Update record', desc: 'Modify an existing item' },
+  { id: 'upsert', cat: 'Write', name: 'Upsert record', desc: 'Create or update by key' },
+  { id: 'bulk', cat: 'Write', name: 'Bulk update', desc: 'Update many items at once' },
+  { id: 'tag', cat: 'Organize', name: 'Add tag', desc: 'Tag an item for grouping' },
+  { id: 'assign', cat: 'Organize', name: 'Assign owner', desc: 'Set the responsible user' },
+  { id: 'delete', cat: 'Manage', name: 'Delete record', desc: 'Remove an item' },
+  { id: 'export', cat: 'Manage', name: 'Export data', desc: 'Download items as a file' },
 ]
+
 const ACTIONS = {
   gmail: [
-    { id: 'send', name: 'Send email', desc: 'Compose and send a new email' },
-    { id: 'draft', name: 'Create draft', desc: 'Save a draft without sending' },
-    { id: 'search', name: 'Search emails', desc: 'Find emails matching a query' },
-    { id: 'label', name: 'Add label', desc: 'Apply a label to a thread' },
-  ],
-  zendesk: [
-    { id: 'create', name: 'Create ticket', desc: 'Open a new support ticket' },
-    { id: 'update', name: 'Update ticket', desc: 'Change status or fields' },
-    { id: 'comment', name: 'Add comment', desc: 'Reply on an existing ticket' },
-    { id: 'search', name: 'Search tickets', desc: 'Find tickets by query' },
-  ],
-  notion: [
-    { id: 'create_page', name: 'Create page', desc: 'Add a new page to a workspace' },
-    { id: 'update_page', name: 'Update page', desc: 'Edit an existing page' },
-    { id: 'query_db', name: 'Query database', desc: 'Filter and read database rows' },
-  ],
-  jira: [
-    { id: 'create_issue', name: 'Create issue', desc: 'Open a new issue or task' },
-    { id: 'update_issue', name: 'Update issue', desc: 'Change status or assignee' },
-    { id: 'search_issue', name: 'Search issues', desc: 'Find issues with JQL' },
-  ],
-  github: [
-    { id: 'create_issue', name: 'Create issue', desc: 'Open a new issue' },
-    { id: 'comment_pr', name: 'Comment on PR', desc: 'Add a review comment' },
-    { id: 'search_repo', name: 'Search code', desc: 'Find code across repos' },
+    { id: 'search', cat: 'Read', name: 'Search emails', desc: 'Find emails matching a query' },
+    { id: 'read', cat: 'Read', name: 'Read email', desc: 'Get the body of a message' },
+    { id: 'list_threads', cat: 'Read', name: 'List threads', desc: 'Return recent conversation threads' },
+    { id: 'get_attach', cat: 'Read', name: 'Get attachment', desc: 'Download a file from a message' },
+    { id: 'list_labels', cat: 'Read', name: 'List labels', desc: 'Return all labels in the mailbox' },
+    { id: 'send', cat: 'Write', name: 'Send email', desc: 'Compose and send a new email' },
+    { id: 'reply', cat: 'Write', name: 'Reply to email', desc: 'Respond within a thread' },
+    { id: 'forward', cat: 'Write', name: 'Forward email', desc: 'Send a message on to others' },
+    { id: 'draft', cat: 'Write', name: 'Create draft', desc: 'Save a draft without sending' },
+    { id: 'send_draft', cat: 'Write', name: 'Send draft', desc: 'Send an existing draft' },
+    { id: 'label', cat: 'Organize', name: 'Add label', desc: 'Apply a label to a thread' },
+    { id: 'unlabel', cat: 'Organize', name: 'Remove label', desc: 'Strip a label from a thread' },
+    { id: 'read_mark', cat: 'Organize', name: 'Mark as read', desc: 'Clear the unread flag' },
+    { id: 'star', cat: 'Organize', name: 'Star email', desc: 'Flag a message as important' },
+    { id: 'archive', cat: 'Organize', name: 'Archive email', desc: 'Remove from the inbox' },
+    { id: 'create_label', cat: 'Manage', name: 'Create label', desc: 'Add a new mailbox label' },
+    { id: 'create_filter', cat: 'Manage', name: 'Create filter', desc: 'Auto-sort incoming mail' },
+    { id: 'trash', cat: 'Manage', name: 'Move to trash', desc: 'Delete a message' },
   ],
   gcal: [
-    { id: 'create_event', name: 'Create event', desc: 'Add an event to a calendar' },
-    { id: 'find_event', name: 'Find events', desc: 'List events in a range' },
-    { id: 'free_busy', name: 'Check availability', desc: 'Find free/busy time' },
+    { id: 'find_event', cat: 'Read', name: 'Find events', desc: 'List events in a range' },
+    { id: 'get_event', cat: 'Read', name: 'Get event', desc: 'Fetch one event by ID' },
+    { id: 'free_busy', cat: 'Read', name: 'Check availability', desc: 'Find free/busy time' },
+    { id: 'list_cal', cat: 'Read', name: 'List calendars', desc: 'Return all calendars' },
+    { id: 'suggest', cat: 'Read', name: 'Suggest a time', desc: 'Find an open slot for attendees' },
+    { id: 'create_event', cat: 'Write', name: 'Create event', desc: 'Add an event to a calendar' },
+    { id: 'quick_add', cat: 'Write', name: 'Quick add', desc: 'Create an event from text' },
+    { id: 'update_event', cat: 'Write', name: 'Update event', desc: 'Change time or details' },
+    { id: 'respond', cat: 'Write', name: 'Respond to invite', desc: 'Accept, decline, or tentative' },
+    { id: 'add_guest', cat: 'Organize', name: 'Add guest', desc: 'Invite an attendee' },
+    { id: 'move_event', cat: 'Organize', name: 'Move event', desc: 'Reassign to another calendar' },
+    { id: 'set_remind', cat: 'Organize', name: 'Set reminder', desc: 'Add a notification' },
+    { id: 'del_event', cat: 'Manage', name: 'Delete event', desc: 'Remove an event' },
+    { id: 'create_cal', cat: 'Manage', name: 'Create calendar', desc: 'Add a new calendar' },
+  ],
+  slack: [
+    { id: 'search_msg', cat: 'Read', name: 'Search messages', desc: 'Find messages by query' },
+    { id: 'get_thread', cat: 'Read', name: 'Get thread', desc: 'Read a conversation thread' },
+    { id: 'list_ch', cat: 'Read', name: 'List channels', desc: 'Return all channels' },
+    { id: 'get_user', cat: 'Read', name: 'Get user', desc: 'Look up a member profile' },
+    { id: 'send_msg', cat: 'Write', name: 'Send message', desc: 'Post to a channel' },
+    { id: 'dm', cat: 'Write', name: 'Send DM', desc: 'Message a person directly' },
+    { id: 'reply_thread', cat: 'Write', name: 'Reply in thread', desc: 'Respond within a thread' },
+    { id: 'update_msg', cat: 'Write', name: 'Update message', desc: 'Edit a posted message' },
+    { id: 'upload', cat: 'Write', name: 'Upload file', desc: 'Share a file to a channel' },
+    { id: 'react', cat: 'Organize', name: 'Add reaction', desc: 'React with an emoji' },
+    { id: 'pin', cat: 'Organize', name: 'Pin message', desc: 'Pin to the channel' },
+    { id: 'invite', cat: 'Organize', name: 'Invite to channel', desc: 'Add a member' },
+    { id: 'create_ch', cat: 'Manage', name: 'Create channel', desc: 'Open a new channel' },
+    { id: 'archive_ch', cat: 'Manage', name: 'Archive channel', desc: 'Close a channel' },
+    { id: 'del_msg', cat: 'Manage', name: 'Delete message', desc: 'Remove a message' },
+  ],
+  salesforce: [
+    { id: 'soql', cat: 'Read', name: 'Run SOQL query', desc: 'Query records with SOQL' },
+    { id: 'get_rec', cat: 'Read', name: 'Get record', desc: 'Fetch a record by ID' },
+    { id: 'find_contact', cat: 'Read', name: 'Find contact', desc: 'Search contacts' },
+    { id: 'find_opp', cat: 'Read', name: 'Find opportunity', desc: 'Search the pipeline' },
+    { id: 'report', cat: 'Read', name: 'Run report', desc: 'Execute a saved report' },
+    { id: 'create_lead', cat: 'Write', name: 'Create lead', desc: 'Add a new lead' },
+    { id: 'create_opp', cat: 'Write', name: 'Create opportunity', desc: 'Open a new deal' },
+    { id: 'update_rec', cat: 'Write', name: 'Update record', desc: 'Modify any object' },
+    { id: 'upsert_rec', cat: 'Write', name: 'Upsert record', desc: 'Create or update by key' },
+    { id: 'log_activity', cat: 'Write', name: 'Log activity', desc: 'Record a call or task' },
+    { id: 'convert_lead', cat: 'Organize', name: 'Convert lead', desc: 'Promote to contact + deal' },
+    { id: 'assign_owner', cat: 'Organize', name: 'Assign owner', desc: 'Set the record owner' },
+    { id: 'add_campaign', cat: 'Organize', name: 'Add to campaign', desc: 'Link to a campaign' },
+    { id: 'del_rec', cat: 'Manage', name: 'Delete record', desc: 'Remove a record' },
+    { id: 'bulk_load', cat: 'Manage', name: 'Bulk import', desc: 'Load many records at once' },
+  ],
+  hubspot: [
+    { id: 'find_contact', cat: 'Read', name: 'Find contact', desc: 'Search contacts' },
+    { id: 'get_deal', cat: 'Read', name: 'Get deal', desc: 'Fetch a deal by ID' },
+    { id: 'list_deals', cat: 'Read', name: 'List deals', desc: 'Return pipeline deals' },
+    { id: 'report', cat: 'Read', name: 'Run report', desc: 'Summarize CRM data' },
+    { id: 'create_contact', cat: 'Write', name: 'Create contact', desc: 'Add a new contact' },
+    { id: 'update_contact', cat: 'Write', name: 'Update contact', desc: 'Edit contact fields' },
+    { id: 'create_deal', cat: 'Write', name: 'Create deal', desc: 'Open a new deal' },
+    { id: 'update_deal', cat: 'Write', name: 'Update deal', desc: 'Change stage or amount' },
+    { id: 'log_note', cat: 'Write', name: 'Log note', desc: 'Add a note to a record' },
+    { id: 'enroll', cat: 'Organize', name: 'Enroll in sequence', desc: 'Start an outreach sequence' },
+    { id: 'add_list', cat: 'Organize', name: 'Add to list', desc: 'Place in a static list' },
+    { id: 'assign', cat: 'Organize', name: 'Assign owner', desc: 'Set the deal owner' },
+    { id: 'del', cat: 'Manage', name: 'Delete record', desc: 'Remove a record' },
+  ],
+  notion: [
+    { id: 'query_db', cat: 'Read', name: 'Query database', desc: 'Filter and read database rows' },
+    { id: 'get_page', cat: 'Read', name: 'Get page', desc: 'Read a page and its content' },
+    { id: 'search', cat: 'Read', name: 'Search workspace', desc: 'Find pages and databases' },
+    { id: 'list_users', cat: 'Read', name: 'List members', desc: 'Return workspace members' },
+    { id: 'create_page', cat: 'Write', name: 'Create page', desc: 'Add a new page' },
+    { id: 'update_page', cat: 'Write', name: 'Update page', desc: 'Edit an existing page' },
+    { id: 'append', cat: 'Write', name: 'Append blocks', desc: 'Add content to a page' },
+    { id: 'add_row', cat: 'Write', name: 'Add database row', desc: 'Insert a new entry' },
+    { id: 'update_props', cat: 'Organize', name: 'Update properties', desc: 'Set status, tags, fields' },
+    { id: 'move_page', cat: 'Organize', name: 'Move page', desc: 'Reparent under another page' },
+    { id: 'create_db', cat: 'Manage', name: 'Create database', desc: 'Add a new database' },
+    { id: 'archive', cat: 'Manage', name: 'Archive page', desc: 'Remove from the workspace' },
+  ],
+  jira: [
+    { id: 'search_issue', cat: 'Read', name: 'Search issues', desc: 'Find issues with JQL' },
+    { id: 'get_issue', cat: 'Read', name: 'Get issue', desc: 'Fetch an issue by key' },
+    { id: 'list_sprints', cat: 'Read', name: 'List sprints', desc: 'Return board sprints' },
+    { id: 'get_board', cat: 'Read', name: 'Get board', desc: 'Read a board and its columns' },
+    { id: 'create_issue', cat: 'Write', name: 'Create issue', desc: 'Open a new issue or task' },
+    { id: 'update_issue', cat: 'Write', name: 'Update issue', desc: 'Change fields or summary' },
+    { id: 'comment', cat: 'Write', name: 'Add comment', desc: 'Comment on an issue' },
+    { id: 'log_work', cat: 'Write', name: 'Log work', desc: 'Record time spent' },
+    { id: 'transition', cat: 'Organize', name: 'Transition status', desc: 'Move across the workflow' },
+    { id: 'assign', cat: 'Organize', name: 'Assign issue', desc: 'Set the assignee' },
+    { id: 'add_sprint', cat: 'Organize', name: 'Add to sprint', desc: 'Schedule into a sprint' },
+    { id: 'link', cat: 'Organize', name: 'Link issues', desc: 'Connect related issues' },
+    { id: 'del_issue', cat: 'Manage', name: 'Delete issue', desc: 'Remove an issue' },
+  ],
+  github: [
+    { id: 'search_repo', cat: 'Read', name: 'Search code', desc: 'Find code across repos' },
+    { id: 'get_pr', cat: 'Read', name: 'Get pull request', desc: 'Read a PR and its diff' },
+    { id: 'list_issues', cat: 'Read', name: 'List issues', desc: 'Return repo issues' },
+    { id: 'get_file', cat: 'Read', name: 'Get file', desc: 'Read a file from a repo' },
+    { id: 'create_issue', cat: 'Write', name: 'Create issue', desc: 'Open a new issue' },
+    { id: 'create_pr', cat: 'Write', name: 'Create pull request', desc: 'Open a new PR' },
+    { id: 'comment_pr', cat: 'Write', name: 'Comment on PR', desc: 'Add a review comment' },
+    { id: 'commit', cat: 'Write', name: 'Commit file', desc: 'Create or update a file' },
+    { id: 'merge_pr', cat: 'Organize', name: 'Merge pull request', desc: 'Merge an approved PR' },
+    { id: 'label_issue', cat: 'Organize', name: 'Label issue', desc: 'Apply labels' },
+    { id: 'assign_issue', cat: 'Organize', name: 'Assign issue', desc: 'Set the assignee' },
+    { id: 'close_issue', cat: 'Manage', name: 'Close issue', desc: 'Mark an issue resolved' },
+    { id: 'create_branch', cat: 'Manage', name: 'Create branch', desc: 'Branch off a ref' },
+  ],
+  zendesk: [
+    { id: 'search', cat: 'Read', name: 'Search tickets', desc: 'Find tickets by query' },
+    { id: 'get_ticket', cat: 'Read', name: 'Get ticket', desc: 'Fetch a ticket by ID' },
+    { id: 'list_views', cat: 'Read', name: 'List views', desc: 'Return saved views' },
+    { id: 'get_user', cat: 'Read', name: 'Get requester', desc: 'Look up a user' },
+    { id: 'create', cat: 'Write', name: 'Create ticket', desc: 'Open a new support ticket' },
+    { id: 'update', cat: 'Write', name: 'Update ticket', desc: 'Change status or fields' },
+    { id: 'comment', cat: 'Write', name: 'Add comment', desc: 'Reply on a ticket' },
+    { id: 'macro', cat: 'Write', name: 'Apply macro', desc: 'Run a canned response' },
+    { id: 'tag', cat: 'Organize', name: 'Add tags', desc: 'Tag a ticket' },
+    { id: 'assign', cat: 'Organize', name: 'Assign agent', desc: 'Route to an agent' },
+    { id: 'priority', cat: 'Organize', name: 'Set priority', desc: 'Change urgency' },
+    { id: 'merge', cat: 'Manage', name: 'Merge tickets', desc: 'Combine duplicates' },
+    { id: 'close', cat: 'Manage', name: 'Close ticket', desc: 'Mark as solved' },
   ],
 }
 
@@ -243,15 +367,15 @@ export default function AddToolPanel({ onClose, onAdd }) {
             </div>
           )}
 
-          {/* APPS tab — app / action list */}
-          {tab === 'apps' && step !== 'config' && (
+          {/* APPS tab — app list (flat) */}
+          {tab === 'apps' && step === 'app' && (
             <div style={{ border: '1px solid #eee7da', borderRadius: 14, overflow: 'hidden', background: '#fff', boxShadow: '0 1px 2px rgba(60,50,30,0.03)' }}>
-              {(step === 'app' ? apps : actions).map((item, i, arr) => (
-                <div key={item.id} onClick={() => step === 'app' ? pickApp(item) : pickAction(item)}
+              {apps.map((item, i, arr) => (
+                <div key={item.id} onClick={() => pickApp(item)}
                   onMouseOver={e => e.currentTarget.style.background = '#faf7f0'} onMouseOut={e => e.currentTarget.style.background = '#fff'}
                   style={{ display: 'flex', alignItems: 'center', gap: 13, padding: '13px 15px', cursor: 'pointer', borderBottom: i < arr.length - 1 ? '1px solid #f4eee2' : 'none', transition: 'background .12s' }}>
                   <span style={{ width: 38, height: 38, borderRadius: 10, background: '#fff', border: '1px solid #eee7da', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                    <ToolGlyph slug={step === 'app' ? item.slug : app.slug} name={step === 'app' ? item.name : app.name} size={20} />
+                    <ToolGlyph slug={item.slug} name={item.name} size={20} />
                   </span>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontSize: 14, fontWeight: 600, color: '#2a2620' }}>{item.name}</div>
@@ -260,9 +384,38 @@ export default function AddToolPanel({ onClose, onAdd }) {
                   <svg width="15" height="15" viewBox="0 0 16 16" fill="none" style={{ flexShrink: 0 }}><path d="M6 3.5L10.5 8 6 12.5" stroke="#c9c0ac" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg>
                 </div>
               ))}
-              {(step === 'app' ? apps : actions).length === 0 && (
-                <div style={{ padding: '34px 0', textAlign: 'center', color: '#9a917f', fontSize: 13.5 }}>No matches found.</div>
-              )}
+              {apps.length === 0 && <div style={{ padding: '34px 0', textAlign: 'center', color: '#9a917f', fontSize: 13.5 }}>No matches found.</div>}
+            </div>
+          )}
+
+          {/* APPS tab — action list, grouped by category */}
+          {tab === 'apps' && step === 'action' && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+              {CAT_ORDER.filter(cat => actions.some(a => a.cat === cat)).map(cat => {
+                const items = actions.filter(a => a.cat === cat)
+                return (
+                  <div key={cat}>
+                    <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: 0.5, textTransform: 'uppercase', color: '#a89e88', padding: '0 2px 7px' }}>{cat}</div>
+                    <div style={{ border: '1px solid #eee7da', borderRadius: 14, overflow: 'hidden', background: '#fff', boxShadow: '0 1px 2px rgba(60,50,30,0.03)' }}>
+                      {items.map((item, i) => (
+                        <div key={item.id} onClick={() => pickAction(item)}
+                          onMouseOver={e => e.currentTarget.style.background = '#faf7f0'} onMouseOut={e => e.currentTarget.style.background = '#fff'}
+                          style={{ display: 'flex', alignItems: 'center', gap: 13, padding: '11px 15px', cursor: 'pointer', borderBottom: i < items.length - 1 ? '1px solid #f4eee2' : 'none', transition: 'background .12s' }}>
+                          <span style={{ width: 34, height: 34, borderRadius: 9, background: '#fff', border: '1px solid #eee7da', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                            <ToolGlyph slug={app.slug} name={app.name} size={18} />
+                          </span>
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div style={{ fontSize: 13.5, fontWeight: 600, color: '#2a2620' }}>{item.name}</div>
+                            <div style={{ fontSize: 12, color: '#9a917f', marginTop: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.desc}</div>
+                          </div>
+                          <svg width="15" height="15" viewBox="0 0 16 16" fill="none" style={{ flexShrink: 0 }}><path d="M6 3.5L10.5 8 6 12.5" stroke="#c9c0ac" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )
+              })}
+              {actions.length === 0 && <div style={{ padding: '34px 0', textAlign: 'center', color: '#9a917f', fontSize: 13.5 }}>No matches found.</div>}
             </div>
           )}
 
