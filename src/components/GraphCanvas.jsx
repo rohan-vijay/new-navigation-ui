@@ -5,7 +5,7 @@ import CreateAgentPage, { ModelIcon, MODELS } from './CreateAgentModal'
 import BuildWithAIModal from './BuildWithAIModal'
 import { ToolGlyph } from './AddToolPanel'
 import { LinkSourceFlow } from './LinkSourceFlow'
-import GraphStage, { SIDEBAR_NODES, ListGlyph } from './GraphStage'
+import GraphStage, { SIDEBAR_NODES, GRAPH_EDGES, ListGlyph } from './GraphStage'
 import RecordsPage from './RecordsPage'
 import SkillLibrary from './SkillLibrary'
 import { AGENT_LIBRARY, AGENT_GROUP_ORDER } from '../data/agentLibrary'
@@ -161,6 +161,8 @@ export default function GraphCanvas({ title = 'New graph', onBack, onAgentAI }) 
         <GraphStage />
       ) : tab === 'Nodes' ? (
         <NodesList onAddNode={() => setTab('Graph')} onOpen={() => setTab('Graph')} />
+      ) : tab === 'Edges' ? (
+        <EdgesList onAddEdge={() => setTab('Graph')} />
       ) : tab === 'Sources' ? (
         <SourcesList onConnect={() => setSourceFlow(true)} />
       ) : tab === 'Agents' && agents.length > 0 ? (
@@ -317,9 +319,8 @@ const NODE_COLS = [
   { key: 'cat', label: 'Category', w: '13%' },
   { key: 'records', label: 'Records', w: '12%' },
   { key: 'props', label: 'Properties', w: '11%' },
-  { key: 'edges', label: 'Edges', w: '10%' },
-  { key: 'fill', label: 'Fill Rate', w: '13%' },
-  { key: 'pii', label: 'PII Fields', w: '11%' },
+  { key: 'edges', label: 'Edges', w: '11%' },
+  { key: 'fill', label: 'Fill Rate', w: '14%' },
 ]
 const CAT_TAG = {
   core:    { label: 'Core',    color: '#2f6f43', bg: '#eef4ee', border: '#d6e6d8' },
@@ -384,9 +385,106 @@ function NodesList({ onAddNode, onOpen }) {
                       <span style={{ fontFamily: 'var(--mono)', fontSize: 12, fontWeight: 600, color: fillColor(n.fill) }}>{n.fill}%</span>
                     </span>
                   </td>
-                  <td style={{ ...cell, fontSize: 13, color: n.pii > 0 ? '#c0492f' : '#9097a0', fontWeight: n.pii > 0 ? 600 : 400 }}>{n.pii}</td>
                   <td style={{ ...cell, textAlign: 'center' }}>
                     <button onClick={e => e.stopPropagation()} style={{ border: 'none', background: 'none', cursor: 'pointer', padding: 4 }}>
+                      <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="3.5" r="1.2" fill="#b8bcb8" /><circle cx="8" cy="8" r="1.2" fill="#b8bcb8" /><circle cx="8" cy="12.5" r="1.2" fill="#b8bcb8" /></svg>
+                    </button>
+                  </td>
+                </tr>
+              )
+            })}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  )
+}
+
+/* ── Edges table ───────────────────────────────────────── */
+const EDGE_COLS = [
+  { key: 'label', label: 'Relationship', w: '19%' },
+  { key: 'from', label: 'From', w: '17%' },
+  { key: 'arrow', label: '', w: '4%' },
+  { key: 'to', label: 'To', w: '17%' },
+  { key: 'kind', label: 'Kind', w: '12%' },
+  { key: 'card', label: 'Cardinality', w: '12%' },
+  { key: 'inst', label: 'Instances', w: '11%' },
+]
+const EDGE_KIND_TAG = {
+  direct:   { label: 'Direct',   color: '#2f6f43', bg: '#eef4ee', border: '#d6e6d8' },
+  inferred: { label: 'Inferred', color: '#6b5aa6', bg: '#f2effa', border: '#ddd5ef' },
+  agent:    { label: 'Agent',    color: '#8a7340', bg: '#faf5ea', border: '#e7dcc1' },
+  source:   { label: 'Source',   color: '#3a6ea0', bg: '#eef3f9', border: '#d3e0ee' },
+}
+
+function EdgesList({ onAddEdge }) {
+  const byId = useMemo(() => { const m = {}; SIDEBAR_NODES.forEach(n => { m[n.id] = n }); return m }, [])
+  const rows = useMemo(() => GRAPH_EDGES
+    .map((e, i) => {
+      const from = byId[e.s], to = byId[e.t]
+      if (!from || !to) return null
+      const seed = e.label.length + i
+      return {
+        uid: e.s + ':' + e.t + ':' + e.label, label: e.label, from, to,
+        kind: e.kind || 'direct',
+        cardinality: ['1:1', '1:N', 'N:1', 'N:M'][seed % 4],
+        instances: ((seed * 1287) % 142000) + 100,
+        directional: !e.bidirectional,
+      }
+    })
+    .filter(Boolean), [byId])
+
+  const endpoint = (n) => (
+    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8, whiteSpace: 'nowrap', overflow: 'hidden' }}>
+      <span style={{ width: 24, height: 24, borderRadius: 6, background: '#fff', border: '1px solid #eee7da', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}><ListGlyph node={n} size={14} /></span>
+      <span style={{ fontSize: 13, color: '#1a1a1a', overflow: 'hidden', textOverflow: 'ellipsis' }}>{n.label}</span>
+    </span>
+  )
+
+  return (
+    <div style={{ flex: 1, overflowY: 'auto', backgroundColor: '#fcfbf7', padding: '12px 26px 40px' }} className="dark-scroll">
+      <div style={{ display: 'flex', alignItems: 'center', marginBottom: 12 }}>
+        <div style={{ flex: 1, display: 'flex', alignItems: 'baseline', gap: 9 }}>
+          <span style={{ fontFamily: 'var(--serif)', fontSize: 23, fontWeight: 500, color: '#1a1a1a', letterSpacing: -0.2 }}>Edges</span>
+          <span style={{ fontFamily: 'var(--sans)', fontSize: 14, color: '#a89e88' }}>{rows.length}</span>
+        </div>
+        <button onClick={() => onAddEdge?.()} style={{ ...gBtnGhost, height: 32, padding: '0 13px', display: 'inline-flex', alignItems: 'center', gap: 7 }}
+          onMouseOver={e => e.currentTarget.style.background = '#faf8f3'} onMouseOut={e => e.currentTarget.style.background = '#fff'}>
+          <svg width="13" height="13" viewBox="0 0 13 13" fill="none"><path d="M6.5 1.5v10M1.5 6.5h10" stroke="#3a3a36" strokeWidth="1.6" strokeLinecap="round" /></svg>
+          New Edge
+        </button>
+      </div>
+
+      <div style={{ border: '1px solid #ececea', borderRadius: 12, overflow: 'hidden' }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed' }}>
+          <thead>
+            <tr style={{ background: '#F7F5F3' }}>
+              {EDGE_COLS.map(c => (
+                <th key={c.key} style={{ width: c.w, textAlign: 'left', padding: '10px 18px', fontSize: 11, fontWeight: 600, letterSpacing: 0.5, textTransform: 'uppercase', color: '#9a948a', borderBottom: '1px solid #eaecea', whiteSpace: 'nowrap' }}>{c.label}</th>
+              ))}
+              <th style={{ width: 48, borderBottom: '1px solid #eaecea' }} />
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((e, i) => {
+              const last = i === rows.length - 1
+              const cell = { padding: '12px 18px', verticalAlign: 'middle', overflow: 'hidden', borderBottom: last ? 'none' : '1px solid #f1f2f1' }
+              const k = EDGE_KIND_TAG[e.kind] || EDGE_KIND_TAG.direct
+              return (
+                <tr key={e.uid} style={{ background: '#fff', transition: 'background .12s, box-shadow .12s' }}
+                  onMouseOver={ev => { ev.currentTarget.style.background = '#f7f6f3'; ev.currentTarget.style.boxShadow = 'inset 3px 0 0 #16341f' }}
+                  onMouseOut={ev => { ev.currentTarget.style.background = '#fff'; ev.currentTarget.style.boxShadow = 'none' }}>
+                  <td style={cell}><span style={{ fontFamily: 'var(--mono)', fontSize: 12.5, color: '#5b5547', fontWeight: 500 }}>:{e.label}</span></td>
+                  <td style={cell}>{endpoint(e.from)}</td>
+                  <td style={{ ...cell, textAlign: 'center', color: '#9a948a', fontSize: 14 }}>{e.directional ? '→' : '↔'}</td>
+                  <td style={cell}>{endpoint(e.to)}</td>
+                  <td style={cell}>
+                    <span style={{ fontFamily: 'var(--mono)', fontSize: 11.5, color: k.color, border: `1px solid ${k.border}`, background: k.bg, padding: '2px 8px', borderRadius: 6 }}>{k.label}</span>
+                  </td>
+                  <td style={{ ...cell }}><span style={{ fontFamily: 'var(--mono)', fontSize: 12.5, color: '#374151' }}>{e.cardinality}</span></td>
+                  <td style={{ ...cell, fontSize: 13.5, fontWeight: 600, color: '#1a1a1a' }}>{e.instances.toLocaleString()}</td>
+                  <td style={{ ...cell, textAlign: 'center' }}>
+                    <button onClick={ev => ev.stopPropagation()} style={{ border: 'none', background: 'none', cursor: 'pointer', padding: 4 }}>
                       <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="3.5" r="1.2" fill="#b8bcb8" /><circle cx="8" cy="8" r="1.2" fill="#b8bcb8" /><circle cx="8" cy="12.5" r="1.2" fill="#b8bcb8" /></svg>
                     </button>
                   </td>
