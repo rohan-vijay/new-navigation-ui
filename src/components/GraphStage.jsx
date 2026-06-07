@@ -2480,9 +2480,9 @@ function Inspector({ node, onClose, onOpenDetail, edges: liveEdges, nodes: liveN
         {tab === "Props" && (
           <div className="ih-block">
             <div className="ih-block-head">Properties <span className="ih-block-sub">{properties.length} total · {piiProps} PII</span></div>
-            <div>
+            <div style={{ border: "1px solid var(--line)", borderRadius: 10, overflow: "hidden", background: "var(--panel)" }}>
               {properties.map((p, i) => (
-                <div key={i} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 0", borderBottom: i < properties.length - 1 ? "1px dashed var(--line-2)" : "none" }}>
+                <div key={i} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 12px", borderBottom: i < properties.length - 1 ? "1px solid var(--line-2)" : "none" }}>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ display: "flex", alignItems: "center", gap: 4, marginBottom: 3 }}>
                       {p.pk  && <span className="snap-tag snap-pk">PK</span>}
