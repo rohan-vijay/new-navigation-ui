@@ -581,9 +581,11 @@ function NodeDetailPage({ node, onBack, onCanvas }) {
           A soft cream panel with the node identity on top and the tab rail
           along its bottom edge; the active tab's accent merges into the
           divider that hands off to the content below. */}
-      <div style={{ marginBottom: 18 }}>
-        {/* title row — no box, sits on the page */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16, padding: '0 2px' }}>
+      {/* Full-bleed header: title zone + tab zone in subtly different shades,
+          unified by an edge-to-edge bottom rule. */}
+      <div style={{ margin: '-12px -26px 18px' }}>
+        {/* title zone */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, background: '#fffdf9', padding: '16px 26px 14px' }}>
           <NodeIcon node={node} size={30} />
           <span style={{ fontFamily: 'var(--serif)', fontSize: 22, fontWeight: 500, color: '#1a1a1a', letterSpacing: -0.2, marginLeft: -2 }}>{node.label}</span>
           <span style={{ fontFamily: 'var(--mono)', fontSize: 11.5, color: cat.color, border: `1px solid ${cat.border}`, background: cat.bg, padding: '2px 8px', borderRadius: 6 }}>{cat.label}</span>
@@ -609,15 +611,15 @@ function NodeDetailPage({ node, onBack, onCanvas }) {
           </div>
         </div>
 
-        {/* tab bar — minimal underline tabs sharing one bottom divider that
-            unifies the header and hands off to the content below. */}
-        <div style={{ display: 'flex', borderBottom: '1px solid #e9e4d8' }}>
+        {/* tab zone — subtly distinct shade; the bottom rule runs edge-to-edge */}
+        <div style={{ background: '#f6f2ea', borderBottom: '1px solid #e6dfd1', padding: '0 26px' }}>
+          <div style={{ display: 'flex' }}>
           {DETAIL_TABS.map(t => {
             const on = tab === t
             return (
               <button key={t} onClick={() => setTab(t)} style={{
                 position: 'relative', flex: 1, minWidth: 0,
-                border: 'none', background: 'none', cursor: 'pointer', padding: '0 8px 12px', fontSize: 13,
+                border: 'none', background: 'none', cursor: 'pointer', padding: '10px 8px 12px', fontSize: 13,
                 fontWeight: on ? 600 : 450, color: on ? '#1a1a1a' : '#9a948a',
                 transition: 'color .15s', whiteSpace: 'nowrap',
                 display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6,
@@ -631,6 +633,7 @@ function NodeDetailPage({ node, onBack, onCanvas }) {
               </button>
             )
           })}
+          </div>
         </div>
       </div>
 
