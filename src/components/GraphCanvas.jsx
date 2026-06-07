@@ -9,12 +9,45 @@ import GraphStage, { SIDEBAR_NODES, GRAPH_EDGES, ListGlyph } from './GraphStage'
 import RecordsPage from './RecordsPage'
 import SkillLibrary from './SkillLibrary'
 import { AGENT_LIBRARY, AGENT_GROUP_ORDER } from '../data/agentLibrary'
+import { FeatureModeProvider, useFeatureMode } from '../featureMode'
 
 const TABS = ['Graph', 'Nodes', 'Edges', 'Sources', 'Agents', 'Records', 'Governance']
 
 // same button styling as the Skills detail header
 const gBtnGhost = { display: 'inline-flex', alignItems: 'center', gap: 8, background: '#fff', color: '#3a3a36', border: '1px solid #e3ddd1', borderRadius: 9, padding: '0 14px', height: 36, fontSize: 13.5, fontWeight: 500, cursor: 'pointer', boxShadow: '0 1px 2px rgba(60,50,30,0.04)', transition: 'all .15s' }
 const gBtnPrimary = { background: 'var(--green-btn)', color: '#fff', border: 'none', borderRadius: 9, padding: '0 20px', height: 36, fontSize: 13.5, fontWeight: 500, cursor: 'pointer', boxShadow: '0 1px 3px rgba(22,52,31,0.16)', transition: 'all .15s' }
+
+/* MVP ↔ Full-production feature toggle — segmented pill, two outline icons
+   in the same line-icon family as the Share icon. Left = MVP (a single
+   minimal tile), right = Full (a 2×2 grid of all features). */
+function FeatureModeToggle({ mode, setMode }) {
+  const seg = (active) => ({
+    width: 34, height: 30, display: 'flex', alignItems: 'center', justifyContent: 'center',
+    border: 'none', cursor: 'pointer', borderRadius: 7, padding: 0,
+    background: active ? '#fff' : 'transparent',
+    color: active ? '#16341f' : '#8a8378',
+    boxShadow: active ? '0 1px 2px rgba(0,0,0,0.08), 0 0 0 1px rgba(0,0,0,0.03)' : 'none',
+    transition: 'background .15s, color .15s, box-shadow .15s',
+  })
+  return (
+    <div role="group" aria-label="Feature mode"
+      style={{ display: 'flex', alignItems: 'center', gap: 2, background: '#f2f1ee', border: '1px solid #e3ddd1', borderRadius: 9, padding: 3, height: 36 }}>
+      <button onClick={() => setMode('mvp')} title="MVP — show only the minimal feature set" aria-pressed={mode === 'mvp'} style={seg(mode === 'mvp')}>
+        {/* single minimal tile */}
+        <svg width="15" height="15" viewBox="0 0 16 16" fill="none"><rect x="3.5" y="3.5" width="9" height="9" rx="2" stroke="currentColor" strokeWidth="1.5" /></svg>
+      </button>
+      <button onClick={() => setMode('full')} title="Full production — show all features" aria-pressed={mode === 'full'} style={seg(mode === 'full')}>
+        {/* 2×2 grid of tiles */}
+        <svg width="15" height="15" viewBox="0 0 16 16" fill="none">
+          <rect x="2.5" y="2.5" width="4.5" height="4.5" rx="1.2" stroke="currentColor" strokeWidth="1.4" />
+          <rect x="9" y="2.5" width="4.5" height="4.5" rx="1.2" stroke="currentColor" strokeWidth="1.4" />
+          <rect x="2.5" y="9" width="4.5" height="4.5" rx="1.2" stroke="currentColor" strokeWidth="1.4" />
+          <rect x="9" y="9" width="4.5" height="4.5" rx="1.2" stroke="currentColor" strokeWidth="1.4" />
+        </svg>
+      </button>
+    </div>
+  )
+}
 
 const IS = { stroke: '#bcae90', strokeWidth: 1.4, strokeLinecap: 'round', strokeLinejoin: 'round', fill: 'none' }
 const EMPTY = {
@@ -91,7 +124,16 @@ function EmptyState({ meta, onCta, actions, onAction }) {
   )
 }
 
-export default function GraphCanvas({ title = 'New graph', onBack, onAgentAI }) {
+export default function GraphCanvas(props) {
+  return (
+    <FeatureModeProvider initial="full">
+      <GraphCanvasInner {...props} />
+    </FeatureModeProvider>
+  )
+}
+
+function GraphCanvasInner({ title = 'New graph', onBack, onAgentAI }) {
+  const { mode, setMode } = useFeatureMode()
   const [tab, setTab] = useState('Graph')
   const [shareOpen, setShareOpen] = useState(false)
   const [shareType, setShareType] = useState('team')
@@ -145,8 +187,9 @@ export default function GraphCanvas({ title = 'New graph', onBack, onAgentAI }) 
           </div>
         </div>
 
-        {/* right actions: Share + Publish */}
+        {/* right actions: MVP/Full toggle + Share + Publish */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
+          <FeatureModeToggle mode={mode} setMode={setMode} />
           <button onClick={() => setShareOpen(true)} style={gBtnGhost} onMouseOver={e => e.currentTarget.style.background = '#faf8f3'} onMouseOut={e => e.currentTarget.style.background = '#fff'}>
             <ShareTypeIcon type={shareType} />
             Share
