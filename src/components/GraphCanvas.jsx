@@ -571,7 +571,7 @@ function NodeDetailPage({ node, onBack, onCanvas }) {
           A soft cream panel with the node identity on top and the tab rail
           along its bottom edge; the active tab's accent merges into the
           divider that hands off to the content below. */}
-      <div style={{ background: 'linear-gradient(180deg,#fffdfa 0%,#fbf8f2 100%)', border: '1px solid #ece7dc', borderRadius: 14, boxShadow: '0 1px 2px rgba(60,50,30,0.04)', marginBottom: 18, overflow: 'hidden' }}>
+      <div style={{ background: '#fffdf9', border: '1px solid #ece7dc', borderRadius: 14, boxShadow: '0 1px 2px rgba(60,50,30,0.04)', marginBottom: 18, overflow: 'hidden' }}>
         {/* title row */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 11, padding: '14px 16px 13px' }}>
           <NodeIcon node={node} size={30} />
@@ -599,24 +599,27 @@ function NodeDetailPage({ node, onBack, onCanvas }) {
           </div>
         </div>
 
-        {/* tab rail — full width, underline indicator merges into the header base */}
-        <div style={{ display: 'flex', borderTop: '1px solid #efe9dd' }}>
+        {/* tab rail — active tab lifts as a top-rounded chip (inset from the
+            card edges so it never collides with the rounded corner). */}
+        <div style={{ display: 'flex', gap: 2, padding: '5px 6px 0', borderTop: '1px solid #efe9dd', background: '#f6f2ea' }}>
           {DETAIL_TABS.map(t => {
             const on = tab === t
             return (
               <button key={t} onClick={() => setTab(t)} style={{
                 position: 'relative', flex: 1, minWidth: 0,
-                border: 'none', cursor: 'pointer', padding: '11px 8px 12px', fontSize: 13,
+                border: 'none', cursor: 'pointer', padding: '9px 8px 11px', fontSize: 13,
+                borderRadius: '8px 8px 0 0',
                 fontWeight: on ? 600 : 450, color: on ? '#16341f' : '#7a756a',
-                background: on ? 'rgba(255,255,255,0.66)' : 'transparent',
+                background: on ? '#fff' : 'transparent',
+                boxShadow: on ? '0 -1px 0 #e8e2d6 inset, 1px 0 0 #e8e2d6 inset, -1px 0 0 #e8e2d6 inset' : 'none',
                 transition: 'background .15s, color .15s', whiteSpace: 'nowrap',
                 display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6,
               }}
-                onMouseOver={e => { if (!on) { e.currentTarget.style.background = 'rgba(255,255,255,0.4)'; e.currentTarget.style.color = '#3a3a36' } }}
+                onMouseOver={e => { if (!on) { e.currentTarget.style.background = 'rgba(255,255,255,0.55)'; e.currentTarget.style.color = '#3a3a36' } }}
                 onMouseOut={e => { if (!on) { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#7a756a' } }}>
                 {t}
                 {tabCount[t] > 0 && <span style={{ fontFamily: 'var(--mono)', fontSize: 10.5, color: on ? '#16341f' : '#a89e88', background: on ? '#e7f0e9' : 'transparent', borderRadius: 4, padding: on ? '0 4px' : 0 }}>{tabCount[t]}</span>}
-                <span style={{ position: 'absolute', left: 14, right: 14, bottom: 0, height: 2.5, borderRadius: '3px 3px 0 0', background: on ? '#16341f' : 'transparent', transition: 'background .15s' }} />
+                <span style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: 2.5, background: on ? '#16341f' : 'transparent', transition: 'background .15s' }} />
               </button>
             )
           })}
