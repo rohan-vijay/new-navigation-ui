@@ -5,7 +5,7 @@ import CreateAgentPage, { ModelIcon, MODELS } from './CreateAgentModal'
 import BuildWithAIModal from './BuildWithAIModal'
 import { ToolGlyph } from './AddToolPanel'
 import { LinkSourceFlow } from './LinkSourceFlow'
-import GraphStage, { SIDEBAR_NODES, GRAPH_EDGES, ListGlyph, AddNodeFlow, NewEdgeFlow } from './GraphStage'
+import GraphStage, { SIDEBAR_NODES, GRAPH_EDGES, ListGlyph, colorForNode, AddNodeFlow, NewEdgeFlow, generateProps, generateRules } from './GraphStage'
 import RecordsPage from './RecordsPage'
 import SkillLibrary from './SkillLibrary'
 import { AGENT_LIBRARY, AGENT_GROUP_ORDER } from '../data/agentLibrary'
@@ -168,6 +168,7 @@ function GraphCanvasInner({ title = 'New graph', onBack, onAgentAI }) {
   const [agentLib, setAgentLib] = useState(false)
   const [agents, setAgents] = useState([])
   const [sourceFlow, setSourceFlow] = useState(false)
+  const [nodeDetail, setNodeDetail] = useState(null)
 
   const AGENT_BY_ID = useMemo(() => { const m = {}; AGENT_LIBRARY.forEach(c => c.skills.forEach(s => { m[s.id] = { ...s, cat: c.cat } })); return m }, [])
   const importAgents = (ids) => {
@@ -229,10 +230,12 @@ function GraphCanvasInner({ title = 'New graph', onBack, onAgentAI }) {
       </div>
 
       {/* Body */}
-      {tab === 'Graph' ? (
+      {nodeDetail ? (
+        <NodeDetailPage node={nodeDetail} onBack={() => setNodeDetail(null)} />
+      ) : tab === 'Graph' ? (
         <GraphStage />
       ) : tab === 'Nodes' ? (
-        <NodesList onOpen={() => setTab('Graph')} />
+        <NodesList onOpen={id => setNodeDetail(SIDEBAR_NODES.find(n => n.id === id))} />
       ) : tab === 'Edges' ? (
         <EdgesList />
       ) : tab === 'Sources' ? (
@@ -384,6 +387,243 @@ const SOURCES = [
   { name: 'Notion', slug: 'notion', conn: 'team-workspace', status: 'Connected', freq: 'Hourly', lastSync: '40 min ago', owner: 'Olivia Bennett', modified: '1 week ago' },
   { name: 'Slack', slug: 'slack', conn: 'acme-slack', status: 'Connected', freq: 'Real-time', lastSync: 'Just now', owner: 'James Carter', modified: '2 weeks ago' },
 ]
+
+/* ── Node detail page ──────────────────────────────────── */
+const DETAIL_TABS = ['Properties', 'Edges', 'Survivorship', 'Data Enrichment', 'Data Matching', 'Computation', 'Activity']
+
+function NodeIcon({ node, size = 34 }) {
+  const c = colorForNode(node)
+  return (
+    <svg width={size} height={size} viewBox="-22 -22 44 44">
+      {node.type === 'source'
+        ? <rect x="-13" y="-13" width="26" height="26" rx="3" fill={c.fill} stroke={c.stroke} strokeWidth="1.6" />
+        : node.type === 'agent'
+          ? <polygon points={[0, 1, 2, 3, 4, 5].map(i => { const a = (Math.PI / 3) * i - Math.PI / 2; const r = 14; return `${(r * Math.cos(a)).toFixed(2)},${(r * Math.sin(a)).toFixed(2)}` }).join(' ')} fill={c.fill} stroke={c.stroke} strokeWidth="1.6" />
+          : <circle r="13" fill={c.fill} stroke={c.stroke} strokeWidth="1.6" />}
+    </svg>
+  )
+}
+
+const dtHeadCell = { textAlign: 'left', padding: '10px 18px', fontSize: 11, fontWeight: 600, letterSpacing: 0.5, textTransform: 'uppercase', color: '#9a948a', borderBottom: '1px solid #eaecea', whiteSpace: 'nowrap' }
+function DetailTable({ cols, rows, empty }) {
+  return (
+    <div style={{ border: '1px solid #ececea', borderRadius: 12, overflow: 'hidden' }}>
+      <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed' }}>
+        <thead><tr style={{ background: '#F7F5F3' }}>{cols.map(c => <th key={c.label} style={{ ...dtHeadCell, width: c.w }}>{c.label}</th>)}</tr></thead>
+        <tbody>
+          {rows.map((cells, i) => {
+            const last = i === rows.length - 1
+            const cell = { padding: '12px 18px', verticalAlign: 'middle', overflow: 'hidden', borderBottom: last ? 'none' : '1px solid #f1f2f1' }
+            return (
+              <tr key={i} style={{ background: '#fff', transition: 'background .12s, box-shadow .12s' }}
+                onMouseOver={e => { e.currentTarget.style.background = '#f7f6f3'; e.currentTarget.style.boxShadow = 'inset 3px 0 0 #16341f' }}
+                onMouseOut={e => { e.currentTarget.style.background = '#fff'; e.currentTarget.style.boxShadow = 'none' }}>
+                {cells.map((cnt, j) => <td key={j} style={{ ...cell, ...(cols[j].cellStyle || {}) }}>{cnt}</td>)}
+              </tr>
+            )
+          })}
+        </tbody>
+      </table>
+      {rows.length === 0 && <div style={{ padding: '46px 0', textAlign: 'center', color: '#9097a0', fontSize: 13.5, background: '#fff' }}>{empty}</div>}
+    </div>
+  )
+}
+
+const fillCell = (v) => (
+  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8, whiteSpace: 'nowrap' }}>
+    <span style={{ width: 54, height: 5, borderRadius: 3, background: '#ecebe6', overflow: 'hidden', flexShrink: 0 }}>
+      <span style={{ display: 'block', height: '100%', width: `${v}%`, background: fillColor(v) }} />
+    </span>
+    <span style={{ fontFamily: 'var(--mono)', fontSize: 12, fontWeight: 600, color: fillColor(v) }}>{v}%</span>
+  </span>
+)
+const tagPills = (arr) => (
+  <span style={{ display: 'inline-flex', gap: 4, flexWrap: 'wrap' }}>
+    {arr.map((t, i) => <span key={i} className={'snap-tag ' + (t.cls || '')}>{t.label}</span>)}
+  </span>
+)
+const monoCell = (v, color = '#5b5547') => <span style={{ fontFamily: 'var(--mono)', fontSize: 12.5, color }}>{v}</span>
+const StatusPill = ({ on }) => (
+  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12.5, color: on ? '#2f6f43' : '#9097a0' }}>
+    <span style={{ width: 7, height: 7, borderRadius: '50%', background: on ? '#2f9e5a' : '#c4bfb4' }} />{on ? 'Active' : 'Off'}
+  </span>
+)
+
+function nodeEdgesFor(node) {
+  const byId = {}; SIDEBAR_NODES.forEach(n => { byId[n.id] = n })
+  return GRAPH_EDGES
+    .map((e, i) => {
+      if (e.s !== node.id && e.t !== node.id) return null
+      const out = e.s === node.id
+      const other = byId[out ? e.t : e.s]
+      if (!other) return null
+      const seed = e.label.length + i
+      return { label: e.label, dir: out ? '→' : '←', other, kind: e.kind || 'direct', cardinality: ['1:1', '1:N', 'N:1', 'N:M'][seed % 4], instances: ((seed * 1287) % 142000) + 100 }
+    })
+    .filter(Boolean)
+}
+function genComputations(node) {
+  if (node.type === 'source') return []
+  const seed = node.id.charCodeAt(0) + node.id.length
+  const all = [
+    { field: node.id + '_score', kind: 'Formula', expr: 'weighted_avg(signals)', refreshed: '12 min ago', status: 'Healthy' },
+    { field: 'risk_tier', kind: 'SQL', expr: 'CASE WHEN … END', refreshed: '1 hour ago', status: 'Healthy' },
+    { field: 'segment', kind: 'Agent', expr: 'classify(description)', refreshed: '3 hours ago', status: 'Stale' },
+  ]
+  return all.slice(0, 1 + (seed % 3))
+}
+function genActivity(node) {
+  const seed = node.id.charCodeAt(0) + node.id.length
+  const base = [
+    { event: 'Schema updated', actor: 'Emily Rodriguez', detail: `Added property ${node.id}_score`, when: '2 hours ago' },
+    { event: 'Source synced', actor: 'System', detail: `${node.instances} records ingested`, when: '5 hours ago' },
+    { event: 'Rule triggered', actor: 'System', detail: 'Freshness SLO evaluated', when: 'Yesterday' },
+    { event: 'Property indexed', actor: 'Michael Brooks', detail: 'name → b-tree index', when: '2 days ago' },
+    { event: 'Node created', actor: 'James Carter', detail: 'Initial schema defined', when: '2 weeks ago' },
+  ]
+  return base.slice(0, 3 + (seed % 3))
+}
+
+function NodeDetailPage({ node, onBack }) {
+  const [tab, setTab] = useState('Properties')
+  const cat = CAT_TAG[node.cat] || CAT_TAG.core
+  const props = useMemo(() => generateProps(node), [node])
+  const rules = useMemo(() => generateRules(node), [node])
+  const edges = useMemo(() => nodeEdgesFor(node), [node])
+  const comps = useMemo(() => genComputations(node), [node])
+  const activity = useMemo(() => genActivity(node), [node])
+
+  const tabCount = {
+    Properties: props.length, Edges: edges.length,
+    Survivorship: rules.survivorship.length, 'Data Enrichment': rules.quality.length,
+    'Data Matching': rules.match.length, Computation: comps.length, Activity: activity.length,
+  }
+
+  return (
+    <div style={{ flex: 1, overflowY: 'auto', backgroundColor: '#fcfbf7', padding: '12px 26px 40px' }} className="dark-scroll">
+      {/* node header */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 14 }}>
+        <button onClick={onBack} title="Back to nodes" style={{ width: 32, height: 32, borderRadius: 8, border: '1px solid #e3ddd1', background: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}
+          onMouseOver={e => e.currentTarget.style.background = '#faf8f3'} onMouseOut={e => e.currentTarget.style.background = '#fff'}>
+          <svg width="15" height="15" viewBox="0 0 16 16" fill="none"><path d="M9.5 3.5L5 8l4.5 4.5" stroke="#5b5547" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" /></svg>
+        </button>
+        <NodeIcon node={node} size={34} />
+        <span style={{ fontFamily: 'var(--serif)', fontSize: 22, fontWeight: 500, color: '#1a1a1a', letterSpacing: -0.2 }}>{node.label}</span>
+        <span style={{ fontFamily: 'var(--mono)', fontSize: 11.5, color: cat.color, border: `1px solid ${cat.border}`, background: cat.bg, padding: '2px 8px', borderRadius: 6 }}>{cat.label}</span>
+      </div>
+
+      {/* tabs */}
+      <div style={{ display: 'flex', gap: 2, borderBottom: '1px solid #efece6', marginBottom: 16 }}>
+        {DETAIL_TABS.map(t => (
+          <button key={t} onClick={() => setTab(t)} style={{
+            border: 'none', background: 'none', cursor: 'pointer', padding: '9px 12px', fontSize: 13.5,
+            fontWeight: tab === t ? 600 : 400, color: tab === t ? '#16341f' : '#6b6b66',
+            borderBottom: tab === t ? '2px solid #16341f' : '2px solid transparent', marginBottom: -1,
+            display: 'inline-flex', alignItems: 'center', gap: 6, whiteSpace: 'nowrap',
+          }}>
+            {t}
+            {tabCount[t] > 0 && <span style={{ fontFamily: 'var(--mono)', fontSize: 11, color: tab === t ? '#16341f' : '#a89e88' }}>{tabCount[t]}</span>}
+          </button>
+        ))}
+      </div>
+
+      {/* tab body */}
+      {tab === 'Properties' && (
+        <DetailTable
+          cols={[{ label: 'Property', w: '32%' }, { label: 'Type', w: '18%' }, { label: 'Attributes', w: '30%' }, { label: 'Fill Rate', w: '20%' }]}
+          rows={props.map(p => [
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+              {p.pk && <span className="snap-tag snap-pk">PK</span>}
+              {p.pii && <span className="snap-tag snap-pii">PII</span>}
+              <span style={{ fontSize: 13.5, fontWeight: p.pk ? 600 : 500, color: '#1a1a1a' }}>{p.name}</span>
+            </span>,
+            monoCell(p.type),
+            tagPills([...(p.required ? [{ label: 'REQ' }] : []), ...(p.indexed ? [{ label: 'IDX', cls: 'snap-idx' }] : []), ...(p.computed ? [{ label: 'FX', cls: 'snap-comp' }] : [])]),
+            fillCell(p.fill),
+          ])}
+          empty="No properties defined." />
+      )}
+
+      {tab === 'Edges' && (
+        <DetailTable
+          cols={[{ label: 'Relationship', w: '24%' }, { label: 'Direction', w: '12%', cellStyle: { textAlign: 'center' } }, { label: 'Connected Node', w: '24%' }, { label: 'Kind', w: '14%' }, { label: 'Cardinality', w: '13%' }, { label: 'Instances', w: '13%' }]}
+          rows={edges.map(e => {
+            const k = EDGE_KIND_TAG[e.kind] || EDGE_KIND_TAG.direct
+            return [
+              monoCell(':' + e.label, '#5b5547'),
+              <span style={{ fontSize: 15, color: '#9a948a' }}>{e.dir}</span>,
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}><span style={{ width: 24, height: 24, borderRadius: 6, background: '#fff', border: '1px solid #eee7da', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}><ListGlyph node={e.other} size={14} /></span><span style={{ fontSize: 13, color: '#1a1a1a' }}>{e.other.label}</span></span>,
+              <span style={{ fontFamily: 'var(--mono)', fontSize: 11.5, color: k.color, border: `1px solid ${k.border}`, background: k.bg, padding: '2px 8px', borderRadius: 6 }}>{k.label}</span>,
+              monoCell(e.cardinality, '#374151'),
+              <span style={{ fontSize: 13.5, fontWeight: 600, color: '#1a1a1a' }}>{e.instances.toLocaleString()}</span>,
+            ]
+          })}
+          empty="No edges connected to this node." />
+      )}
+
+      {tab === 'Survivorship' && (
+        <DetailTable
+          cols={[{ label: 'Rule', w: '34%' }, { label: 'Property', w: '16%' }, { label: 'Strategy', w: '18%' }, { label: 'Status', w: '16%' }, { label: 'Last Run', w: '16%' }]}
+          rows={rules.survivorship.map(r => [
+            <span style={{ fontSize: 13.5, fontWeight: 500, color: '#1a1a1a' }}>{r.title}</span>,
+            monoCell(r.property), monoCell(r.strategy, '#374151'),
+            <StatusPill on={r.on} />, <span style={{ fontSize: 13, color: '#9097a0' }}>{r.last}</span>,
+          ])}
+          empty="No survivorship rules configured." />
+      )}
+
+      {tab === 'Data Enrichment' && (
+        <DetailTable
+          cols={[{ label: 'Rule', w: '32%' }, { label: 'Kind', w: '14%' }, { label: 'Severity', w: '14%' }, { label: 'Compliance', w: '14%' }, { label: 'Status', w: '13%' }, { label: 'Last Run', w: '13%' }]}
+          rows={rules.quality.map(r => [
+            <span style={{ fontSize: 13.5, fontWeight: 500, color: '#1a1a1a' }}>{r.title}</span>,
+            monoCell(r.kind, '#374151'),
+            <span style={{ fontFamily: 'var(--mono)', fontSize: 11.5, color: r.severity === 'ERROR' ? '#c0492f' : '#a98c54' }}>{r.severity}</span>,
+            <span style={{ fontSize: 13.5, fontWeight: 600, color: fillColor(r.compliance) }}>{r.compliance}%</span>,
+            <StatusPill on={r.on} />, <span style={{ fontSize: 13, color: '#9097a0' }}>{r.last}</span>,
+          ])}
+          empty="No enrichment rules configured." />
+      )}
+
+      {tab === 'Data Matching' && (
+        <DetailTable
+          cols={[{ label: 'Rule', w: '30%' }, { label: 'Signals', w: '22%' }, { label: 'Auto / Review', w: '18%' }, { label: 'Status', w: '15%' }, { label: 'Last Run', w: '15%' }]}
+          rows={rules.match.map(r => [
+            <span style={{ fontSize: 13.5, fontWeight: 500, color: '#1a1a1a' }}>{r.title}</span>,
+            monoCell(r.signals.map(s => s.strategy).join(', '), '#374151'),
+            monoCell(`${r.threshold_auto} / ${r.threshold_review}`, '#374151'),
+            <StatusPill on={r.on} />, <span style={{ fontSize: 13, color: '#9097a0' }}>{r.last}</span>,
+          ])}
+          empty="No matching rules configured." />
+      )}
+
+      {tab === 'Computation' && (
+        <DetailTable
+          cols={[{ label: 'Computed Field', w: '24%' }, { label: 'Kind', w: '14%' }, { label: 'Expression', w: '32%' }, { label: 'Status', w: '15%' }, { label: 'Refreshed', w: '15%' }]}
+          rows={comps.map(c => [
+            <span style={{ fontFamily: 'var(--mono)', fontSize: 12.5, fontWeight: 600, color: '#1a1a1a' }}>{c.field}</span>,
+            <span style={{ fontFamily: 'var(--mono)', fontSize: 11.5, color: '#6b5aa6', border: '1px solid #ddd5ef', background: '#f2effa', padding: '2px 8px', borderRadius: 6 }}>{c.kind}</span>,
+            monoCell(c.expr, '#5b5547'),
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12.5, color: c.status === 'Healthy' ? '#2f6f43' : '#a98c54' }}><span style={{ width: 7, height: 7, borderRadius: '50%', background: c.status === 'Healthy' ? '#2f9e5a' : '#d99214' }} />{c.status}</span>,
+            <span style={{ fontSize: 13, color: '#9097a0' }}>{c.refreshed}</span>,
+          ])}
+          empty="No computed fields on this node." />
+      )}
+
+      {tab === 'Activity' && (
+        <DetailTable
+          cols={[{ label: 'Event', w: '24%' }, { label: 'Detail', w: '40%' }, { label: 'Actor', w: '20%' }, { label: 'When', w: '16%' }]}
+          rows={activity.map(a => [
+            <span style={{ fontSize: 13.5, fontWeight: 500, color: '#1a1a1a' }}>{a.event}</span>,
+            <span style={{ fontSize: 13, color: '#5b5547' }}>{a.detail}</span>,
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8, fontSize: 13, color: '#374151' }}><span style={{ width: 22, height: 22, borderRadius: '50%', background: '#ede4d2', color: '#8a7648', fontSize: 10.5, fontWeight: 700, border: '1px solid #e3d8c0', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>{a.actor.charAt(0)}</span>{a.actor}</span>,
+            <span style={{ fontSize: 13, color: '#9097a0' }}>{a.when}</span>,
+          ])}
+          empty="No recent activity." />
+      )}
+    </div>
+  )
+}
 
 /* ── Nodes table ───────────────────────────────────────── */
 const NODE_COLS = [
