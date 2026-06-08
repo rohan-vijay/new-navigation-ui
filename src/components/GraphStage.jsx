@@ -3802,7 +3802,6 @@ function AddNodeFlow({ onClose, onCreate }) {
         {/* FOOTER */}
         <div style={{ flexShrink:0, padding:"14px 22px", borderTop:"1px solid var(--line)", display:"flex", alignItems:"center", justifyContent:"space-between", background:"var(--panel)" }}>
           <button className="btn-ghost" onClick={function(){ if (step > 1) setStep(function(s){ return s - 1; }); }} disabled={step === 1} style={{ opacity: step === 1 ? 0.4 : 1 }}>← Back</button>
-          <span style={{ fontFamily:"JetBrains Mono", fontSize:11, color:"var(--ink-3)" }}>{"Step " + step + " of 2 · " + stepNames[step-1]}</span>
           <div style={{ display:"flex", gap:8 }}>
             <button className="btn-ghost" onClick={onClose}>Cancel</button>
             {step < 2
@@ -4355,7 +4354,6 @@ function NewEdgeFlow({ onClose, onCreate, fromNode, toNode, initialLabel, nodes:
         {/* FOOTER */}
         <div style={{ flexShrink:0, padding:"14px 22px", borderTop:"1px solid var(--line)", display:"flex", alignItems:"center", justifyContent:"space-between", background:"var(--panel)" }}>
           <button className="btn-ghost" onClick={function(){ if (step > 1) setStep(function(s){ return s - 1; }); }} disabled={step === 1} style={{ opacity: step === 1 ? 0.4 : 1 }}>← Back</button>
-          <span style={{ fontFamily:"JetBrains Mono", fontSize:11, color:"var(--ink-3)" }}>{"Step " + step + " of 2 · " + stepNames[step-1]}</span>
           <div style={{ display:"flex", gap:8 }}>
             <button className="btn-ghost" onClick={onClose}>Cancel</button>
             {step < 2

@@ -19,6 +19,15 @@ const C = {
   coral:   '#c84040', coralFill:  '#fbe6e6',
 }
 
+// Detail tab icons (same line-icon family as the node detail page)
+const _ric = { fill:'none', stroke:'currentColor', strokeWidth:1.7, strokeLinecap:'round', strokeLinejoin:'round' }
+const REC_TAB_ICON = {
+  Graph: <svg width="14" height="14" viewBox="0 0 24 24" {..._ric}><circle cx="6" cy="12" r="2.4"/><circle cx="18" cy="6" r="2.4"/><circle cx="18" cy="18" r="2.4"/><line x1="8.2" y1="11" x2="15.8" y2="7"/><line x1="8.2" y1="13" x2="15.8" y2="17"/></svg>,
+  Overview: <svg width="14" height="14" viewBox="0 0 24 24" {..._ric}><rect x="4" y="5" width="16" height="14" rx="2"/><line x1="4" y1="10" x2="20" y2="10"/><line x1="9.5" y1="10" x2="9.5" y2="19"/></svg>,
+  Provenance: <svg width="14" height="14" viewBox="0 0 24 24" {..._ric}><circle cx="6.5" cy="6" r="2"/><circle cx="6.5" cy="18" r="2"/><circle cx="17.5" cy="12" r="2"/><path d="M8.5 6.5c1 3.5 3 5 7 5.4M8.5 17.5c1-3.5 3-5 7-5.4"/></svg>,
+  Activity: <svg width="14" height="14" viewBox="0 0 24 24" {..._ric}><polyline points="3 12 8 12 10 6 14 18 16 12 21 12"/></svg>,
+}
+
 // ── Data ────────────────────────────────────────────────────────────────────
 const NODES = [
   { id:'account',      label:'Account',            type:'entity', state:'core',     x:0,    y:60,   size:34, instances:'2.8K', instancesN:2840,   props:18, edges:12, fill:94, conf:97, fresh:'24m',  pii:4, change:'HIGH',   desc:'Customer or prospect organization' },
@@ -628,66 +637,41 @@ function RecordDetailView({ record, node, onBack, onNavigate }) {
   return (
     <div style={{ flex:1, display:'flex', flexDirection:'column', height:'100%', overflowY:'auto', backgroundColor:'#fcfbf7' }} className="dark-scroll">
 
-      {/* ── Header (matches NodeDetailPage style) ── */}
-      <div style={{ margin:'0 0 0', flexShrink:0 }}>
-        {/* breadcrumb */}
-        <div style={{ display:'flex', alignItems:'center', gap:6, padding:'10px 26px 0', fontFamily:'var(--mono)', fontSize:11, color:C.ink3 }}>
-          <button onClick={onBack} style={{ background:'none', border:'none', padding:0, cursor:'pointer', color:C.ink3, fontFamily:'var(--mono)', fontSize:11 }}
-            onMouseOver={e=>e.currentTarget.style.color=C.ink} onMouseOut={e=>e.currentTarget.style.color=C.ink3}>Records</button>
-          <span>/</span><span style={{ color:C.ink3 }}>{node.label}</span>
-          <span>/</span><span style={{ color:C.ink2, fontWeight:600 }}>{record.id}</span>
-        </div>
-
-        {/* title zone */}
-        <div style={{ display:'flex', alignItems:'center', gap:10, background:'#FEFDFB', padding:'12px 26px 10px', marginTop:4 }}>
-          {/* icon → back arrow on hover */}
+      {/* ── Header (matches NodeDetailPage) ── */}
+      <div style={{ flexShrink:0 }}>
+        {/* title zone — icon + name + chip, actions on the right */}
+        <div style={{ display:'flex', alignItems:'center', gap:10, background:'#FEFDFB', padding:'14px 26px 12px' }}>
           <span
             onMouseEnter={()=>setIconHovered(true)}
             onMouseLeave={()=>setIconHovered(false)}
             onClick={iconHovered ? onBack : undefined}
             title={iconHovered?'Back to records':undefined}
-            style={{ width:34, height:34, borderRadius:8, background:iconHovered?'#f2f0eb':'#fff', border:'1px solid #eee7da', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0, cursor:iconHovered?'pointer':'default', transition:'background .15s' }}>
+            style={{ width:32, height:32, borderRadius:8, background:iconHovered?'#f2f0eb':'#fff', border:'1px solid #eee7da', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0, cursor:iconHovered?'pointer':'default', transition:'background .15s' }}>
             {iconHovered
               ? <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="#6b6b5e" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="10,3 5,8 10,13"/></svg>
               : <NodeGlyph n={node} size={18} />}
           </span>
           <span style={{ fontFamily:'var(--serif)', fontSize:22, fontWeight:500, color:'#1a1a1a', letterSpacing:-0.2 }}>{record.id}</span>
           <span style={{ fontFamily:'var(--mono)', fontSize:10.5, color:'#6b7280', border:'1px solid #e3ddd1', background:'#f5f3ef', padding:'2px 8px', borderRadius:6 }}>{node.label.toUpperCase()}</span>
-          {statusPill(record.status)}
-          <span style={{ fontFamily:'var(--mono)', fontSize:10.5, color:C.ink3 }}>{'created '+record._createdAgo+' · updated '+record._updatedAgo}</span>
           <div style={{ flex:1 }} />
           {ghostBtn('Open in source ↗')}
           {ghostBtn('Copy ID')}
           <button className="btn-dark" style={{ height:32, padding:'0 14px', fontSize:13 }}>Edit record</button>
         </div>
 
-        {/* KPI strip */}
-        <div style={{ display:'grid', gridTemplateColumns:'repeat(6,1fr)', background:'#FEFDFB', borderTop:'1px solid #f1ede6' }}>
-          {[
-            { lbl:'Properties',   v: props.length },
-            { lbl:'Completeness', v: record._completeness+'%', color: record._completeness>=90?C.green:C.gold },
-            { lbl:'Confidence',   v: record._confidence+'%',   color: record._confidence>=90?C.green:C.gold },
-            { lbl:'Sources',      v: Object.keys(grouped).length },
-            { lbl:'Related',      v: totalRelated },
-            { lbl:'Conflicts',    v: conflictCount, color: conflictCount?C.gold:C.ink },
-          ].map((k,i,a)=>(
-            <div key={k.lbl} style={{ padding:'11px 18px', borderRight:i<a.length-1?'1px solid #f1ede6':'none' }}>
-              <div style={{ fontFamily:'var(--mono)', fontSize:9.5, color:C.ink3, letterSpacing:'0.4px', textTransform:'uppercase', marginBottom:4 }}>{k.lbl}</div>
-              <div style={{ fontFamily:'var(--mono)', fontSize:17, fontWeight:700, color:k.color||C.ink }}>{k.v}</div>
-            </div>
-          ))}
-        </div>
-
-        {/* tab rail */}
+        {/* tab rail — same component as the node detail page */}
         <div style={{ background:'#FEFDFB', borderTop:'1px solid #f1ede6', borderBottom:'1px solid #efece6', padding:'0 26px' }}>
           <div style={{ display:'flex' }}>
             {tabs.map(t => {
-              const isOn = tab===t
-              const badge = tabBadge[t]
+              const on = tab===t
+              const count = tabBadge[t]
               return (
-                <button key={t} onClick={()=>setTab(t)} style={{ display:'flex', alignItems:'center', gap:5, padding:'11px 14px 10px', fontFamily:'var(--sans)', fontSize:13, fontWeight:isOn?600:400, color:isOn?'#1a1a1a':'#888077', background:'transparent', border:'none', borderBottom:isOn?'2px solid #1a1a1a':'2px solid transparent', cursor:'pointer', transition:'color .12s', marginBottom:-1 }}>
+                <button key={t} onClick={()=>setTab(t)} style={{ position:'relative', flex:1, minWidth:0, cursor:'pointer', border:'none', background:'none', padding:'11px 8px 13px', fontSize:13, fontWeight:on?600:500, color:on?'#1a1a1a':'#5b5547', transition:'color .15s', whiteSpace:'nowrap', display:'inline-flex', alignItems:'center', justifyContent:'center', gap:6 }}
+                  onMouseOver={e=>{ if(!on) e.currentTarget.style.color='#1a1a1a' }} onMouseOut={e=>{ if(!on) e.currentTarget.style.color='#5b5547' }}>
+                  <span style={{ display:'inline-flex', color:on?'#6b6453':'#8a8378', transition:'color .15s' }}>{REC_TAB_ICON[t]}</span>
                   {t}
-                  {badge != null && <span style={{ fontFamily:'var(--mono)', fontSize:10, padding:'1px 5px', borderRadius:10, background:isOn?'#1a1a1a':'#f0eeeb', color:isOn?'#fff':C.ink3, fontWeight:700 }}>{badge}</span>}
+                  {count != null && count > 0 && <span style={{ fontFamily:'var(--mono)', fontSize:10, fontWeight:600, color:'#6b6453', background:on?'rgba(40,32,18,0.07)':'#efe9dd', borderRadius:5, padding:'1px 5px' }}>{count}</span>}
+                  <span style={{ position:'absolute', left:'50%', transform:'translateX(-50%)', bottom:-1, width:on?'100%':0, maxWidth:'calc(100% - 16px)', height:2, borderRadius:2, background:'#2a2620', transition:'width .18s ease' }} />
                 </button>
               )
             })}
