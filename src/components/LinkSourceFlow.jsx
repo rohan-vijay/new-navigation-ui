@@ -2449,7 +2449,7 @@ function SrcDiscover({ s, set, sel }) {
               return (
                 <label key={e.id} style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 15px", borderRadius: 10, cursor: "pointer", border: "1px solid var(--line-2)", background: on ? "#fff" : "transparent", opacity: on ? 1 : 0.62, transition: "opacity 120ms, background 120ms" }}>
                   <span style={{ flex: 1, minWidth: 0, fontSize: 14, fontWeight: 600, color: "var(--ink)" }}>{e.name}</span>
-                  <input type="checkbox" checked={on} onChange={() => toggle(e.id)} style={{ accentColor: "#1a7a40", width: 16, height: 16, flexShrink: 0 }} />
+                  <input type="checkbox" checked={on} onChange={() => toggle(e.id)} style={{ accentColor: "#1a1a1a", width: 16, height: 16, flexShrink: 0 }} />
                 </label>
               );
             })}
