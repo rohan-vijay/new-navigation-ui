@@ -4121,11 +4121,6 @@ function NewEdgeFlow({ onClose, onCreate, fromNode, toNode, initialLabel, nodes:
                   </div>
                 </div>
 
-                <div>
-                  <label style={lbl}>DESCRIPTION <span style={{ color:"var(--ink-4)", marginLeft:4, fontWeight:400 }}>optional</span></label>
-                  <textarea value={desc} onChange={function(e){ setDesc(e.target.value); }} rows={2} placeholder="What does this edge represent? Read it both directions out loud — does it work?" style={Object.assign({}, inp, { resize:"vertical", lineHeight:1.55 })} />
-                </div>
-
                 <div style={{ display:"grid", gridTemplateColumns:"1fr 60px 1fr", gap:12, alignItems:"end" }}>
                   <div>
                     <label style={lbl}>FROM <span style={{ color:"var(--coral)", marginLeft:4 }}>required</span></label>
