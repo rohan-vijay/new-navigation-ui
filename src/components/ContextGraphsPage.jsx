@@ -116,7 +116,7 @@ export default function ContextGraphsPage({ onCreate, onOpenGraph }) {
                 const isECG = !!g.isECG
                 return (
                   <tr key={i}
-                    onClick={() => isECG ? setEcgOpen(true) : onOpenGraph?.(g)}
+                    onClick={() => onOpenGraph?.(g)}
                     style={{ cursor: 'pointer', background: isECG ? '#faf7ff' : '#fff', transition: 'background .12s, box-shadow .12s' }}
                     onMouseOver={e => { e.currentTarget.style.background = isECG ? '#f3eeff' : '#f7f6f3'; e.currentTarget.style.boxShadow = 'inset 3px 0 0 ' + (isECG ? '#7c3aed' : '#16341f') }}
                     onMouseOut={e => { e.currentTarget.style.background = isECG ? '#faf7ff' : '#fff'; e.currentTarget.style.boxShadow = 'none' }}>

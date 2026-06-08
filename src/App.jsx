@@ -179,13 +179,13 @@ export default function App() {
           )}
           {view === 'records' && <RecordsPage />}
           {view === 'context-graphs' && (
-            <ContextGraphsPage onCreate={() => setView('blank-canvas')} onOpenGraph={() => setView('blank-canvas')} />
+            <ContextGraphsPage onCreate={() => { setSelectedGraph(null); setView('blank-canvas') }} onOpenGraph={g => { setSelectedGraph(g); setView('blank-canvas') }} />
           )}
           {view === 'agent-create' && (
             <AgentCanvas draft={agentDraft} onBack={exitAgentBuild} onCreate={exitAgentBuild} />
           )}
           {view === 'blank-canvas' && (
-            <GraphCanvas onBack={() => setView('context-graphs')} onAgentAI={startAgentBuild} />
+            <GraphCanvas title={selectedGraph?.name || 'New graph'} onBack={() => setView('context-graphs')} onAgentAI={startAgentBuild} />
           )}
           {view === 'detail' && (
             <GraphDetailPage graph={selectedGraph} onBack={() => setView('graphs')} />
