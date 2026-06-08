@@ -4161,16 +4161,6 @@ function NewEdgeFlow({ onClose, onCreate, fromNode, toNode, initialLabel, nodes:
                   </div>
                 </div>
 
-                {/* OWNER — optional inline (was its own Governance step) */}
-                <div>
-                  <label style={lbl}>OWNER <span style={{ color:"var(--ink-4)", marginLeft:4, fontWeight:400, textTransform:"none", letterSpacing:0 }}>optional</span></label>
-                  <select value={owner} onChange={function(e){ setOwner(e.target.value); }} style={inp}>
-                    <option value="morgan.lee">Morgan Lee (you · data-platform)</option>
-                    <option value="ramin.k">Ramin K · data-platform</option>
-                    <option value="jordan.s">Jordan S · customer-ops</option>
-                  </select>
-                  <div style={{ fontFamily:"JetBrains Mono", fontSize:10, color:"var(--ink-4)", marginTop:6, lineHeight:1.5 }}>{"Who gets paged when this edge breaks. Access inherits from the endpoint nodes."}</div>
-                </div>
               </div>
             )}
 
