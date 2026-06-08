@@ -113,25 +113,14 @@ export default function ContextGraphsPage({ onCreate, onOpenGraph }) {
               {rows.map((g, i) => {
                 const last = i === rows.length - 1
                 const cell = { ...td, borderBottom: last ? 'none' : '1px solid #f1f2f1' }
-                const isECG = !!g.isECG
                 return (
                   <tr key={i}
                     onClick={() => onOpenGraph?.(g)}
-                    style={{ cursor: 'pointer', background: isECG ? '#faf7ff' : '#fff', transition: 'background .12s, box-shadow .12s' }}
-                    onMouseOver={e => { e.currentTarget.style.background = isECG ? '#f3eeff' : '#f7f6f3'; e.currentTarget.style.boxShadow = 'inset 3px 0 0 ' + (isECG ? '#7c3aed' : '#16341f') }}
-                    onMouseOut={e => { e.currentTarget.style.background = isECG ? '#faf7ff' : '#fff'; e.currentTarget.style.boxShadow = 'none' }}>
+                    style={{ cursor: 'pointer', background: '#fff', transition: 'background .12s, box-shadow .12s' }}
+                    onMouseOver={e => { e.currentTarget.style.background = '#f7f6f3'; e.currentTarget.style.boxShadow = 'inset 3px 0 0 #16341f' }}
+                    onMouseOut={e => { e.currentTarget.style.background = '#fff'; e.currentTarget.style.boxShadow = 'none' }}>
                     <td style={cell}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                        {isECG && (
-                          <span style={{ width: 20, height: 20, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                            <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
-                              <polygon points="9,1 16.5,5 16.5,13 9,17 1.5,13 1.5,5" fill="#ede9fc" stroke="#7c3aed" strokeWidth="1.4"/>
-                              <circle cx="9" cy="9" r="2.5" fill="#7c3aed"/>
-                            </svg>
-                          </span>
-                        )}
-                        <span style={{ fontFamily: 'var(--serif)', fontSize: 14, fontWeight: isECG ? 600 : 500, color: isECG ? '#5b21b6' : '#1a1a1a', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{g.name}</span>
-                      </div>
+                      <span style={{ fontFamily: 'var(--serif)', fontSize: 14, fontWeight: 500, color: '#1a1a1a', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{g.name}</span>
                     </td>
                     <td style={cell}>
                       <span style={{ fontFamily: 'var(--mono)', fontSize: 11.5, color: '#8a7340', border: '1px solid #e7dcc1', background: '#faf5ea', padding: '2px 8px', borderRadius: 6 }}>{g.version}</span>
