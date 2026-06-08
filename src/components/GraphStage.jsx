@@ -1056,7 +1056,7 @@ function Legend({ filter, setFilter, showCounts, setShowCounts }) {
         <>
           <span className="legend-div" />
           <button className={"legend-pill" + (showCounts ? "" : " off")} onClick={() => setShowCounts(v => !v)} title="Toggle instance counts on nodes">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><line x1="4" y1="20" x2="4" y2="13" /><line x1="10" y1="20" x2="10" y2="8" /><line x1="16" y1="20" x2="16" y2="4" /><line x1="22" y1="20" x2="22" y2="11" /></svg>
+            <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 10.5, fontWeight: 700, letterSpacing: "0.5px", lineHeight: 1 }}>123</span>
           Counts
           </button>
         </>
@@ -2371,6 +2371,78 @@ var PROP_TYPE_OPTIONS = ["uuid", "string", "string[]", "decimal", "float", "bool
 // Types that can carry nested child properties (a child schema).
 var PROP_NESTABLE = { array: true, object: true, struct: true };
 
+// Property selector for a given node — lists the node's properties with type glyphs.
+function NodePropSelect({ node, value, onChange, placeholder }) {
+  var [open, setOpen] = React.useState(false);
+  var btnRef = React.useRef(null);
+  var props = (node && typeof generateProps === "function") ? generateProps(node) : [];
+  var sel = props.find(function(p){ return p.name === value; });
+  var menuPos;
+  if (open && btnRef.current) {
+    var r = btnRef.current.getBoundingClientRect();
+    var GAP = 4, FOOTER_SAFE = 96, TOP_SAFE = 16, DESIRED = 300;
+    var below = window.innerHeight - r.bottom - FOOTER_SAFE;
+    var above = r.top - TOP_SAFE;
+    var up = below < Math.min(DESIRED, 200) && above > below;
+    var mh = Math.max(160, Math.min(DESIRED, (up ? above : below) - GAP));
+    menuPos = { position:"fixed", left:r.left, width:r.width, top: up ? Math.max(TOP_SAFE, r.top - GAP - mh) : r.bottom + GAP, maxHeight:mh, zIndex:1000 };
+  } else {
+    menuPos = { position:"absolute", top:"calc(100% + 4px)", left:0, right:0, maxHeight:300, zIndex:1000 };
+  }
+  function glyphFor(t){ return PROP_TYPE_META[t] || PROP_TYPE_META.string; }
+  return (
+    <div style={{ position:"relative" }}>
+      <button ref={btnRef} onClick={function(){ if (props.length) setOpen(function(o){ return !o; }); }} disabled={!node}
+        style={{ display:"flex", alignItems:"center", gap:8, width:"100%", padding:"11px 13px", border:"1px solid var(--line)", borderRadius:7, background:"var(--panel)", cursor: node ? "pointer" : "not-allowed", fontFamily:"inherit", textAlign:"left", boxSizing:"border-box" }}>
+        {sel && <span style={{ minWidth:22, height:18, padding:"0 5px", borderRadius:4, background:glyphFor(sel.type).color, color:"#fff", display:"inline-flex", alignItems:"center", justifyContent:"center", fontFamily:"JetBrains Mono", fontSize:9.5, fontWeight:700, flexShrink:0 }}>{glyphFor(sel.type).glyph}</span>}
+        <span style={{ flex:1, fontFamily:"JetBrains Mono", fontSize:13, color: sel ? "var(--ink)" : "var(--ink-4)", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{sel ? sel.name : (placeholder || "— pick a property —")}</span>
+        {sel && sel.pk && <span style={{ fontFamily:"JetBrains Mono", fontSize:9, padding:"1px 5px", borderRadius:3, background:"var(--green-fill)", color:"var(--green)", fontWeight:700, flexShrink:0 }}>PK</span>}
+        <span style={{ color:"var(--ink-3)", fontSize:9, fontFamily:"JetBrains Mono" }}>▾</span>
+      </button>
+      {open && (
+        <>
+          <div style={{ position:"fixed", top:0, left:0, right:0, bottom:0, zIndex:999 }} onClick={function(){ setOpen(false); }} />
+          <div style={Object.assign({ background:"var(--panel)", border:"1px solid var(--line)", borderRadius:8, boxShadow:"0 10px 28px rgba(0,0,0,0.14)", padding:4, overflowY:"auto" }, menuPos)}>
+            {props.map(function(p){
+              var m = glyphFor(p.type);
+              var isSel = value === p.name;
+              return (
+                <button key={p.name} onClick={function(){ onChange(p.name); setOpen(false); }}
+                  style={{ display:"flex", alignItems:"center", gap:8, width:"100%", padding:"7px 8px", borderRadius:5, border:"none", background: isSel ? "var(--bg-canvas)" : "transparent", cursor:"pointer", fontFamily:"inherit", textAlign:"left" }}
+                  onMouseEnter={function(e){ if (!isSel) e.currentTarget.style.background = "var(--panel-2)"; }}
+                  onMouseLeave={function(e){ if (!isSel) e.currentTarget.style.background = "transparent"; }}>
+                  <span style={{ minWidth:24, height:18, padding:"0 5px", borderRadius:4, background:m.color, color:"#fff", display:"inline-flex", alignItems:"center", justifyContent:"center", fontFamily:"JetBrains Mono", fontSize:9.5, fontWeight:700, flexShrink:0 }}>{m.glyph}</span>
+                  <span style={{ flex:1, fontFamily:"JetBrains Mono", fontSize:12.5, color:"var(--ink-2)" }}>{p.name}</span>
+                  {p.pk && <span style={{ fontFamily:"JetBrains Mono", fontSize:9, padding:"1px 5px", borderRadius:3, background:"var(--green-fill)", color:"var(--green)", fontWeight:700 }}>PK</span>}
+                  {isSel && <span style={{ color:"var(--green)", fontWeight:700, fontSize:11 }}>✓</span>}
+                </button>
+              );
+            })}
+            {props.length === 0 && <div style={{ padding:"10px 8px", fontFamily:"JetBrains Mono", fontSize:11, color:"var(--ink-4)" }}>No properties on this node.</div>}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+// One / Many cardinality toggle (radio-style), used per entity in the edge editor.
+function OneManyToggle({ value, onChange }) {
+  return (
+    <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:8 }}>
+      {["one", "many"].map(function(v){
+        var on = value === v;
+        return (
+          <button key={v} onClick={function(){ onChange(v); }}
+            style={{ display:"flex", alignItems:"center", justifyContent:"center", padding:"11px 13px", boxSizing:"border-box", border:"1px solid " + (on ? "var(--ink)" : "var(--line)"), borderRadius:8, background: on ? "var(--chip)" : "var(--panel)", cursor:"pointer", fontFamily:"inherit" }}>
+            <span style={{ fontSize:13.5, fontWeight: on ? 600 : 500, color: on ? "var(--ink)" : "var(--ink-2)", textTransform:"capitalize" }}>{v}</span>
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
 // Reusable design-system type picker (icon glyph + full PROP_TYPE_OPTIONS list).
 function PropTypeSelect({ value, onChange }) {
   var [open, setOpen] = React.useState(false);
@@ -2391,9 +2463,9 @@ function PropTypeSelect({ value, onChange }) {
   return (
     <div style={{ position:"relative" }}>
       <button ref={btnRef} onClick={function(){ setOpen(function(o){ return !o; }); }}
-        style={{ display:"flex", alignItems:"center", gap:7, width:"100%", padding:"7px 10px", border:"1px solid var(--line)", borderRadius:7, background:"var(--panel)", cursor:"pointer", fontFamily:"inherit", textAlign:"left" }}>
+        style={{ display:"flex", alignItems:"center", gap:7, width:"100%", padding:"11px 13px", border:"1px solid var(--line)", borderRadius:7, background:"var(--panel)", cursor:"pointer", fontFamily:"inherit", textAlign:"left", boxSizing:"border-box" }}>
         <span style={{ minWidth:22, height:18, padding:"0 5px", borderRadius:4, background:meta.color, color:"#fff", display:"inline-flex", alignItems:"center", justifyContent:"center", fontFamily:"JetBrains Mono", fontSize:9.5, fontWeight:700, letterSpacing:"0.3px", flexShrink:0 }}>{meta.glyph}</span>
-        <span style={{ flex:1, fontFamily:"JetBrains Mono", fontSize:12, color:"var(--ink-2)" }}>{value}</span>
+        <span style={{ flex:1, fontFamily:"JetBrains Mono", fontSize:13, color:"var(--ink-2)" }}>{value}</span>
         <span style={{ color:"var(--ink-3)", fontSize:9, fontFamily:"JetBrains Mono" }}>▾</span>
       </button>
       {open && (
@@ -4000,10 +4072,16 @@ function NewEdgeFlow({ onClose, onCreate, fromNode, toNode, initialLabel, nodes:
   var [desc, setDesc]                 = useState("");
   var [fromId, setFromId]             = useState(fromNode ? fromNode.id : null);
   var [toId, setToId]                 = useState(toNode ? toNode.id : null);
-  var [cardinality, setCardinality]   = useState("1:N");
+  var lockFrom = !!fromNode; // edge created from a specific entity → source is fixed
+  var [cardinality, setCardinality]   = useState("");
   var [inverseLabel, setInverseLabel] = useState("");
+  var [linkProp, setLinkProp]         = useState("");
+  var [linkTargetProp, setLinkTargetProp] = useState("");
+  var [showReq, setShowReq]           = useState(false);
   var [requiredAtFrom, setRequiredAtFrom] = useState(false);
   var [symmetric, setSymmetric]       = useState(false);
+  var [modelBothSides, setModelBothSides] = useState(true);
+  var [undirected, setUndirected]     = useState(false);
   // Population
   var [populationKind, setPopulationKind] = useState(null);
   var [popSourceId, setPopSourceId]   = useState(null);
@@ -4031,6 +4109,22 @@ function NewEdgeFlow({ onClose, onCreate, fromNode, toNode, initialLabel, nodes:
   var agentOptions  = _allNodes.filter(function(n){ return n.type === "agent"; });
   var fromN = nodeOptions.find(function(n){ return n.id === fromId; });
   var toN   = nodeOptions.find(function(n){ return n.id === toId; });
+  // Default the source link property to the FROM node's primary key.
+  React.useEffect(function(){
+    if (fromN && typeof generateProps === "function") {
+      var ps = generateProps(fromN);
+      var pk = ps.find(function(p){ return p.pk; });
+      setLinkProp(pk ? pk.name : (ps[0] ? ps[0].name : ""));
+    } else { setLinkProp(""); }
+  }, [fromId]);
+  // Default the target match property to the TO node's primary key.
+  React.useEffect(function(){
+    if (toN && typeof generateProps === "function") {
+      var ps = generateProps(toN);
+      var pk = ps.find(function(p){ return p.pk; });
+      setLinkTargetProp(pk ? pk.name : (ps[0] ? ps[0].name : ""));
+    } else { setLinkTargetProp(""); }
+  }, [toId]);
 
   // ── Source schema (synthesized): each source exposes a few relationship
   //    tables; each table has key columns + attribute columns. This is what an
@@ -4073,7 +4167,7 @@ function NewEdgeFlow({ onClose, onCreate, fromNode, toNode, initialLabel, nodes:
   var miniSel ={ border:"1px solid var(--line)", borderRadius:6, padding:"6px 8px", fontSize:12, fontFamily:"JetBrains Mono", color:"var(--ink)", background:"var(--panel)", outline:"none", boxSizing:"border-box", width:"100%" };
 
   function canContinue() {
-    if (step === 1) return label.trim().length >= 3 && /^[A-Z_]+$/.test(label.trim()) && !!fromId && !!toId;
+    if (step === 1) return label.trim().length >= 3 && /^[A-Z_]+$/.test(label.trim()) && !!fromId && !!toId && !!cardinality;
     return true;
   }
 
@@ -4100,17 +4194,17 @@ function NewEdgeFlow({ onClose, onCreate, fromNode, toNode, initialLabel, nodes:
     return (
       <div style={{ position:"relative" }}>
         <button disabled={disabled} onClick={function(){ if (!disabled) setOpen(function(o){ return !o; }); }}
-          style={{ display:"flex", alignItems:"center", gap:10, width:"100%", padding:"10px 12px", border:"1px solid " + (sel ? "var(--ink-2)" : "var(--line)"), borderRadius:8, background: disabled ? "var(--panel-2)" : sel ? "var(--bg-canvas)" : "var(--panel)", cursor: disabled ? "default" : "pointer", fontFamily:"inherit", textAlign:"left", opacity: disabled ? 0.85 : 1 }}>
+          style={{ display:"flex", alignItems:"center", gap:10, width:"100%", padding:"11px 13px", boxSizing:"border-box", border:"1px solid var(--line)", borderRadius:7, background: disabled ? "var(--panel-2)" : "var(--panel)", cursor: disabled ? "default" : "pointer", fontFamily:"inherit", textAlign:"left", opacity: disabled ? 0.85 : 1 }}>
           {sel ? (
             <>
               <span style={{ width:10, height:10, borderRadius:"50%", background: dot(sel), flexShrink:0 }} />
-              <span style={{ flex:1, fontSize:13.5, fontWeight:600, color:"var(--ink)" }}>{sel.label}</span>
+              <span style={{ flex:1, fontSize:13, fontWeight:600, color:"var(--ink)" }}>{sel.label}</span>
               {disabled && <span style={{ fontFamily:"JetBrains Mono", fontSize:9, padding:"2px 6px", borderRadius:3, background:"var(--chip)", color:"var(--ink-3)", letterSpacing:"0.5px" }}>LOCKED</span>}
               {!disabled && <span style={{ color:"var(--ink-3)", fontSize:11, fontFamily:"JetBrains Mono" }}>▾</span>}
             </>
           ) : (
             <>
-              <span style={{ flex:1, fontSize:13.5, color:"var(--ink-3)" }}>{placeholder}</span>
+              <span style={{ flex:1, fontSize:13, color:"var(--ink-3)" }}>{placeholder}</span>
               <span style={{ color:"var(--ink-3)", fontSize:11, fontFamily:"JetBrains Mono" }}>▾</span>
             </>
           )}
@@ -4191,7 +4285,7 @@ function NewEdgeFlow({ onClose, onCreate, fromNode, toNode, initialLabel, nodes:
           <button onClick={onClose} style={{ width:32, height:32, borderRadius:"50%", border:"1px solid var(--line)", background:"none", cursor:"pointer", fontSize:15, color:"var(--ink-3)" }}>✕</button>
         </div>
 
-        <div style={{ flex:1, display:"grid", gridTemplateColumns:"240px minmax(0, 1fr)", minHeight:0 }}>
+        <div style={{ flex:1, display:"grid", gridTemplateColumns:"220px minmax(0, 1fr) 320px", minHeight:0 }}>
 
           {/* SIDEBAR */}
           <div style={{ background:"var(--panel-2)", borderRight:"1px solid var(--line)", padding:"20px 14px", display:"flex", flexDirection:"column", gap:4, overflowY:"auto" }}>
@@ -4230,52 +4324,94 @@ function NewEdgeFlow({ onClose, onCreate, fromNode, toNode, initialLabel, nodes:
             {/* STEP 1 — Basics */}
             {step === 1 && (
               <div style={{ display:"flex", flexDirection:"column", gap:22 }}>
-                <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:14 }}>
+                {(function(){
+                  var cardBox = { display:"flex", flexDirection:"column", gap:6 };
+                  var secTitle = { fontSize:12.5, fontWeight:600, color:"var(--ink)", marginBottom:9 };
+                  var fl = { display:"block", fontSize:12.5, fontWeight:600, color:"var(--ink)", marginBottom:1, marginTop:9 };
+                  var reqMark = function(show){ return show ? <span style={{ color:"var(--coral)", marginLeft:3 }}>*</span> : <span style={{ color:"var(--ink-4)", marginLeft:3 }}>*</span>; };
+                  return (
+                <div style={{ display:"flex", flexDirection:"column", gap:30 }}>
                   <div>
-                    <label style={lbl}>LABEL <span style={{ color:"var(--coral)", marginLeft:4 }}>required</span></label>
+                    <label style={fl}>Relationship label {reqMark(showReq && !(label.trim().length >= 3))}</label>
                     <div style={{ position:"relative" }}>
                       <span style={{ position:"absolute", left:11, top:"50%", transform:"translateY(-50%)", fontFamily:"JetBrains Mono", fontSize:13, color:"var(--ink-4)", pointerEvents:"none" }}>:</span>
                       <input value={label} onChange={function(e){ setLabel(e.target.value.toUpperCase().replace(/[^A-Z_]/g, "")); }} placeholder="WORKS_AT" style={Object.assign({}, inp, { paddingLeft:22, fontFamily:"JetBrains Mono" })} autoFocus />
                     </div>
-                    <div style={{ fontFamily:"JetBrains Mono", fontSize:10, color:"var(--ink-3)", marginTop:5 }}>UPPER_SNAKE_CASE · 3–32 chars</div>
+                    <div style={{ fontFamily:"JetBrains Mono", fontSize:10, color:"var(--ink-3)", marginTop:5 }}>UPPER_SNAKE_CASE · reads like a verb</div>
                   </div>
+
                   <div>
-                    <label style={lbl}>CARDINALITY</label>
-                    <div style={{ display:"flex", gap:6 }}>
-                      {[
-                        { v:"1:1", h:"One on each side" },
-                        { v:"1:N", h:"One source, many targets" },
-                        { v:"N:1", h:"Many sources, one target" },
-                        { v:"N:M", h:"Many on each side" }
-                      ].map(function(o){
-                        var isOn = cardinality === o.v;
-                        return <button key={o.v} title={o.h} onClick={function(){ setCardinality(o.v); }}
-                          style={{ flex:1, padding:"8px 0", border:"1px solid " + (isOn ? "var(--ink)" : "var(--line)"), borderRadius:7, background: isOn ? "var(--ink)" : "var(--panel)", color: isOn ? "var(--bg-canvas)" : "var(--ink-2)", fontSize:12, fontFamily:"JetBrains Mono", cursor:"pointer", fontWeight:600 }}>{o.v}</button>;
+                    <label style={Object.assign({}, fl, { marginTop:0 })}>Cardinality {reqMark(showReq && !cardinality)}</label>
+                    <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr 1fr", gap:8 }}>
+                      {[{ v:"1:1", l:"One to One" }, { v:"1:N", l:"One to Many" }, { v:"N:1", l:"Many to One" }, { v:"N:M", l:"Many to Many" }].map(function(o){
+                        var on = cardinality === o.v;
+                        return <button key={o.v} onClick={function(){ setCardinality(o.v); }}
+                          style={{ display:"flex", alignItems:"center", justifyContent:"center", padding:"11px 8px", boxSizing:"border-box", border:"1px solid " + (on ? "var(--ink)" : "var(--line)"), borderRadius:8, background: on ? "var(--chip)" : "var(--panel)", color: on ? "var(--ink)" : "var(--ink-2)", fontSize:13, fontWeight: on ? 600 : 500, fontFamily:"inherit", cursor:"pointer" }}>{o.l}</button>;
                       })}
                     </div>
                   </div>
-                </div>
 
-                <div style={{ display:"grid", gridTemplateColumns:"1fr 60px 1fr", gap:12, alignItems:"end" }}>
-                  <div>
-                    <label style={lbl}>FROM <span style={{ color:"var(--coral)", marginLeft:4 }}>required</span></label>
-                    <NodePicker value={fromId} onChange={setFromId} placeholder="— pick the source node —" />
-                  </div>
-                  <div style={{ paddingBottom:10, textAlign:"center", fontFamily:"JetBrains Mono", fontSize:14, color:"var(--ink-3)" }}>—{cardinality}→</div>
-                  <div>
-                    <label style={lbl}>TO <span style={{ color:"var(--coral)", marginLeft:4 }}>required</span></label>
-                    <NodePicker value={toId} onChange={setToId} placeholder="— pick the target node —" />
-                  </div>
-                </div>
+                  {(function(){
+                    var rowArrow = (
+                      <div style={{ padding:"11px 0", border:"1px solid transparent", boxSizing:"border-box", display:"flex", alignItems:"center", justifyContent:"center", color:"var(--ink-3)" }}>
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><line x1="4" y1="12" x2="19" y2="12" /><polyline points="13 6 19 12 13 18" /></svg>
+                      </div>
+                    );
+                    var hideLbl = function(mt){ return <label style={Object.assign({}, fl, { marginTop:mt, visibility:"hidden" })} aria-hidden="true">.</label>; };
+                    return (
+                  <div style={{ display:"grid", gridTemplateColumns:"1fr 34px 1fr", gap:10, alignItems:"start" }}>
+                    {/* SOURCE ENTITY */}
+                    <div style={cardBox}>
+                      <label style={Object.assign({}, fl, { marginTop:0 })}>Source Entity {reqMark(showReq && !fromId)}</label>
+                      <NodePicker value={fromId} onChange={setFromId} placeholder="Select source entity" disabled={lockFrom} />
+                      <label style={Object.assign({}, fl, { marginTop:18 })}>Primary Key {reqMark(showReq && !linkProp)}</label>
+                      <NodePropSelect node={fromN} value={linkProp} onChange={setLinkProp} placeholder={fromN ? "Select source field" : "Select source entity first"} />
+                    </div>
 
-                <div>
-                  <label style={lbl}>INVERSE LABEL <span style={{ color:"var(--ink-4)", marginLeft:4, fontWeight:400 }}>optional</span></label>
-                  <div style={{ position:"relative" }}>
-                    <span style={{ position:"absolute", left:11, top:"50%", transform:"translateY(-50%)", fontFamily:"JetBrains Mono", fontSize:13, color:"var(--ink-4)", pointerEvents:"none" }}>:</span>
-                    <input value={inverseLabel} onChange={function(e){ setInverseLabel(e.target.value.toUpperCase().replace(/[^A-Z_]/g, "")); }} placeholder="HAS_EMPLOYEE" style={Object.assign({}, inp, { paddingLeft:22, fontFamily:"JetBrains Mono", maxWidth:340 })} />
+                    {/* PER-ROW ARROWS */}
+                    <div style={Object.assign({}, cardBox, { alignItems:"center" })}>
+                      {hideLbl(0)}
+                      {rowArrow}
+                      {hideLbl(18)}
+                      {rowArrow}
+                    </div>
+
+                    {/* TARGET ENTITY */}
+                    <div style={cardBox}>
+                      <label style={Object.assign({}, fl, { marginTop:0 })}>Target Entity {reqMark(showReq && !toId)}</label>
+                      <NodePicker value={toId} onChange={setToId} placeholder="Select target entity" />
+                      <label style={Object.assign({}, fl, { marginTop:18 })}>Foreign Key {reqMark(showReq && !linkTargetProp)}</label>
+                      <NodePropSelect node={toN} value={linkTargetProp} onChange={setLinkTargetProp} placeholder={toN ? "Select target field" : "Select target entity first"} />
+                    </div>
                   </div>
-                  <div style={{ fontFamily:"JetBrains Mono", fontSize:10, color:"var(--ink-3)", marginTop:5 }}>Lets queries traverse the reverse direction by name without recomputing.</div>
+                    );
+                  })()}
+
+                  {(function(){
+                    var toggleRow = function(key, title, icon, desc, on, onToggle){
+                      return (
+                        <div key={key} style={{ display:"flex", alignItems:"flex-start", gap:14, padding:"13px 15px", border:"1px solid var(--line-2)", borderRadius:10, background:"var(--panel-2)" }}>
+                          <div style={{ flex:1, minWidth:0 }}>
+                            <div style={{ display:"flex", alignItems:"center", gap:7, fontSize:13, fontWeight:600, color:"var(--ink-2)", marginBottom:3 }}>{title}{icon}</div>
+                            <div style={{ fontSize:11.5, color:"var(--ink-3)", lineHeight:1.5 }}>{desc}</div>
+                          </div>
+                          <button onClick={onToggle} style={{ flexShrink:0, marginTop:2, width:38, height:22, borderRadius:11, border:"none", background: on ? "var(--green)" : "var(--line)", position:"relative", cursor:"pointer", padding:0, transition:"background 120ms" }}>
+                            <span style={{ position:"absolute", top:2, left: on ? 18 : 2, width:18, height:18, borderRadius:"50%", background:"#fff", boxShadow:"0 1px 2px rgba(0,0,0,0.2)", transition:"left 120ms" }} />
+                          </button>
+                        </div>
+                      );
+                    };
+                    var swapIcon = <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--ink-4)" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><polyline points="17 2 21 6 17 10" /><path d="M21 6H7" /><polyline points="7 22 3 18 7 14" /><path d="M3 18h14" /></svg>;
+                    return (
+                      <div style={{ display:"flex", flexDirection:"column", gap:10, marginTop:4 }}>
+                        {toggleRow("both", "Model both sides", null, "Add the reverse relationship field so both nodes can traverse it.", modelBothSides, function(){ setModelBothSides(function(v){ return !v; }); })}
+                        {toggleRow("undir", "Undirected queries", swapIcon, <span>Sets <code style={{ fontFamily:"JetBrains Mono", fontSize:11 }}>queryDirection: UNDIRECTED</code> so direction is ignored when querying.</span>, undirected, function(){ setUndirected(function(v){ return !v; }); })}
+                      </div>
+                    );
+                  })()}
                 </div>
+                  );
+                })()}
 
               </div>
             )}
@@ -4340,6 +4476,46 @@ function NewEdgeFlow({ onClose, onCreate, fromNode, toNode, initialLabel, nodes:
             )}
 
           </div>
+
+          {/* RIGHT — LIVE PREVIEW */}
+          {(function(){
+            var srcCol = fromN ? colorForNode(fromN) : null;
+            var tgtCol = toN ? colorForNode(toN) : null;
+            var parts = cardinality.split(":");
+            var srcCard = parts[0] === "1" ? "one" : parts[0] === "N" ? "many" : "—";
+            var tgtCard = parts[1] === "1" ? "one" : parts[1] === "M" ? "many" : "—";
+            var attrs = edgeProps.filter(function(p){ return (p.name || "").trim(); }).map(function(p){ return p.name; });
+            var circle = function(n, col, fallback){
+              return (
+                <div style={{ width:78, height:78, borderRadius:"50%", background: col ? col.stroke : "var(--line)", color:"#fff", display:"flex", alignItems:"center", justifyContent:"center", fontSize:13, fontWeight:700, textAlign:"center", padding:8, boxSizing:"border-box", lineHeight:1.15, boxShadow:"0 2px 8px rgba(40,32,18,0.12)" }}>{n ? n.label : <span style={{ opacity:0.85, fontWeight:500 }}>{fallback}</span>}</div>
+              );
+            };
+            return (
+              <div style={{ borderLeft:"1px solid var(--line)", background:"var(--panel-2)", padding:"22px 20px", overflowY:"auto", display:"flex", flexDirection:"column", gap:16 }}>
+                <div style={{ fontFamily:"JetBrains Mono", fontSize:10, letterSpacing:"0.8px", color:"var(--ink-3)", textTransform:"uppercase" }}>Live preview</div>
+
+                <div style={{ border:"1px solid var(--line)", borderRadius:12, background:"var(--panel)", padding:"26px 18px", display:"flex", flexDirection:"column", alignItems:"center", gap:6 }}>
+                  {circle(fromN, srcCol, "Source")}
+                  <div style={{ fontFamily:"JetBrains Mono", fontSize:10.5, color:"var(--ink-3)" }}>{srcCard}</div>
+
+                  <div style={{ display:"flex", flexDirection:"column", alignItems:"center", gap:5, padding:"4px 0" }}>
+                    <span style={{ fontFamily:"JetBrains Mono", fontSize:11, fontWeight:700, letterSpacing:"0.4px", color:"var(--gold)", background:"var(--gold-fill)", border:"1px solid var(--gold-soft)", padding:"3px 10px", borderRadius:20 }}>{label ? ":" + label : ":RELATIONSHIP"}</span>
+                    <span style={{ color:"var(--ink-3)", display:"flex" }}>
+                      {modelBothSides
+                        ? <svg width="22" height="14" viewBox="0 0 24 16" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><line x1="2" y1="6" x2="20" y2="6" /><polyline points="16 2 20 6 16 10" /><line x1="22" y1="11" x2="4" y2="11" /><polyline points="8 7 4 11 8 15" /></svg>
+                        : <svg width="22" height="10" viewBox="0 0 24 12" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><line x1="2" y1="6" x2="20" y2="6" /><polyline points="15 1 21 6 15 11" /></svg>}
+                    </span>
+                    {attrs.length > 0 && <span style={{ fontFamily:"JetBrains Mono", fontSize:10.5, color:"var(--ink-3)" }}>{"{ " + attrs.join(", ") + " }"}</span>}
+                  </div>
+
+                  <div style={{ fontFamily:"JetBrains Mono", fontSize:10.5, color:"var(--ink-3)" }}>{tgtCard}</div>
+                  {circle(toN, tgtCol, "Target")}
+                </div>
+
+                
+              </div>
+            );
+          })()}
         </div>
 
         {/* FOOTER */}
@@ -4348,7 +4524,7 @@ function NewEdgeFlow({ onClose, onCreate, fromNode, toNode, initialLabel, nodes:
           <div style={{ display:"flex", gap:8 }}>
             <button className="btn-ghost" onClick={onClose}>Cancel</button>
             {step < 2
-              ? <button className="btn-dark" disabled={!canContinue()} onClick={function(){ setStep(function(s){ return s + 1; }); }} style={{ opacity: canContinue() ? 1 : 0.45 }}>Continue →</button>
+              ? <button className="btn-dark" onClick={function(){ if (canContinue()) { setShowReq(false); setStep(function(s){ return s + 1; }); } else { setShowReq(true); } }}>Continue →</button>
               : <button className="btn-dark" disabled={!canContinue()} onClick={function(){ if (onCreate) onCreate({ label: label, from: fromN, to: toN }); onClose(); }} style={{ opacity: canContinue() ? 1 : 0.45 }}>Create edge type ↵</button>
             }
           </div>
