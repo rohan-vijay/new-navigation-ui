@@ -4271,20 +4271,20 @@ function NewEdgeFlow({ onClose, onCreate, fromNode, toNode, initialLabel, nodes:
               <div style={{ display:"flex", flexDirection:"column", gap:18 }}>
                 {edgeProps.length === 0 ? (
                   <div style={{ padding:"20px 22px", border:"1px dashed var(--line)", borderRadius:10, background:"var(--panel-2)" }}>
-                    <div style={{ fontSize:13.5, color:"var(--ink-2)", lineHeight:1.55, marginBottom:6 }}>No properties yet — that's fine for most edges.</div>
-                    <div style={{ fontFamily:"JetBrains Mono", fontSize:10.5, color:"var(--ink-3)", lineHeight:1.55 }}>Add a property only if every instance can carry a different value for it.</div>
+                    <div style={{ fontSize:13.5, color:"var(--ink-2)", lineHeight:1.55, marginBottom:6 }}>No attributes yet — that's fine for most edges.</div>
+                    <div style={{ fontFamily:"JetBrains Mono", fontSize:10.5, color:"var(--ink-3)", lineHeight:1.55 }}>Add an attribute only if every instance can carry a different value for it.</div>
                   </div>
                 ) : (
                   <div className="card" style={{ background:"var(--panel)", border:"1px solid var(--line)", borderRadius:10, overflow:"hidden" }}>
                     <div className="card-head card-head-row" style={{ background:"var(--panel-2)" }}>
-                      <span style={{ fontSize:13.5, fontWeight:600 }}>Edge properties</span>
+                      <span style={{ fontSize:13.5, fontWeight:600 }}>Edge attributes</span>
                       <span className="card-head-sub">{edgeProps.length}</span>
                     </div>
                     <div>
                       {edgeProps.map(function(p, i){
                         return (
                           <div key={i} style={{ display:"grid", gridTemplateColumns:"1.4fr 1fr auto auto", gap:10, padding:"10px 18px", borderBottom: i < edgeProps.length-1 ? "1px solid var(--line-2)" : "none", alignItems:"center" }}>
-                            <input value={p.name} onChange={function(e){ updateProp(i, { name: e.target.value }); }} placeholder="property name" style={Object.assign({}, inp, { fontFamily:"JetBrains Mono", fontSize:12 })} />
+                            <input value={p.name} onChange={function(e){ updateProp(i, { name: e.target.value }); }} placeholder="attribute name" style={Object.assign({}, inp, { fontFamily:"JetBrains Mono", fontSize:12 })} />
                             <select value={p.type} onChange={function(e){ updateProp(i, { type: e.target.value }); }} style={inp}>
                               <option value="string">string</option>
                               <option value="number">number</option>
@@ -4304,7 +4304,7 @@ function NewEdgeFlow({ onClose, onCreate, fromNode, toNode, initialLabel, nodes:
                   </div>
                 )}
 
-                <button onClick={function(){ addProp({ name:"", type:"string" }); }} className="btn-ghost" style={{ alignSelf:"flex-start", padding:"8px 14px" }}>+ Add property</button>
+                <button onClick={function(){ addProp({ name:"", type:"string" }); }} className="btn-ghost" style={{ alignSelf:"flex-start", padding:"8px 14px" }}>+ Add attribute</button>
               </div>
             )}
 
