@@ -3912,6 +3912,7 @@ function NewEdgeFlow({ onClose, onCreate, fromNode, toNode, initialLabel, nodes:
   var [popRuleText, setPopRuleText]   = useState("");
   var [popAgentId, setPopAgentId]     = useState(null);
   var [popObjectId, setPopObjectId]   = useState(null);
+  var [popAutomationId, setPopAutomationId] = useState(null);
   // Properties
   var [edgeProps, setEdgeProps]       = useState([]);
   // Governance
@@ -3950,6 +3951,25 @@ function NewEdgeFlow({ onClose, onCreate, fromNode, toNode, initialLabel, nodes:
   var popObjects    = objectsForSource(popSourceNode);
   var popObject     = popObjects.find(function(o){ return o.id === popObjectId; });
   var popColumns    = popObject ? popObject.columns : [];
+
+  // Automations + agents also produce edges; each exposes output fields that
+  // attribute values can be mapped from (same as source columns).
+  var AUTOMATIONS = [
+    { id:"fk_sync",        label:"Foreign-key sync",         outputs:["matched_at", "match_score", "source_table", "rule_id", "status"] },
+    { id:"identity_merge", label:"Identity match & merge",   outputs:["merged_at", "confidence", "survivor_id", "cluster_id"] },
+    { id:"nightly_rollup", label:"Nightly relationship rollup", outputs:["computed_at", "window", "value", "prev_value"] },
+    { id:"event_linker",   label:"Event-stream linker",      outputs:["event_time", "event_type", "channel", "weight", "last_seen"] },
+  ];
+  var popAutomation = AUTOMATIONS.find(function(a){ return a.id === popAutomationId; });
+  var popAgentNode  = agentOptions.find(function(a){ return a.id === popAgentId; });
+  function agentOutputsFor(agentNode){ return agentNode ? ["score", "confidence", "label", "reason", "last_run", "model"] : []; }
+  // Unified output fields the chosen mechanism exposes — every attribute maps to one of these.
+  var popOutputs = populationKind === "source"     ? popColumns.filter(function(c){ return c !== popFromColumn && c !== popToColumn; })
+                 : populationKind === "automation" ? (popAutomation ? popAutomation.outputs : [])
+                 : populationKind === "agent"      ? agentOutputsFor(popAgentNode)
+                 : [];
+  var popReady = populationKind === "source" ? !!popObject : populationKind === "automation" ? !!popAutomation : populationKind === "agent" ? !!popAgentNode : false;
+  var popOutputNoun = populationKind === "source" ? "column" : "field";
   var miniSel ={ border:"1px solid var(--line)", borderRadius:6, padding:"6px 8px", fontSize:12, fontFamily:"JetBrains Mono", color:"var(--ink)", background:"var(--panel)", outline:"none", boxSizing:"border-box", width:"100%" };
 
   function canContinue() {
@@ -4023,18 +4043,12 @@ function NewEdgeFlow({ onClose, onCreate, fromNode, toNode, initialLabel, nodes:
   // Permission row (same RBAC pattern as NewGraphFlow)
   // ── POPULATION OPTIONS ────────────────────────────────────────────────
   var populationOptions = [
-    { id:"source", title:"From a data source",   tag:"RECOMMENDED",
-      desc:"Join two tables. Pick the system that already has this relationship and tell us which column on each side identifies it.",
-      best:"Best when the relationship is already represented as a foreign key in your data (e.g. orders.customer_id → customers.id)." },
-    { id:"inferred", title:"Inferred by a rule", tag:"",
-      desc:"Create the edge whenever a plain-English condition is met. We translate the rule into a query at sync time.",
-      best:"Best when the relationship can be computed from existing properties of the two nodes." },
-    { id:"agent", title:"Maintained by an agent", tag:"AGENT",
-      desc:"An agent watches your data and adds or removes edges as things change.",
-      best:"Best when the relationship needs ongoing judgement — risk attribution, identity resolution, semantic links." },
-    { id:"manual", title:"Created manually",      tag:"",
-      desc:"Admins and stewards add or remove instances through the catalog UI. The graph holds no automatic logic.",
-      best:"Best when the relationship is curated by humans — canonical mappings, golden-record overrides, exception lists." }
+    { id:"source", title:"From a data source",  tag:"RECOMMENDED",
+      desc:"Join a table from a connected system. Pick the relationship table, then map each attribute to one of its columns." },
+    { id:"automation", title:"By automation",   tag:"",
+      desc:"An automation produces the edges. Pick the automation, then map each attribute to one of its output fields." },
+    { id:"agent", title:"By agent",             tag:"AGENT",
+      desc:"An agent produces the edges. Pick the agent, then map each attribute to one of its output fields." }
   ];
 
   // ── COMMON EDGE PROPERTY EXAMPLES ─────────────────────────────────────
@@ -4222,13 +4236,14 @@ function NewEdgeFlow({ onClose, onCreate, fromNode, toNode, initialLabel, nodes:
                     </div>
                   )}
 
-                  {populationKind === "inferred" && (
+                  {populationKind === "automation" && (
                     <div style={{ marginTop:14, border:"1px solid var(--line)", borderRadius:9, background:"var(--panel-2)", padding:"14px" }}>
-                      <label style={lbl}>RULE — create the edge whenever this holds</label>
-                      <textarea value={popRuleText} onChange={function(e){ setPopRuleText(e.target.value); }} rows={3}
-                        placeholder={"e.g. a " + (fromN ? fromN.label : "From") + " is linked to a " + (toN ? toN.label : "To") + " when they share the same domain"}
-                        style={Object.assign({}, inp, { fontFamily:"JetBrains Mono", fontSize:12, resize:"vertical", lineHeight:1.5 })} />
-                      <div style={{ fontFamily:"JetBrains Mono", fontSize:10, color:"var(--ink-4)", marginTop:8, lineHeight:1.5 }}>Compiled to a query at sync time. Attribute values are computed from the matched nodes' properties.</div>
+                      <label style={lbl}>AUTOMATION</label>
+                      <select value={popAutomationId || ""} onChange={function(e){ setPopAutomationId(e.target.value || null); }} style={inp}>
+                        <option value="">— pick an automation —</option>
+                        {AUTOMATIONS.map(function(a){ return <option key={a.id} value={a.id}>{a.label}</option>; })}
+                      </select>
+                      <div style={{ fontFamily:"JetBrains Mono", fontSize:10, color:"var(--ink-4)", marginTop:8, lineHeight:1.5 }}>{popAutomation ? <span>The automation creates the edges. Its output fields (<b style={{ color:"var(--ink-2)" }}>{popAutomation.outputs.join(", ")}</b>) are available to map attribute values from in the next step.</span> : "The automation creates the edges; its output fields populate the attribute values."}</div>
                     </div>
                   )}
 
@@ -4239,13 +4254,7 @@ function NewEdgeFlow({ onClose, onCreate, fromNode, toNode, initialLabel, nodes:
                         <option value="">— pick an agent —</option>
                         {agentOptions.map(function(a){ return <option key={a.id} value={a.id}>{a.label}</option>; })}
                       </select>
-                      <div style={{ fontFamily:"JetBrains Mono", fontSize:10, color:"var(--ink-4)", marginTop:8, lineHeight:1.5 }}>The agent adds/removes edges as data changes and writes their attribute values.</div>
-                    </div>
-                  )}
-
-                  {populationKind === "manual" && (
-                    <div style={{ marginTop:14, border:"1px solid var(--line)", borderRadius:9, background:"var(--panel-2)", padding:"14px", fontFamily:"JetBrains Mono", fontSize:11, color:"var(--ink-3)", lineHeight:1.55 }}>
-                      No automatic source. Stewards create instances and fill attribute values by hand in the catalog.
+                      <div style={{ fontFamily:"JetBrains Mono", fontSize:10, color:"var(--ink-4)", marginTop:8, lineHeight:1.5 }}>{popAgentNode ? <span>The agent creates the edges. Its output fields (<b style={{ color:"var(--ink-2)" }}>{agentOutputsFor(popAgentNode).join(", ")}</b>) are available to map attribute values from in the next step.</span> : "The agent creates the edges; its output fields populate the attribute values."}</div>
                     </div>
                   )}
                 </div>
@@ -4283,18 +4292,13 @@ function NewEdgeFlow({ onClose, onCreate, fromNode, toNode, initialLabel, nodes:
                               <option value="datetime">datetime</option>
                               <option value="json">json</option>
                             </select>
-                            {/* VALUE FROM — conditioned on how the edge is populated */}
-                            {populationKind === "source" ? (
-                              <select value={p.valueFrom || ""} onChange={function(e){ updateProp(i, { valueFrom: e.target.value }); }} style={miniSel} disabled={!popObject}>
-                                <option value="">{popObject ? "— pick a column —" : "pick a table first"}</option>
-                                {popColumns.filter(function(c){ return c !== popFromColumn && c !== popToColumn; }).map(function(c){ return <option key={c} value={c}>{c}</option>; })}
+                            {/* VALUE FROM — always a dropdown mapping to an output of the
+                                chosen source / automation / agent (same as source creation). */}
+                            {populationKind ? (
+                              <select value={p.valueFrom || ""} onChange={function(e){ updateProp(i, { valueFrom: e.target.value }); }} style={miniSel} disabled={!popReady}>
+                                <option value="">{popReady ? "— pick a " + popOutputNoun + " —" : (populationKind === "source" ? "pick a table first" : "pick the " + (populationKind === "automation" ? "automation" : "agent") + " first")}</option>
+                                {popOutputs.map(function(c){ return <option key={c} value={c}>{c}</option>; })}
                               </select>
-                            ) : populationKind === "inferred" ? (
-                              <input value={p.valueFrom || ""} onChange={function(e){ updateProp(i, { valueFrom: e.target.value }); }} placeholder="expression e.g. from.created_at" style={Object.assign({}, miniSel, { fontSize:11 })} />
-                            ) : populationKind === "agent" ? (
-                              <span style={{ fontFamily:"JetBrains Mono", fontSize:10.5, color:"var(--ink-3)" }}>set by agent</span>
-                            ) : populationKind === "manual" ? (
-                              <span style={{ fontFamily:"JetBrains Mono", fontSize:10.5, color:"var(--ink-3)" }}>by stewards</span>
                             ) : (
                               <span style={{ fontFamily:"JetBrains Mono", fontSize:10, color:"var(--ink-4)" }}>choose population first</span>
                             )}
@@ -4326,12 +4330,11 @@ function NewEdgeFlow({ onClose, onCreate, fromNode, toNode, initialLabel, nodes:
                       { k:"LABEL",       v: label ? <span style={{ fontFamily:"JetBrains Mono" }}>{":" + label}</span> : <span style={{ color:"var(--coral)" }}>not set</span> },
                       { k:"FROM → TO",   v: (fromN && toN) ? (fromN.label + "  —" + cardinality + "→  " + toN.label) : <span style={{ color:"var(--coral)" }}>endpoints missing</span> },
                       { k:"INVERSE",     v: inverseLabel ? <span style={{ fontFamily:"JetBrains Mono" }}>{":" + inverseLabel}</span> : <span style={{ color:"var(--ink-4)" }}>—</span> },
-                      { k:"POPULATION",  v: populationKind === "source"   ? "From source · " + (popSourceNode ? popSourceNode.label : "—") + (popObject ? "  ·  " + popObject.name : "") + (popFromColumn && popToColumn ? "  ·  " + popFromColumn + " ↔ " + popToColumn : "")
-                                            : populationKind === "inferred" ? "Inferred · " + (popRuleText ? (popRuleText.length > 80 ? popRuleText.slice(0,80) + "…" : popRuleText) : "no rule yet")
-                                            : populationKind === "agent"    ? "Agent · " + ((agentOptions.find(function(a){ return a.id === popAgentId; }) || {}).label || "—")
-                                            : populationKind === "manual"   ? "Manual — managed by stewards"
+                      { k:"POPULATION",  v: populationKind === "source"     ? "From source · " + (popSourceNode ? popSourceNode.label : "—") + (popObject ? "  ·  " + popObject.name : "") + (popFromColumn && popToColumn ? "  ·  " + popFromColumn + " ↔ " + popToColumn : "")
+                                            : populationKind === "automation" ? "By automation · " + (popAutomation ? popAutomation.label : "—")
+                                            : populationKind === "agent"      ? "By agent · " + (popAgentNode ? popAgentNode.label : "—")
                                             : <span style={{ color:"var(--coral)" }}>not chosen</span> },
-                      { k:"ATTRIBUTES",  v: edgeProps.length === 0 ? <span style={{ color:"var(--ink-4)" }}>none</span> : <span style={{ display:"inline-flex", flexDirection:"column", gap:3, alignItems:"flex-end" }}>{edgeProps.map(function(p, i){ var src = populationKind === "source" ? (p.valueFrom || "unmapped") : populationKind === "inferred" ? (p.valueFrom || "—") : populationKind === "agent" ? "agent" : "manual"; return <span key={i} style={{ fontFamily:"JetBrains Mono", fontSize:11 }}>{p.name + ":" + p.type}<span style={{ color:"var(--ink-4)" }}>{" ← " + src}</span></span>; })}</span> },
+                      { k:"ATTRIBUTES",  v: edgeProps.length === 0 ? <span style={{ color:"var(--ink-4)" }}>none</span> : <span style={{ display:"inline-flex", flexDirection:"column", gap:3, alignItems:"flex-end" }}>{edgeProps.map(function(p, i){ var src = p.valueFrom || "unmapped"; return <span key={i} style={{ fontFamily:"JetBrains Mono", fontSize:11 }}>{p.name + ":" + p.type}<span style={{ color:"var(--ink-4)" }}>{" ← " + src}</span></span>; })}</span> },
                       { k:"DESCRIPTION", v: desc || <span style={{ color:"var(--ink-4)" }}>—</span> },
                       { k:"OWNER",       v: owner }
                     ].map(function(row, i, arr){
