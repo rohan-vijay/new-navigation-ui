@@ -1,9 +1,11 @@
 import { useState } from 'react'
 import { Dropdown, SharedIcon, StatusBadge } from './SkillsPage'
 import { NewGraphFlow } from './NewGraphFlow'
+import ECGDetailPage from './ECGDetailPage'
 
 // sample Enterprise Context Graphs
 const GRAPHS = [
+  { id: 'ecg', name: 'Enterprise Context Graph', version: 'v1.0.0', status: 'Live', nodes: 47, edges: 60, sources: 13, lastSync: '2 min ago', sharedType: 'org', shared: 'Everyone', owner: 'James Carter', ownerInit: 'J', modified: '2 hours ago', isECG: true },
   { name: 'Customer 360',          version: 'v3.2.0', status: 'Live',     nodes: 42850, edges: 183202, sources: 12, lastSync: '2 min ago',  sharedType: 'org',     shared: 'Everyone',        owner: 'James Carter',    ownerInit: 'J', modified: '2 hours ago' },
   { name: 'Product Catalog Graph', version: 'v2.1.0', status: 'Live',     nodes: 18430, edges: 64120,  sources: 6,  lastSync: '18 min ago', sharedType: 'team',    shared: 'Data Team',       owner: 'Emily Rodriguez', ownerInit: 'E', modified: '5 hours ago' },
   { name: 'Revenue Operations',    version: 'v0.9.0', status: 'Draft',    nodes: 9820,  edges: 41760,  sources: 9,  lastSync: '1 hour ago', sharedType: 'team',    shared: 'RevOps Team',     owner: 'Olivia Bennett',  ownerInit: 'O', modified: 'Yesterday' },
@@ -41,6 +43,9 @@ export default function ContextGraphsPage({ onCreate, onOpenGraph }) {
   const [statusFilter, setStatusFilter] = useState('All status')
   const [search, setSearch] = useState('')
   const [newGraph, setNewGraph] = useState(false)
+  const [ecgOpen, setEcgOpen] = useState(false)
+
+  if (ecgOpen) return <ECGDetailPage onBack={() => setEcgOpen(false)} />
 
   let rows = GRAPHS
     .filter(g => statusFilter === 'All status' || g.status === statusFilter)
@@ -108,12 +113,25 @@ export default function ContextGraphsPage({ onCreate, onOpenGraph }) {
               {rows.map((g, i) => {
                 const last = i === rows.length - 1
                 const cell = { ...td, borderBottom: last ? 'none' : '1px solid #f1f2f1' }
+                const isECG = !!g.isECG
                 return (
-                  <tr key={i} onClick={() => onOpenGraph?.(g)} style={{ cursor: 'pointer', background: '#fff', transition: 'background .12s, box-shadow .12s' }}
-                    onMouseOver={e => { e.currentTarget.style.background = '#f7f6f3'; e.currentTarget.style.boxShadow = 'inset 3px 0 0 #16341f' }}
-                    onMouseOut={e => { e.currentTarget.style.background = '#fff'; e.currentTarget.style.boxShadow = 'none' }}>
+                  <tr key={i}
+                    onClick={() => isECG ? setEcgOpen(true) : onOpenGraph?.(g)}
+                    style={{ cursor: 'pointer', background: isECG ? '#faf7ff' : '#fff', transition: 'background .12s, box-shadow .12s' }}
+                    onMouseOver={e => { e.currentTarget.style.background = isECG ? '#f3eeff' : '#f7f6f3'; e.currentTarget.style.boxShadow = 'inset 3px 0 0 ' + (isECG ? '#7c3aed' : '#16341f') }}
+                    onMouseOut={e => { e.currentTarget.style.background = isECG ? '#faf7ff' : '#fff'; e.currentTarget.style.boxShadow = 'none' }}>
                     <td style={cell}>
-                      <span style={{ fontFamily: 'var(--serif)', fontSize: 14, fontWeight: 500, color: '#1a1a1a', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{g.name}</span>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        {isECG && (
+                          <span style={{ width: 20, height: 20, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                            <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+                              <polygon points="9,1 16.5,5 16.5,13 9,17 1.5,13 1.5,5" fill="#ede9fc" stroke="#7c3aed" strokeWidth="1.4"/>
+                              <circle cx="9" cy="9" r="2.5" fill="#7c3aed"/>
+                            </svg>
+                          </span>
+                        )}
+                        <span style={{ fontFamily: 'var(--serif)', fontSize: 14, fontWeight: isECG ? 600 : 500, color: isECG ? '#5b21b6' : '#1a1a1a', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{g.name}</span>
+                      </div>
                     </td>
                     <td style={cell}>
                       <span style={{ fontFamily: 'var(--mono)', fontSize: 11.5, color: '#8a7340', border: '1px solid #e7dcc1', background: '#faf5ea', padding: '2px 8px', borderRadius: 6 }}>{g.version}</span>
