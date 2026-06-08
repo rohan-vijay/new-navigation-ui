@@ -906,14 +906,12 @@ function NodeDetailPage({ node, onBack, onCanvas }) {
 
       {tab === 'Edges' && (
         <DetailTable
-          cols={[{ label: 'Relationship', w: '24%' }, { label: 'Direction', w: '12%', cellStyle: { textAlign: 'center' } }, { label: 'Connected Node', w: '24%' }, { label: 'Kind', w: '14%' }, { label: 'Cardinality', w: '13%' }, { label: 'Instances', w: '13%' }]}
+          cols={[{ label: 'Relationship', w: '28%' }, { label: 'Direction', w: '12%', cellStyle: { textAlign: 'center' } }, { label: 'Connected Node', w: '28%' }, { label: 'Cardinality', w: '16%' }, { label: 'Instances', w: '16%' }]}
           rows={view.map(e => {
-            const k = EDGE_KIND_TAG[e.kind] || EDGE_KIND_TAG.direct
             return [
               monoCell(':' + e.label, '#5b5547'),
               <span style={{ fontSize: 15, color: '#9a948a' }}>{e.dir}</span>,
               <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}><span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}><ListGlyph node={e.other} size={15} /></span><span style={{ fontSize: 13, color: '#1a1a1a' }}>{e.other.label}</span></span>,
-              <span style={{ fontFamily: 'var(--mono)', fontSize: 11.5, color: k.color, border: `1px solid ${k.border}`, background: k.bg, padding: '2px 8px', borderRadius: 6 }}>{k.label}</span>,
               monoCell(e.cardinality, '#374151'),
               <span style={{ fontSize: 13.5, fontWeight: 600, color: '#1a1a1a' }}>{e.instances.toLocaleString()}</span>,
             ]
@@ -1019,7 +1017,7 @@ const NODE_SORTERS = {
   'Edges': (a, b) => b.edges - a.edges,
   'Fill Rate': (a, b) => b.fill - a.fill,
 }
-const NODE_FILTERS = { 'All categories': null, Core: 'core', Support: 'support', Derived: 'derived', Source: 'source' }
+const NODE_FILTERS = { 'All categories': null, Core: 'core', Support: 'support', Derived: 'derived' }
 
 function NodesList({ onOpen }) {
   const [sort, setSort] = useState('Name (A–Z)')
@@ -1113,15 +1111,13 @@ function NodesList({ onOpen }) {
 
 /* ── Edges table ───────────────────────────────────────── */
 const EDGE_COLS = [
-  { key: 'label', label: 'Relationship', w: '15%' },
-  { key: 'from', label: 'From', w: '13%' },
-  { key: 'arrow', label: '', w: '3%' },
-  { key: 'to', label: 'To', w: '13%' },
-  { key: 'kind', label: 'Kind', w: '9%' },
-  { key: 'card', label: 'Cardinality', w: '9%' },
-  { key: 'inst', label: 'Instances', w: '9%' },
-  { key: 'owner', label: 'Owner', w: '17%' },
-  { key: 'modified', label: 'Modified On', w: '12%' },
+  { key: 'label', label: 'Relationship', w: '18%' },
+  { key: 'from', label: 'From', w: '17%' },
+  { key: 'arrow', label: '', w: '4%' },
+  { key: 'to', label: 'To', w: '17%' },
+  { key: 'inst', label: 'Instances', w: '12%' },
+  { key: 'owner', label: 'Owner', w: '18%' },
+  { key: 'modified', label: 'Modified On', w: '14%' },
 ]
 const EDGE_KIND_TAG = {
   direct:   { label: 'Direct',   color: '#2f6f43', bg: '#eef4ee', border: '#d6e6d8' },
@@ -1137,11 +1133,96 @@ const EDGE_SORTERS = {
   'To': (a, b) => a.to.label.localeCompare(b.to.label),
 }
 
+// Quick (v2) new-edge popup — no stepper: name, source, destination, PK, FK.
+function NewEdgeV2Modal({ onClose, onCreate }) {
+  const nodes = useMemo(() => SIDEBAR_NODES.filter(n => n.type === 'entity'), [])
+  const [label, setLabel] = useState('')
+  const [fromId, setFromId] = useState('')
+  const [toId, setToId] = useState('')
+  const [pk, setPk] = useState('')
+  const [fk, setFk] = useState('')
+  const fromNode = nodes.find(n => n.id === fromId)
+  const toNode = nodes.find(n => n.id === toId)
+  const fromProps = useMemo(() => fromNode ? generateProps(fromNode) : [], [fromId])
+  const toProps = useMemo(() => toNode ? generateProps(toNode) : [], [toId])
+  useEffect(() => { const p = fromProps.find(x => x.pk) || fromProps[0]; setPk(p ? p.name : '') }, [fromId])
+  useEffect(() => { const p = toProps.find(x => x.pk) || toProps[0]; setFk(p ? p.name : '') }, [toId])
+  const valid = label.trim().length >= 3 && fromId && toId && pk && fk
+  const lbl = { display: 'block', fontFamily: 'var(--mono)', fontSize: 10, letterSpacing: '0.5px', textTransform: 'uppercase', color: '#9a948a', marginBottom: 6 }
+  const Picker = ({ value, onChange, options, placeholder, icon }) => {
+    const [open, setOpen] = useState(false)
+    const sel = options.find(o => o.id === value)
+    return (
+      <div style={{ position: 'relative' }}>
+        <button onClick={() => setOpen(o => !o)} style={{ display: 'flex', alignItems: 'center', gap: 9, width: '100%', height: 40, padding: '0 12px', boxSizing: 'border-box', border: '1px solid ' + (open ? '#1a1a1a' : '#e3ddd1'), borderRadius: 8, background: open ? '#fcfbf7' : '#fff', cursor: 'pointer', fontFamily: 'var(--sans)', textAlign: 'left' }}>
+          {sel ? <>{icon && icon(sel)}<span style={{ flex: 1, fontFamily: 'var(--mono)', fontSize: 13, color: '#1a1a1a', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{sel.label}</span></> : <span style={{ flex: 1, fontSize: 13, color: '#a89e88' }}>{placeholder}</span>}
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#9a948a" strokeWidth="2"><path d="M6 9l6 6 6-6" /></svg>
+        </button>
+        {open && (<>
+          <div style={{ position: 'fixed', inset: 0, zIndex: 100 }} onClick={() => setOpen(false)} />
+          <div style={{ position: 'absolute', top: 'calc(100% + 5px)', left: 0, right: 0, zIndex: 101, maxHeight: 240, overflowY: 'auto', background: '#fff', border: '1px solid #e3ddd1', borderRadius: 9, boxShadow: '0 12px 32px rgba(60,50,30,0.14)', padding: 5 }}>
+            {options.map(o => (
+              <button key={o.id} onClick={() => { onChange(o.id); setOpen(false) }} style={{ display: 'flex', alignItems: 'center', gap: 9, width: '100%', padding: '8px 10px', borderRadius: 7, border: 'none', background: value === o.id ? '#f1ece0' : 'transparent', cursor: 'pointer', fontFamily: 'var(--mono)', fontSize: 12.5, textAlign: 'left' }}
+                onMouseOver={e => { if (value !== o.id) e.currentTarget.style.background = '#f7f5f0' }} onMouseOut={e => { if (value !== o.id) e.currentTarget.style.background = 'transparent' }}>
+                {icon && icon(o)}<span style={{ flex: 1, color: '#1a1a1a' }}>{o.label}</span>{o.pk && <span style={{ fontFamily: 'var(--mono)', fontSize: 9, padding: '1px 5px', borderRadius: 3, background: '#eef4ee', color: '#2f6f43', fontWeight: 700 }}>PK</span>}
+              </button>
+            ))}
+          </div>
+        </>)}
+      </div>
+    )
+  }
+  const nodeIcon = o => <span style={{ display: 'flex', flexShrink: 0 }}><ListGlyph node={o.node} size={16} /></span>
+  const nodeOpts = nodes.map(n => ({ id: n.id, label: n.label, node: n }))
+  return (
+    <div style={{ position: 'fixed', inset: 0, zIndex: 1000, background: 'rgba(30,25,15,0.34)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }} onClick={onClose}>
+      <div onClick={e => e.stopPropagation()} style={{ width: 560, maxWidth: '100%', background: '#fcfbf7', borderRadius: 14, border: '1px solid #e3ddd1', boxShadow: '0 32px 80px rgba(0,0,0,0.3)', overflow: 'visible' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 22px', borderBottom: '1px solid #efece6', borderRadius: '14px 14px 0 0', background: '#fcfbf7' }}>
+          <span style={{ fontFamily: 'var(--serif)', fontSize: 19, color: '#1a1a1a' }}>New Edge</span>
+          <button onClick={onClose} style={{ width: 28, height: 28, borderRadius: '50%', border: '1px solid #e3ddd1', background: '#fff', cursor: 'pointer', color: '#6b6b66', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round"><path d="M6 6l12 12M18 6L6 18" /></svg></button>
+        </div>
+        <div style={{ padding: '22px', display: 'flex', flexDirection: 'column', gap: 18 }}>
+          <div>
+            <label style={lbl}>Relationship label</label>
+            <div style={{ position: 'relative' }}>
+              <span style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', fontFamily: 'var(--mono)', fontSize: 13, color: '#a89e88' }}>:</span>
+              <input value={label} onChange={e => setLabel(e.target.value.toUpperCase().replace(/[^A-Z_]/g, ''))} placeholder="WORKS_AT" autoFocus style={{ width: '100%', height: 40, boxSizing: 'border-box', padding: '0 12px 0 22px', border: '1px solid #e3ddd1', borderRadius: 8, fontFamily: 'var(--mono)', fontSize: 13, color: '#1a1a1a', background: '#fff', outline: 'none' }} />
+            </div>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+            <div><label style={lbl}>Source entity</label><Picker value={fromId} onChange={setFromId} options={nodeOpts} placeholder="Select source…" icon={nodeIcon} /></div>
+            <div><label style={lbl}>Destination entity</label><Picker value={toId} onChange={setToId} options={nodeOpts} placeholder="Select destination…" icon={nodeIcon} /></div>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+            <div><label style={lbl}>Primary key</label><Picker value={pk} onChange={setPk} options={fromProps.map(p => ({ id: p.name, label: p.name, pk: p.pk }))} placeholder={fromId ? 'Select key…' : 'Pick source first'} /></div>
+            <div><label style={lbl}>Foreign key</label><Picker value={fk} onChange={setFk} options={toProps.map(p => ({ id: p.name, label: p.name, pk: p.pk }))} placeholder={toId ? 'Select key…' : 'Pick destination first'} /></div>
+          </div>
+        </div>
+        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, padding: '14px 22px', borderTop: '1px solid #efece6', borderRadius: '0 0 14px 14px', background: '#fcfbf7' }}>
+          <button onClick={onClose} style={{ ...gBtnGhost, height: 38 }}>Cancel</button>
+          <button onClick={() => valid && onCreate({ label, fromId, toId, pk, fk })} disabled={!valid} style={{ ...gBtnPrimary, height: 38, opacity: valid ? 1 : 0.45, cursor: valid ? 'pointer' : 'default' }}>Create Edge</button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 function EdgesList() {
   const [sort, setSort] = useState('Relationship')
   const [filter, setFilter] = useState('All kinds')
   const [search, setSearch] = useState('')
   const [addOpen, setAddOpen] = useState(false)
+  const [addV2Open, setAddV2Open] = useState(false)
+  const [newMenuOpen, setNewMenuOpen] = useState(false)
+  const [editEdge, setEditEdge] = useState(null)
+  // Logically derive edge attributes per edge so the edit modal pre-fills plausibly.
+  const attrsForEdge = (e) => {
+    const seed = (e.label || '').length + (e.from?.label || '').length
+    const base = [{ name: 'since', type: 'datetime' }]
+    if (e.kind === 'inferred') base.push({ name: 'confidence', type: 'float' }, { name: 'source_system', type: 'string' })
+    if (seed % 2 === 0) base.push({ name: 'weight', type: 'float' })
+    return base
+  }
   const byId = useMemo(() => { const m = {}; SIDEBAR_NODES.forEach(n => { m[n.id] = n }); return m }, [])
   const allEdges = useMemo(() => GRAPH_EDGES
     .map((e, i) => {
@@ -1181,11 +1262,29 @@ function EdgesList() {
           <span style={{ fontFamily: 'var(--serif)', fontSize: 23, fontWeight: 500, color: '#1a1a1a', letterSpacing: -0.2 }}>Edges</span>
           <span style={{ fontFamily: 'var(--sans)', fontSize: 14, color: '#a89e88' }}>{rows.length}</span>
         </div>
-        <button onClick={() => setAddOpen(true)} style={{ ...gBtnGhost, height: 32, padding: '0 13px', display: 'inline-flex', alignItems: 'center', gap: 7 }}
-          onMouseOver={e => e.currentTarget.style.background = '#faf8f3'} onMouseOut={e => e.currentTarget.style.background = '#fff'}>
-          <svg width="13" height="13" viewBox="0 0 13 13" fill="none"><path d="M6.5 1.5v10M1.5 6.5h10" stroke="#3a3a36" strokeWidth="1.6" strokeLinecap="round" /></svg>
-          New Edge
-        </button>
+        <div style={{ position: 'relative' }}>
+          <button onClick={() => setNewMenuOpen(o => !o)} style={{ ...gBtnGhost, height: 32, padding: '0 13px', display: 'inline-flex', alignItems: 'center', gap: 7 }}
+            onMouseOver={e => e.currentTarget.style.background = '#faf8f3'} onMouseOut={e => e.currentTarget.style.background = '#fff'}>
+            <svg width="13" height="13" viewBox="0 0 13 13" fill="none"><path d="M6.5 1.5v10M1.5 6.5h10" stroke="#3a3a36" strokeWidth="1.6" strokeLinecap="round" /></svg>
+            New Edge
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#9a948a" strokeWidth="2" style={{ transform: newMenuOpen ? 'rotate(180deg)' : 'none', transition: 'transform .12s' }}><path d="M6 9l6 6 6-6" /></svg>
+          </button>
+          {newMenuOpen && (
+            <>
+              <div style={{ position: 'fixed', inset: 0, zIndex: 90 }} onClick={() => setNewMenuOpen(false)} />
+              <div style={{ position: 'absolute', top: 'calc(100% + 6px)', right: 0, zIndex: 91, minWidth: 220, background: '#fff', border: '1px solid #e3ddd1', borderRadius: 10, boxShadow: '0 12px 32px rgba(60,50,30,0.14)', padding: 5 }}>
+                {[{ v: 'v1', t: 'New Edge — v1', d: 'Full wizard (current)', on: () => { setNewMenuOpen(false); setAddOpen(true) } },
+                  { v: 'v2', t: 'New Edge — v2', d: 'Quick: name, ends & keys', on: () => { setNewMenuOpen(false); setAddV2Open(true) } }].map(it => (
+                  <button key={it.v} onClick={it.on} style={{ display: 'flex', flexDirection: 'column', gap: 2, width: '100%', padding: '8px 10px', borderRadius: 7, border: 'none', background: 'transparent', cursor: 'pointer', fontFamily: 'var(--sans)', textAlign: 'left' }}
+                    onMouseOver={e => e.currentTarget.style.background = '#f7f5f0'} onMouseOut={e => e.currentTarget.style.background = 'transparent'}>
+                    <span style={{ fontSize: 13.5, fontWeight: 600, color: '#1a1a1a' }}>{it.t}</span>
+                    <span style={{ fontSize: 11.5, color: '#9a948a' }}>{it.d}</span>
+                  </button>
+                ))}
+              </div>
+            </>
+          )}
+        </div>
       </div>
 
       <TableToolbar
@@ -1210,17 +1309,13 @@ function EdgesList() {
               const k = EDGE_KIND_TAG[e.kind] || EDGE_KIND_TAG.direct
               const m = meta(i)
               return (
-                <tr key={e.uid} style={{ background: '#fff', transition: 'background .12s, box-shadow .12s' }}
+                <tr key={e.uid} onClick={() => setEditEdge(e)} style={{ background: '#fff', cursor: 'pointer', transition: 'background .12s, box-shadow .12s' }}
                   onMouseOver={ev => { ev.currentTarget.style.background = '#f7f6f3'; ev.currentTarget.style.boxShadow = 'inset 3px 0 0 #16341f' }}
                   onMouseOut={ev => { ev.currentTarget.style.background = '#fff'; ev.currentTarget.style.boxShadow = 'none' }}>
                   <td style={cell}><span style={{ fontFamily: 'var(--mono)', fontSize: 12.5, color: '#5b5547', fontWeight: 500 }}>:{e.label}</span></td>
                   <td style={cell}>{endpoint(e.from)}</td>
                   <td style={{ ...cell, textAlign: 'center', color: '#9a948a', fontSize: 14 }}>{e.directional ? '→' : '↔'}</td>
                   <td style={cell}>{endpoint(e.to)}</td>
-                  <td style={cell}>
-                    <span style={{ fontFamily: 'var(--mono)', fontSize: 11.5, color: k.color, border: `1px solid ${k.border}`, background: k.bg, padding: '2px 8px', borderRadius: 6 }}>{k.label}</span>
-                  </td>
-                  <td style={{ ...cell }}><span style={{ fontFamily: 'var(--mono)', fontSize: 12.5, color: '#374151' }}>{e.cardinality}</span></td>
                   <td style={{ ...cell, fontSize: 13.5, fontWeight: 600, color: '#1a1a1a' }}>{e.instances.toLocaleString()}</td>
                   <td style={cell}><OwnerCell owner={m.owner} /></td>
                   <td style={{ ...cell, color: '#9097a0', fontSize: 13, whiteSpace: 'nowrap' }}>{m.modified}</td>
@@ -1237,6 +1332,8 @@ function EdgesList() {
       </div>
 
       {addOpen && <NewEdgeFlow nodes={SIDEBAR_NODES} onClose={() => setAddOpen(false)} onCreate={() => setAddOpen(false)} />}
+      {addV2Open && <NewEdgeV2Modal onClose={() => setAddV2Open(false)} onCreate={() => setAddV2Open(false)} />}
+      {editEdge && <NewEdgeFlow nodes={SIDEBAR_NODES} editMode fromNode={editEdge.from} toNode={editEdge.to} initialLabel={editEdge.label} initialCardinality={editEdge.cardinality} initialAttributes={attrsForEdge(editEdge)} initialBothSides={!editEdge.directional} initialUndirected={!editEdge.directional} onClose={() => setEditEdge(null)} onCreate={() => setEditEdge(null)} />}
     </div>
   )
 }

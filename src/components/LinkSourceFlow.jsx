@@ -1017,12 +1017,15 @@ function WizardShell({ eyebrow, plainTitle, titleFrom, titleTo, titleLabel, titl
 }
 
 // Step wrapper
-function StepWrap({ eyebrow, title, desc, children, wide }) {
+function StepWrap({ eyebrow, title, desc, children, wide, titleRight }) {
   return (
     <div className={"wstep" + (wide ? " wstep-wide" : "")}>
       <div className="wstep-head">
         {eyebrow && <div className="step-eyebrow">{eyebrow}</div>}
-        <div className="wstep-title">{title}</div>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16 }}>
+          <div className="wstep-title">{title}</div>
+          {titleRight}
+        </div>
         {desc && <div className="wstep-desc">{desc}</div>}
       </div>
       <div className="wstep-body">{children}</div>
@@ -1648,6 +1651,10 @@ function LinkSourceFlow({ node, existingSources, onClose, editSource }) {
   const [step, setStep] = useState(0);
   const [mapOpenCol, setMapOpenCol] = useState("");
   const [mapActiveObj, setMapActiveObj] = useState("");
+  // Independent state for the second "Map columns v2" step.
+  const [mapOpenCol2, setMapOpenCol2] = useState("");
+  const [mapActiveObj2, setMapActiveObj2] = useState("");
+  const [mapVer, setMapVer] = useState("v2"); // which mapping experience the single "Map columns" step shows
   const [s, setS] = useState(() => {
     const base = {
       system: "", customName: "", connection: "", newConnName: "", newConnHost: "", newConnAuth: "OAuth2",
@@ -1714,6 +1721,22 @@ function LinkSourceFlow({ node, existingSources, onClose, editSource }) {
     const gm = newNode ? cols.length : cols.filter(c => (s.mapping || {})[g.name + "::" + c.col]).length;
     return { id: g.name, label: g.label || g.name, mapped: gm, total: cols.length, type: g.type, done: gm > 0 };
   }) : null;
+  // ── Map columns v2 — fully isolated from v1 (its own mapping/transform slices) ──
+  const V2_KEYS = { mapping: "mapping2", transforms: "transforms2", recordFilters: "recordFilters2", transformedFields: "transformedFields2", entityNode: "entityNode2" };
+  const s2 = Object.assign({}, s, { mapping: s.mapping2 || {}, transforms: s.transforms2 || {}, recordFilters: s.recordFilters2 || {}, transformedFields: s.transformedFields2 || {}, entityNode: s.entityNode2 || {} });
+  const set2 = patch => { const out = {}; for (const k in patch) { out[V2_KEYS[k] || k] = patch[k]; } set(out); };
+  // v2 mappings are namespaced per destination tab (e.g. "node:acct::Obj::col").
+  const _m2 = s.mapping2 || {};
+  const _m2keys = Object.keys(_m2);
+  const _v2Mapped = (g, c) => _m2[g + "::" + c] != null || _m2keys.some(k => k.endsWith("::" + g + "::" + c) && _m2[k] != null);
+  const mappedCount2 = mapGroups.reduce((acc, g) => acc + mapColsOf(g).filter(c => _v2Mapped(g.name, c.col)).length, 0);
+  const colMapHint2 = totalMapCols ? `${mappedCount2}/${totalMapCols} fields mapped` : "Map source → nodes & edges";
+  const activeMapObj2 = (mapActiveObj2 && mapGroups.some(g => g.name === mapActiveObj2)) ? mapActiveObj2 : (mapGroups[0] ? mapGroups[0].name : "");
+  const mapSubItems2 = mapGroups.length > 1 ? mapGroups.map(g => {
+    const cols = mapColsOf(g);
+    const gm = cols.filter(c => _v2Mapped(g.name, c.col)).length;
+    return { id: g.name, label: g.label || g.name, mapped: gm, total: cols.length, type: g.type, done: gm > 0 };
+  }) : null;
   const settingsHint = (s.pipelineType === "scheduled" ? "Scheduled" : "Real Time") + " · " + (s.resourceTier || "Small");
   const uCfg = s.uSettings || {};
   const uToggles = U_SETTINGS.filter(o => o.control !== "add");
@@ -1766,8 +1789,10 @@ function LinkSourceFlow({ node, existingSources, onClose, editSource }) {
     { label: "Source system",  hint: sel ? sel.name : "Pick connector from catalog" },
     { label: "Connection",     hint: connLabel },
     { label: "Objects",        hint: objectHint },
-    { label: "Extract data",   hint: agentsHint },
-    { label: "Map columns", hint: colMapHint, subItems: mapSubItems, activeSub: activeMapObj, onSub: setMapActiveObj },
+    { label: "Enrich",         hint: agentsHint },
+    (mapVer === "v2"
+      ? { label: "Map", hint: colMapHint2, subItems: mapSubItems2, activeSub: activeMapObj2, onSub: setMapActiveObj2 }
+      : { label: "Map", hint: colMapHint, subItems: mapSubItems, activeSub: activeMapObj, onSub: setMapActiveObj }),
     { label: "Settings", hint: settingsHint },
   ];
 
@@ -1813,8 +1838,8 @@ function LinkSourceFlow({ node, existingSources, onClose, editSource }) {
         return <SrcTransformDrawer col={colName} type={colType} sel={sel} list={(s.transforms || {})[mapOpenCol] || []} onChange={arr => set({ transforms: Object.assign({}, s.transforms, (function(){ var o = {}; o[mapOpenCol] = arr; return o; })()) })} onClose={() => setMapOpenCol("")} />;
       })() : null}
     >
-      {step === 0 && <SrcSystem s={s} set={set} />}
-      {step === 1 && <SrcConnection s={s} set={set} sel={sel} />}
+      {step === 0 && <SrcSystem s={s} set={set} onAdvance={() => setStep(x => x + 1)} />}
+      {step === 1 && <SrcConnection s={s} set={set} sel={sel} onAdvance={() => setStep(x => x + 1)} />}
       {unstructured ? (
         <>
           {step === 2 && <SrcRead s={s} set={set} sel={sel} />}
@@ -1828,7 +1853,9 @@ function LinkSourceFlow({ node, existingSources, onClose, editSource }) {
         <>
           {step === 2 && <SrcObject s={s} set={set} sel={sel} />}
           {step === 3 && <SrcObjectAgents s={s} set={set} groups={mapGroups} sel={sel} />}
-          {step === 4 && <SrcMapping s={s} set={set} groups={mapGroups} activeObj={activeMapObj} nodeProps={nodeProps} node={node} sel={sel} openCol={mapOpenCol} setOpenCol={setMapOpenCol} isEdit={!!editSource} />}
+          {step === 4 && (mapVer === "v2"
+            ? <SrcMapping v2 verToggle={{ value: mapVer, onChange: setMapVer }} s={s2} set={set2} groups={mapGroups} activeObj={activeMapObj2} nodeProps={nodeProps} node={node} sel={sel} openCol={mapOpenCol2} setOpenCol={setMapOpenCol2} isEdit={!!editSource} />
+            : <SrcMapping verToggle={{ value: mapVer, onChange: setMapVer }} s={s} set={set} groups={mapGroups} activeObj={activeMapObj} nodeProps={nodeProps} node={node} sel={sel} openCol={mapOpenCol} setOpenCol={setMapOpenCol} isEdit={!!editSource} />)}
           {step === 5 && <SrcSchedule s={s} set={set} srcCols={srcCols} />}
         </>
       )}
@@ -1924,7 +1951,7 @@ function SrcListMeta({ count, noun, chip }) {
   );
 }
 
-function SrcSystem({ s, set }) {
+function SrcSystem({ s, set, onAdvance }) {
   const [q, setQ] = useState("");
   const [cat, setCat] = useState("all");
   const sel = SOURCE_SYSTEMS.find(x => x.id === s.system);
@@ -1955,7 +1982,7 @@ function SrcSystem({ s, set }) {
         {list.map((c, i) => {
           const on = s.system === c.id;
           return (
-            <button key={c.id} onClick={() => set({ system: c.id })}
+            <button key={c.id} onClick={() => { set({ system: c.id }); onAdvance && onAdvance(); }}
               style={{ display: "flex", alignItems: "center", gap: 13, width: "100%", padding: "12px 14px", border: "none", borderTop: i ? "1px solid var(--line-2)" : "none", background: on ? "var(--bg-canvas)" : "transparent", cursor: "pointer", textAlign: "left", fontFamily: "inherit" }}
               onMouseEnter={e => { if (!on) e.currentTarget.style.background = "var(--panel-2)"; }}
               onMouseLeave={e => { if (!on) e.currentTarget.style.background = "transparent"; }}>
@@ -1986,7 +2013,7 @@ function SrcConnStatusDot({ status }) {
   return <span style={{ width: 7, height: 7, borderRadius: "50%", background: col, flexShrink: 0 }} />;
 }
 
-function SrcConnection({ s, set, sel }) {
+function SrcConnection({ s, set, sel, onAdvance }) {
   const conns = sel ? getConnections(sel.id, sel) : [];
   const [newOpen, setNewOpen] = useState(false);
   const createdNew = s.connection === "__new__";
@@ -2004,7 +2031,7 @@ function SrcConnection({ s, set, sel }) {
             {conns.map((cn, i) => {
               const on = s.connection === cn.id;
               return (
-                <button key={cn.id} onClick={() => set({ connection: cn.id })}
+                <button key={cn.id} onClick={() => { set({ connection: cn.id }); onAdvance && onAdvance(); }}
                   style={{ display: "flex", alignItems: "center", gap: 13, width: "100%", padding: "13px 14px", border: "none", borderTop: i ? "1px solid var(--line-2)" : "none", background: on ? "var(--panel)" : "transparent", cursor: "pointer", textAlign: "left", fontFamily: "inherit" }}
                   onMouseEnter={e => { if (!on) e.currentTarget.style.background = "var(--panel-2)"; }}
                   onMouseLeave={e => { if (!on) e.currentTarget.style.background = "transparent"; }}>
@@ -2487,6 +2514,34 @@ function autoMatchProp(srcName, props) {
   return bestScore > 0 ? best : null;
 }
 
+// Resolve a source object name → the most relevant graph node (entity).
+// Keyword aliases first, then fuzzy, then a deterministic *varied* fallback so
+// objects don't all collapse onto "Account".
+const NODE_ALIASES = [
+  [/incident|outage/, "Incident"], [/ticket|issue|bug|request/, "Ticket"], [/case|escalation/, "Case"],
+  [/article|knowledge|kb|faq/, "Knowledge"], [/conversation|message|thread|chat|email|reply/, "Interaction"],
+  [/envelope|agreement|contract|signature|nda/, "Contract"], [/recipient|signer|contact|person|attendee/, "Contact"],
+  [/lead|prospect|mql/, "Lead"], [/opportunity|deal|pipeline/, "Opportunity"],
+  [/task|todo|action|activity/, "Activity"], [/meeting|event|appointment/, "Meeting"], [/call|dial/, "Call"],
+  [/project|board|initiative|epic/, "Project"], [/account|company|organization|organisation|org|customer|workspace/, "Account"],
+  [/subscription|plan|license|seat/, "Subscription"], [/order|payment|invoice|billing|charge/, "Invoice"],
+  [/quote|estimate/, "Quote"], [/proposal|sow/, "Proposal"], [/renewal/, "Renewal"], [/campaign|blast|sequence/, "Campaign"],
+  [/product|sku|feature|item/, "Product"], [/audience|segment|list/, "Audience"], [/form|survey/, "Form"],
+  [/usage|telemetry|event_log|signal/, "Usage Event"], [/employee|agent|user|staff|rep/, "Employee"],
+];
+function resolveDestNode(objName, entNodes) {
+  if (!entNodes || !entNodes.length) return null;
+  const o = (objName || "").toLowerCase();
+  const byLabel = l => entNodes.find(n => (n.label || "").toLowerCase() === l.toLowerCase());
+  let m = byLabel(o) || entNodes.find(n => n.id === o);
+  if (m) return m;
+  for (let i = 0; i < NODE_ALIASES.length; i++) { if (NODE_ALIASES[i][0].test(o)) { const t = byLabel(NODE_ALIASES[i][1]); if (t) return t; } }
+  m = entNodes.find(n => { const nl = (n.label || "").toLowerCase(); return nl.length >= 4 && (nl.includes(o) || o.includes(nl)); });
+  if (m) return m;
+  let h = 0; for (let i = 0; i < o.length; i++) h = (h * 31 + o.charCodeAt(i)) >>> 0;
+  return entNodes[h % entNodes.length];
+}
+
 // ── Unstructured Map: map each discovered entity to a graph node + its props ───
 function SrcEntityMap({ s, set, groups, activeObj, sel, openCol, setOpenCol }) {
   const [q, setQ] = useState("");
@@ -2583,23 +2638,20 @@ function SrcEntityMap({ s, set, groups, activeObj, sel, openCol, setOpenCol }) {
           <code style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 13, color: "var(--ink)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{nm}</code>
         </div>
         <button onClick={() => setOpenCol && setOpenCol(ck)}
-          style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap", width: "100%", padding: "7px 10px", borderRadius: 8, borderWidth: 1, borderStyle: tlist.length || isOpen ? "solid" : "dashed", borderColor: isOpen ? "var(--ink)" : tlist.length ? "var(--line)" : "transparent", background: isOpen ? "var(--bg-canvas)" : "transparent", cursor: "pointer", fontFamily: "inherit", textAlign: "left", minHeight: 34 }}
-          onMouseEnter={e => { e.currentTarget.style.background = "var(--panel-2)"; if (!tlist.length && !isOpen) e.currentTarget.style.borderColor = "var(--line)"; }}
-          onMouseLeave={e => { if (!isOpen) e.currentTarget.style.background = "transparent"; if (!tlist.length && !isOpen) e.currentTarget.style.borderColor = "transparent"; }}>
+          style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap", width: "100%", padding: "7px 10px", borderRadius: 8, borderWidth: 1, borderStyle: tlist.length || isOpen ? "solid" : "dashed", borderColor: isOpen ? "var(--ink)" : "transparent", background: isOpen ? "var(--bg-canvas)" : "transparent", cursor: "pointer", fontFamily: "inherit", textAlign: "left", minHeight: 34 }}
+          onMouseEnter={e => { e.currentTarget.style.background = "var(--panel-2)"; if (!isOpen) e.currentTarget.style.borderColor = "var(--line)"; }}
+          onMouseLeave={e => { if (!isOpen) e.currentTarget.style.background = "transparent"; if (!isOpen) e.currentTarget.style.borderColor = "transparent"; }}>
           {tlist.length === 0
             ? <span style={{ fontSize: 12, color: "var(--ink-4)" }}>+ Add transformation</span>
             : tlist.map((t, j) => <span key={j} style={{ display: "inline-flex", alignItems: "center", gap: 4, fontFamily: "'JetBrains Mono', monospace", fontSize: 10.5, padding: "2px 7px", borderRadius: 5, background: "var(--chip)", border: "1px solid var(--line)", color: "var(--ink-2)" }}>{t.fn ? tfLabel(t.fn) : "function…"}</span>)}
-          <span style={{ marginLeft: "auto", color: "var(--ink-3)", flexShrink: 0, display: "flex" }} title="Edit transformations">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 013 3L7 19l-4 1 1-4 12.5-12.5z" /></svg>
-          </span>
         </button>
         <div style={{ textAlign: "center", color: (isNew || mapped) ? "var(--green)" : "var(--ink-4)", fontSize: 15 }}>→</div>
         {isNew
           ? <span style={{ display: "flex", alignItems: "center", gap: 9, padding: "7px 2px" }}><MapTypeGlyph type={c.type} size={22} /><code style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 12.5, color: "var(--ink)" }}>{nm}</code><MapBadge tone="var(--purple)">NEW</MapBadge></span>
-          : <CustomSelect value={mapped || ""} onChange={v => updateMap(c.col, v)} placeholder="Select property" options={destTabs[0].items} searchable searchPlaceholder="Search properties…"
+          : <CustomSelect className="csel-ghost" value={mapped || ""} onChange={v => updateMap(c.col, v)} placeholder="Select property" options={destTabs[0].items} searchable searchPlaceholder="Search properties…"
               renderTrigger={o => o.id && o.id !== "__new__"
                 ? <span style={{ display: "flex", alignItems: "center", gap: 9, minWidth: 0 }}><MapTypeGlyph type={o.type} size={22} /><span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 12.5, color: "var(--ink)", overflow: "hidden", textOverflow: "ellipsis" }}>{o.label}</span>{o.onEdge && <MapBadge tone="var(--gold)">{":" + o.onEdge}</MapBadge>}</span>
-                : <span style={{ color: o.id === "__new__" ? "var(--ink-2)" : "var(--ink-4)" }}>{o.label || "Select property"}</span>}
+                : <span style={{ fontSize: 12, color: o.id === "__new__" ? "var(--ink-2)" : "var(--ink-4)" }}>{o.label || "Select property"}</span>}
               renderOption={o => o.id && o.id !== "__new__"
                 ? <span style={{ display: "flex", alignItems: "center", gap: 9 }}><MapTypeGlyph type={o.type} size={20} /><span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 12.5 }}>{o.label}</span></span>
                 : <span style={{ color: o.id === "__new__" ? "var(--ink-2)" : "var(--ink-3)" }}>{o.label}</span>} />}
@@ -2666,26 +2718,11 @@ function SrcEntityMap({ s, set, groups, activeObj, sel, openCol, setOpenCol }) {
 
           {destId && (
             <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
-              <CustomSelect className="csel-auto" value={tab} onChange={setTab}
-                options={[
-                  { id: "all",      label: "All fields", count: cols.length },
-                  { id: "mapped",   label: "Mapped",     count: isNew ? cols.length : mappedN },
-                  { id: "unmapped", label: "Unmapped",   count: isNew ? 0 : cols.length - mappedN },
-                ]}
-                renderTrigger={o => <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                  <span style={{ fontSize: 13, color: "var(--ink)", fontWeight: 500 }}>{o.label}</span>
-                  <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 10.5, fontWeight: 600, padding: "1px 6px", borderRadius: 10, background: "var(--chip)", color: "var(--ink-3)" }}>{o.count}</span>
-                </span>}
-                renderOption={o => <span style={{ display: "flex", alignItems: "center", gap: 8, width: "100%" }}>
-                  <span style={{ flex: 1 }}>{o.label}</span>
-                  <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 10.5, fontWeight: 600, padding: "1px 6px", borderRadius: 10, background: "var(--chip)", color: "var(--ink-3)" }}>{o.count}</span>
-                </span>} />
-
               <div style={{ position: "relative" }}>
                 <button onClick={() => setFilterOpen(o => !o)}
                   style={{ display: "flex", alignItems: "center", gap: 8, padding: "0 13px", height: 34, borderRadius: 8, border: "1px solid " + (filterOpen || activeFilters.length ? "var(--ink)" : "var(--line)"), background: filterOpen ? "var(--bg-canvas)" : "var(--panel)", cursor: "pointer", fontFamily: "inherit", fontSize: 13, color: "var(--ink)", fontWeight: 500 }}>
                   <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M3 5h18M6 12h12M10 19h4" /></svg>
-                  Filter records
+                  Filter
                   {activeFilters.length > 0 && <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 10.5, fontWeight: 700, minWidth: 18, textAlign: "center", padding: "1px 6px", borderRadius: 10, background: "var(--ink)", color: "var(--panel)" }}>{activeFilters.length}</span>}
                 </button>
                 {filterOpen && current && (
@@ -3257,8 +3294,8 @@ function SrcObjectAgents({ s, set, groups, sel, agentPoolFor, fileMode }) {
   const [openPicker, setOpenPicker] = useState("");
   // Structured sources already have columns → agents/automations *enrich* records;
   // unstructured files need *extraction*. Both can be an agent OR an automation.
-  const stepTitle = fileMode ? "Extract fields" : "Extract data";
-  const ctaLabel = "+ Extract fields";
+  const stepTitle = fileMode ? "Extract fields" : "Enrich";
+  const ctaLabel = fileMode ? "+ Extract fields" : "+ Add Enrichment";
   const runBtn = (g, label, pressed) => (
     <button onClick={() => setOpenPicker(openPicker === g.name ? "" : g.name)} style={{ display: "inline-flex", alignItems: "center", gap: 6, fontFamily: "inherit", fontSize: 12.5, fontWeight: 500, color: pressed ? "var(--ink)" : "var(--ink-2)", background: pressed ? "var(--chip)" : "var(--panel)", border: "1px solid var(--line)", borderRadius: 8, padding: "6px 12px", cursor: "pointer", flexShrink: 0 }}>{label}</button>
   );
@@ -3388,15 +3425,29 @@ function SrcAgentOutputDrawer({ obj, agents, onClose }) {
   );
 }
 
-function SrcMapping({ s, set, groups, activeObj, nodeProps, node, sel, openCol, setOpenCol, eyebrow, title, desc, singleGroup, isEdit }) {
+function SrcMapping({ s, set, groups, activeObj, nodeProps, node, sel, openCol, setOpenCol, eyebrow, title, desc, singleGroup, isEdit, v2, verToggle }) {
   const [q, setQ] = useState("");
   const [tab, setTab] = useState("all");
   const [filterOpen, setFilterOpen] = useState(false);
   const [autoMapping, setAutoMapping] = useState(false);
+  const [mapNodeOpen, setMapNodeOpen] = useState(false);
+  const [mapNodeQ, setMapNodeQ] = useState("");
+  const [mapEdgeOpen, setMapEdgeOpen] = useState(false);
+  const [mapEdgeQ, setMapEdgeQ] = useState("");
+  const [chosenEdge, setChosenEdge] = useState("");
+  const [dests, setDests] = useState([]);      // v2: multiple destination tabs {key, kind, id, label}
+  const [activeKey, setActiveKey] = useState("");
+  const [hoverTab, setHoverTab] = useState("");
+  const [tabMenuKey, setTabMenuKey] = useState("");
+  const [editAttrKey, setEditAttrKey] = useState("");
+  const [editAttrVal, setEditAttrVal] = useState("");
+  const [headerMenuOpen, setHeaderMenuOpen] = useState(false);
+  const [typeMenuKey, setTypeMenuKey] = useState("");
+  const ATTR_TYPES = ["string", "string[]", "int", "float", "decimal", "bool", "timestamp", "date", "datetime", "uuid", "enum", "json"];
   const mapping = s.mapping || {};
   const transforms = s.transforms || {};
   const groupList = groups || [];
-  const mk = (g, c) => g + "::" + c;
+  const mk = (g, c) => (v2 ? activeKey + "::" : "") + g + "::" + c;
   const updateMap = (key, propId) => set({ mapping: Object.assign({}, mapping, (function () { var o = {}; o[key] = propId; return o; })()) });
   const GRID = "minmax(180px,1.3fr) minmax(190px,1.2fr) 34px minmax(190px,1.3fr)";
 
@@ -3409,20 +3460,104 @@ function SrcMapping({ s, set, groups, activeObj, nodeProps, node, sel, openCol, 
   const _objName = current ? (current.name || "").toLowerCase() : "";
   const [chosenDestId, setChosenDestId] = useState("");
   // Pre-resolve a destination node per object ONLY when editing a pre-created
-  // source (so it isn't empty). For brand-new sources, leave it unselected so
-  // the user explicitly picks the destination.
+  // source (non-v2 single-select path). v2 uses explicit Map Node/Edge tabs.
   useEffect(() => {
+    if (v2) return;
     if (!isEdit) { setChosenDestId(""); return; }
-    const obj = (current ? (current.name || "") : "").toLowerCase();
-    const match = _entNodes.find(n => n.label.toLowerCase() === obj)
-      || _entNodes.find(n => n.id === obj)
-      || (node && _entNodes.find(n => n.id === node.id))
-      || _entNodes.find(n => n.id === "contract") || _entNodes.find(n => n.id === "account")
-      || _entNodes[0];
+    const match = resolveDestNode(current ? current.name : "", _entNodes);
     setChosenDestId(match ? match.id : "");
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [current ? current.name : "", isEdit]);
-  const targetNode = _entNodes.find(n => n.id === chosenDestId) || null;
+  // Active destination (v2 = active tab; non-v2 = the single picker value).
+  const active = dests.find(d => d.key === activeKey) || null;
+  const destNodeId = v2 ? (active && active.kind === "node" ? active.id : "") : chosenDestId;
+  const addDest = (kind, id, label) => {
+    const key = kind + ":" + id;
+    setDests(ds => ds.some(d => d.key === key) ? ds : ds.concat([{ key, kind, id, label }]));
+    setActiveKey(key);
+  };
+  const removeDest = key => { setDests(ds => { const next = ds.filter(d => d.key !== key); setActiveKey(a => a === key ? (next[0] ? next[0].key : "") : a); return next; }); };
+  // For pre-created (edit) structured sources, seed Map columns v2 with the
+  // resolved destination node + the relevant edges leaving that node, so the
+  // step isn't empty. New sources stay empty (the user adds tabs manually).
+  useEffect(() => {
+    if (!v2 || !isEdit || !current) { return; }
+    const winEdges = (typeof window !== "undefined" && window.EDGES) || [];
+    const resolveNode = g => resolveDestNode(g.name, _entNodes);
+    const edgesFor = nodeId => winEdges.filter(e => e.s === nodeId).slice(0, 3);
+    // ── Seed tabs for the active object ──
+    const node = resolveNode(current);
+    if (!node) { setDests([]); setActiveKey(""); return; }
+    const seeded = [{ key: "node:" + node.id, kind: "node", id: node.id, label: node.label }];
+    edgesFor(node.id).forEach(e => { const k = e.label + ":" + e.s + ":" + e.t; seeded.push({ key: "edge:" + k, kind: "edge", id: k, label: e.label }); });
+    setDests(seeded);
+    setActiveKey(seeded[0].key);
+    // ── Pre-fill realistic mappings for EVERY object so the step looks complete ──
+    const nm = Object.assign({}, s.mapping2 || {});
+    const nt = Object.assign({}, s.transforms2 || {});
+    const hashStr = x => { let h = 0; for (let i = 0; i < (x || "").length; i++) h = (h * 31 + x.charCodeAt(i)) >>> 0; return h; };
+    // A type-appropriate transformation so rows show variety (not always empty).
+    const tfForType = t => {
+      if (/date|time/.test(t)) return "fmt_date";
+      if (/int|float|decimal|number/.test(t)) return "round";
+      if (/string|text|uuid/.test(t)) return ["trim", "lower", "upper"][0];
+      return null;
+    };
+    (groups || []).forEach(g => {
+      const n = resolveNode(g);
+      if (!n || !window.generateProps) return;
+      const props = window.generateProps(n).map(p => ({ id: p.name, label: p.name, type: p.type }));
+      const cols = g.cols.concat(agentFieldsFor(s, g.name));
+      const nodeKey = "node:" + n.id;
+      // node tab — source field → best-matching destination property (+ a couple transforms)
+      cols.forEach((c, ci) => {
+        const hit = autoMatchProp(c.col, props);
+        if (hit) nm[nodeKey + "::" + g.name + "::" + c.col] = hit.id;
+        // sprinkle a transform on ~1 in 5 mapped rows, deterministically
+        if (hit && (hashStr(g.name + c.col) % 5 === 0)) { const fn = tfForType(c.type); if (fn) nt[nodeKey + "::" + g.name + "::" + c.col] = [{ fn }]; }
+      });
+      // edge tabs — FK key + a VARIED, edge-specific set of attributes
+      edgesFor(n.id).forEach(e => {
+        const ek = "edge:" + (e.label + ":" + e.s + ":" + e.t);
+        const fk = cols.find(c => /_id$/.test(c.col)) || cols[0];
+        if (fk) nm[ek + "::" + g.name + "::__to__"] = fk.col;
+        // each edge gets a different slice of columns so attributes vary per edge
+        const pool = cols.filter(c => c !== fk);
+        if (!pool.length) return;
+        const h = hashStr(e.label + ":" + g.name);
+        const count = 1 + (h % Math.min(3, pool.length));
+        for (let i = 0; i < count; i++) {
+          const c = pool[(h + i * 7) % pool.length];
+          nm[ek + "::" + g.name + "::" + c.col] = c.col;
+          if (i === 0) { const fn = tfForType(c.type); if (fn) nt[ek + "::" + g.name + "::" + c.col] = [{ fn }]; }
+        }
+      });
+    });
+    set({ mapping: nm, transforms: nt });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [v2, isEdit, current ? current.name : ""]);
+  const headerMenuEl = (
+    <span style={{ position: "relative", marginLeft: "auto", display: "flex" }}>
+      <button onClick={() => setHeaderMenuOpen(o => !o)} title="Options" style={{ width: 28, height: 28, borderRadius: 7, border: "none", background: "transparent", cursor: "pointer", color: "var(--ink-3)", display: "flex", alignItems: "center", justifyContent: "center" }}
+        onMouseEnter={e => e.currentTarget.style.background = "var(--panel-2)"} onMouseLeave={e => e.currentTarget.style.background = "transparent"}>
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><circle cx="8" cy="3" r="1.4" /><circle cx="8" cy="8" r="1.4" /><circle cx="8" cy="13" r="1.4" /></svg>
+      </button>
+      {headerMenuOpen && active && (
+        <>
+          <div style={{ position: "fixed", inset: 0, zIndex: 410 }} onClick={() => setHeaderMenuOpen(false)} />
+          <div style={{ position: "absolute", top: "calc(100% + 6px)", right: 0, zIndex: 411, minWidth: 150, background: "var(--panel)", border: "1px solid var(--line)", borderRadius: 9, boxShadow: "0 12px 32px rgba(40,32,18,0.16)", padding: 4 }}>
+            <button onClick={() => { removeDest(active.key); setHeaderMenuOpen(false); }}
+              style={{ display: "flex", alignItems: "center", gap: 8, width: "100%", padding: "8px 10px", borderRadius: 6, border: "none", background: "transparent", cursor: "pointer", fontFamily: "inherit", fontSize: 13, color: "var(--coral)", textAlign: "left" }}
+              onMouseEnter={e => e.currentTarget.style.background = "var(--panel-2)"} onMouseLeave={e => e.currentTarget.style.background = "transparent"}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6" /></svg>
+              Delete
+            </button>
+          </div>
+        </>
+      )}
+    </span>
+  );
+  const targetNode = _entNodes.find(n => n.id === destNodeId) || null;
   const _tProps = targetNode && window.generateProps
     ? window.generateProps(targetNode).map(p => ({ id: p.name, label: p.name, type: p.type }))
     : (nodeProps || []).map(p => ({ id: p.id, label: p.id, type: p.type }));
@@ -3486,19 +3621,16 @@ function SrcMapping({ s, set, groups, activeObj, nodeProps, node, sel, openCol, 
             {col.col === "id" && !col.agent && <MapBadge tone="var(--green)">PK</MapBadge>}
           </div>
           <button onClick={() => setOpenCol(key)}
-            style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap", width: "100%", padding: "7px 10px", borderRadius: 8, borderWidth: 1, borderStyle: tlist.length || isOpen ? "solid" : "dashed", borderColor: isOpen ? "var(--ink)" : tlist.length ? "var(--line)" : "transparent", background: isOpen ? "var(--bg-canvas)" : "transparent", cursor: "pointer", fontFamily: "inherit", textAlign: "left", minHeight: 34 }}
-            onMouseEnter={e => { e.currentTarget.style.background = "var(--panel-2)"; if (!tlist.length && !isOpen) e.currentTarget.style.borderColor = "var(--line)"; }}
-            onMouseLeave={e => { if (!isOpen) e.currentTarget.style.background = "transparent"; if (!tlist.length && !isOpen) e.currentTarget.style.borderColor = "transparent"; }}>
+            style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap", width: "100%", padding: "7px 10px", borderRadius: 8, borderWidth: 1, borderStyle: tlist.length || isOpen ? "solid" : "dashed", borderColor: isOpen ? "var(--ink)" : "transparent", background: isOpen ? "var(--bg-canvas)" : "transparent", cursor: "pointer", fontFamily: "inherit", textAlign: "left", minHeight: 34 }}
+            onMouseEnter={e => { e.currentTarget.style.background = "var(--panel-2)"; if (!isOpen) e.currentTarget.style.borderColor = "var(--line)"; }}
+            onMouseLeave={e => { if (!isOpen) e.currentTarget.style.background = "transparent"; if (!isOpen) e.currentTarget.style.borderColor = "transparent"; }}>
             {tlist.length === 0
               ? <span style={{ fontSize: 12, color: "var(--ink-4)" }}>+ Add transformation</span>
               : tlist.map((t, j) => <span key={j} style={{ display: "inline-flex", alignItems: "center", gap: 4, fontFamily: "'JetBrains Mono', monospace", fontSize: 10.5, padding: "2px 7px", borderRadius: 5, background: "var(--chip)", border: "1px solid var(--line)", color: "var(--ink-2)" }}>{t.fn ? tfLabel(t.fn) : "function…"}</span>)}
-            <span style={{ marginLeft: "auto", color: "var(--ink-3)", flexShrink: 0, display: "flex" }} title="Edit transformations">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 013 3L7 19l-4 1 1-4 12.5-12.5z" /></svg>
-            </span>
           </button>
           <div style={{ textAlign: "center", color: mapped ? "var(--green)" : "var(--ink-4)", fontSize: 15 }}>→</div>
-          <CustomSelect value={mapped || ""} onChange={v => updateMap(key, v)} placeholder="Select field" options={destTabs[0].items} searchable searchPlaceholder="Search properties…"
-            renderTrigger={o => o.id && o.id !== "__new__" ? <span style={{ display: "flex", alignItems: "center", gap: 9, minWidth: 0 }}><MapTypeGlyph type={o.type} size={22} /><span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 12.5, color: "var(--ink)", overflow: "hidden", textOverflow: "ellipsis" }}>{o.label}</span>{o.onEdge && <MapBadge tone="var(--gold)">{":" + o.onEdge}</MapBadge>}{o.id === "id" && <><MapBadge tone="var(--green)">PK</MapBadge><MapBadge>UK</MapBadge></>}</span> : <span style={{ color: o.id === "__new__" ? "var(--ink-2)" : "var(--ink-4)" }}>{o.label || "Select field"}</span>}
+          <CustomSelect className="csel-ghost" value={mapped || ""} onChange={v => updateMap(key, v)} placeholder="Select property" options={destTabs[0].items} searchable searchPlaceholder="Search properties…"
+            renderTrigger={o => o.id && o.id !== "__new__" ? <span style={{ display: "flex", alignItems: "center", gap: 9, minWidth: 0 }}><MapTypeGlyph type={o.type} size={22} /><span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 12.5, color: "var(--ink)", overflow: "hidden", textOverflow: "ellipsis" }}>{o.label}</span>{o.onEdge && <MapBadge tone="var(--gold)">{":" + o.onEdge}</MapBadge>}{o.id === "id" && <><MapBadge tone="var(--green)">PK</MapBadge><MapBadge>UK</MapBadge></>}</span> : <span style={{ fontSize: 12, color: o.id === "__new__" ? "var(--ink-2)" : "var(--ink-4)" }}>{o.label || "Select property"}</span>}
             renderOption={o => o.id && o.id !== "__new__" ? <span style={{ display: "flex", alignItems: "center", gap: 9 }}><MapTypeGlyph type={o.type} size={20} /><span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 12.5 }}>{o.label}</span></span> : <span style={{ color: o.id === "__new__" ? "var(--ink-2)" : "var(--ink-3)" }}>{o.label}</span>} />
         </div>
       </div>
@@ -3508,7 +3640,7 @@ function SrcMapping({ s, set, groups, activeObj, nodeProps, node, sel, openCol, 
   function tableHeader(round) {
     return (
       <div style={{ display: "grid", gridTemplateColumns: GRID, gap: 12, padding: "10px 16px", background: "var(--panel-2)", borderBottom: "1px solid var(--line-2)", borderRadius: round ? "11px 11px 0 0" : "0", fontFamily: "'JetBrains Mono', monospace", fontSize: 10, letterSpacing: "0.5px", textTransform: "uppercase", color: "var(--ink-3)" }}>
-        <div>Source fields</div><div>Transformations</div><div></div><div>Destination fields</div>
+        <div>Source property</div><div>Transformations</div><div></div><div>Destination properties</div>
       </div>
     );
   }
@@ -3537,8 +3669,8 @@ function SrcMapping({ s, set, groups, activeObj, nodeProps, node, sel, openCol, 
             {chain.length === 0 && <span style={{ fontSize: 11.5, color: "var(--ink-4)" }}>passthrough</span>}
           </button>
           <div style={{ textAlign: "center", color: mapped ? "var(--green)" : "var(--ink-4)", fontSize: 15 }}>→</div>
-          <CustomSelect value={mapped || ""} onChange={v => updateMap(key, v)} placeholder="Select field" options={destTabs[0].items} searchable searchPlaceholder="Search properties…"
-            renderTrigger={o => o.id && o.id !== "__new__" ? <span style={{ display: "flex", alignItems: "center", gap: 9, minWidth: 0 }}><MapTypeGlyph type={o.type} size={22} /><span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 12.5, color: "var(--ink)", overflow: "hidden", textOverflow: "ellipsis" }}>{o.label}</span>{o.onEdge && <MapBadge tone="var(--gold)">{":" + o.onEdge}</MapBadge>}</span> : <span style={{ color: o.id === "__new__" ? "var(--ink-2)" : "var(--ink-4)" }}>{o.label || "Select field"}</span>}
+          <CustomSelect className="csel-ghost" value={mapped || ""} onChange={v => updateMap(key, v)} placeholder="Select property" options={destTabs[0].items} searchable searchPlaceholder="Search properties…"
+            renderTrigger={o => o.id && o.id !== "__new__" ? <span style={{ display: "flex", alignItems: "center", gap: 9, minWidth: 0 }}><MapTypeGlyph type={o.type} size={22} /><span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 12.5, color: "var(--ink)", overflow: "hidden", textOverflow: "ellipsis" }}>{o.label}</span>{o.onEdge && <MapBadge tone="var(--gold)">{":" + o.onEdge}</MapBadge>}</span> : <span style={{ fontSize: 12, color: o.id === "__new__" ? "var(--ink-2)" : "var(--ink-4)" }}>{o.label || "Select property"}</span>}
             renderOption={o => o.id && o.id !== "__new__" ? <span style={{ display: "flex", alignItems: "center", gap: 9 }}><MapTypeGlyph type={o.type} size={20} /><span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 12.5 }}>{o.label}</span></span> : <span style={{ color: o.id === "__new__" ? "var(--ink-2)" : "var(--ink-3)" }}>{o.label}</span>} />
         </div>
       </div>
@@ -3552,13 +3684,133 @@ function SrcMapping({ s, set, groups, activeObj, nodeProps, node, sel, openCol, 
     : `Map ${sel ? sel.name : "source"} fields to ${targetNode?.label || "the node"}`);
 
   // Node picker options
-  const nodePickerOpts = _entNodes.map(n => ({ id: n.id, label: n.label }));
+  const nodePickerOpts = _entNodes.map(n => ({ id: n.id, label: n.label, node: n }));
+  // Edge types available to map a source object onto (deduped by relationship label).
+  const _nodeLabel = id => { const m = _winNodes.find(n => n.id === id); return m ? m.label : id; };
+  const edgePickerOpts = (function () {
+    const seen = {}, out = [];
+    ((typeof window !== "undefined" && window.EDGES) || []).forEach(e => {
+      const key = e.label + ":" + e.s + ":" + e.t;
+      if (seen[key]) return; seen[key] = 1;
+      out.push({ id: key, label: e.label, from: _nodeLabel(e.s), to: _nodeLabel(e.t), fromId: e.s, toId: e.t });
+    });
+    return out.sort((a, b) => a.label.localeCompare(b.label));
+  })();
 
   return (
-    <StepWrap wide title={stepTitle}>
+    <StepWrap wide title={stepTitle} titleRight={verToggle ? (
+      <div style={{ display: "inline-flex", border: "1px solid var(--line)", borderRadius: 8, background: "var(--panel)", padding: 2, flexShrink: 0 }}>
+        {["v1", "v2"].map(vv => { const on = verToggle.value === vv; return (
+          <button key={vv} onClick={() => verToggle.onChange(vv)}
+            style={{ padding: "4px 12px", border: "none", borderRadius: 6, background: on ? "var(--chip)" : "transparent", color: on ? "var(--ink)" : "var(--ink-3)", fontWeight: on ? 600 : 500, fontSize: 12, fontFamily: "inherit", cursor: "pointer" }}>{vv}</button>
+        ); })}
+      </div>
+    ) : null}>
 
-      {/* ── Source → Destination inline row ───────────────────────────────── */}
-      <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 20 }}>
+      {/* ── v2: source object card with Add Node / Add Edge CTAs ──────────── */}
+      {v2 && (
+        <div style={{ display: "flex", alignItems: "center", gap: 14, padding: "14px 18px", border: "1px solid var(--line)", borderRadius: 12, background: "var(--panel)", marginBottom: 20 }}>
+          <span style={{ width: 30, height: 30, borderRadius: 7, background: "var(--bg-canvas)", border: "1px solid var(--line)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, overflow: "hidden" }}>
+            {sel && <SrcConnectorLogo c={sel} size={17} />}
+          </span>
+          <div style={{ minWidth: 0, flex: 1 }}>
+            <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 14, fontWeight: 600, color: "var(--ink)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{current ? current.name : (sel ? sel.name : "—")}</div>
+            <div style={{ fontSize: 12, color: "var(--ink-3)", marginTop: 2 }}>{(current && current.type ? current.type : "Object") + " · " + (current ? current.cols.length : 0) + " columns"}</div>
+          </div>
+          <div style={{ display: "flex", alignItems: "center", gap: 10, flexShrink: 0 }}>
+            <div style={{ position: "relative" }}>
+              <button onClick={() => setMapNodeOpen(o => !o)}
+                style={{ display: "inline-flex", alignItems: "center", gap: 7, height: 36, padding: "0 14px", borderRadius: 9, border: "1px solid " + (mapNodeOpen ? "var(--ink)" : "var(--line)"), background: mapNodeOpen ? "var(--bg-canvas)" : "var(--panel)", cursor: "pointer", fontFamily: "inherit", fontSize: 13, fontWeight: 500, color: "var(--ink)" }}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><circle cx="12" cy="12" r="8" /><path d="M12 9v6M9 12h6" /></svg>
+                Map Node
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ marginLeft: 1, color: "var(--ink-3)", transform: mapNodeOpen ? "rotate(180deg)" : "none", transition: "transform 120ms" }}><path d="M6 9l6 6 6-6" /></svg>
+              </button>
+              {mapNodeOpen && (
+                <>
+                  <div style={{ position: "fixed", inset: 0, zIndex: 400 }} onClick={() => { setMapNodeOpen(false); setMapNodeQ(""); }} />
+                  <div style={{ position: "absolute", top: "calc(100% + 6px)", right: 0, zIndex: 401, width: 320, maxHeight: 420, display: "flex", flexDirection: "column", background: "var(--panel)", border: "1px solid var(--line)", borderRadius: 12, boxShadow: "0 16px 44px rgba(40,32,18,0.18)", padding: 6 }}>
+                    <div style={{ position: "relative", marginBottom: 4 }}>
+                      <span style={{ position: "absolute", left: 11, top: "50%", transform: "translateY(-50%)", color: "var(--ink-3)", display: "flex" }}>
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7"><circle cx="11" cy="11" r="7" /><path d="M21 21l-4-4" /></svg>
+                      </span>
+                      <input autoFocus className="winput" style={{ paddingLeft: 34, height: 38 }} placeholder="Search nodes…" value={mapNodeQ} onChange={e => setMapNodeQ(e.target.value)} />
+                    </div>
+                    <div style={{ overflowY: "auto" }}>
+                    {nodePickerOpts.filter(o => !mapNodeQ || o.label.toLowerCase().includes(mapNodeQ.toLowerCase())).map(o => {
+                      const sel = dests.some(d => d.kind === "node" && d.id === o.id); return (
+                      <button key={o.id} onClick={() => { addDest("node", o.id, o.label); setMapNodeOpen(false); setMapNodeQ(""); }}
+                        style={{ display: "flex", alignItems: "center", gap: 9, width: "100%", padding: "8px 10px", borderRadius: 7, border: "none", background: sel ? "var(--chip)" : "transparent", cursor: "pointer", fontFamily: "inherit", textAlign: "left" }}
+                        onMouseEnter={e => { if (!sel) e.currentTarget.style.background = "var(--panel-2)"; }}
+                        onMouseLeave={e => { if (!sel) e.currentTarget.style.background = "transparent"; }}>
+                        <span style={{ flexShrink: 0, display: "flex" }}>{(typeof window !== "undefined" && window.ListGlyph) ? <window.ListGlyph node={o.node} size={18} /> : null}</span>
+                        <span style={{ flex: 1, fontFamily: "'JetBrains Mono', monospace", fontSize: 12.5, color: "var(--ink)" }}>{o.label}</span>
+                        {sel && <span style={{ color: "var(--green)", fontWeight: 700, fontSize: 11 }}>✓</span>}
+                      </button>
+                    ); })}
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
+            <div style={{ position: "relative" }}>
+              <button onClick={() => setMapEdgeOpen(o => !o)}
+                style={{ display: "inline-flex", alignItems: "center", gap: 7, height: 36, padding: "0 14px", borderRadius: 9, border: "1px solid " + (mapEdgeOpen ? "var(--ink)" : "var(--line)"), background: mapEdgeOpen ? "var(--bg-canvas)" : "var(--panel)", cursor: "pointer", fontFamily: "inherit", fontSize: 13, fontWeight: 500, color: "var(--ink)" }}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><circle cx="6" cy="12" r="2.4" /><circle cx="18" cy="12" r="2.4" /><line x1="8.4" y1="12" x2="15.6" y2="12" /></svg>
+                Map Edge
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ marginLeft: 1, color: "var(--ink-3)", transform: mapEdgeOpen ? "rotate(180deg)" : "none", transition: "transform 120ms" }}><path d="M6 9l6 6 6-6" /></svg>
+              </button>
+              {mapEdgeOpen && (
+                <>
+                  <div style={{ position: "fixed", inset: 0, zIndex: 400 }} onClick={() => { setMapEdgeOpen(false); setMapEdgeQ(""); }} />
+                  <div style={{ position: "absolute", top: "calc(100% + 6px)", right: 0, zIndex: 401, width: 340, maxHeight: 420, display: "flex", flexDirection: "column", background: "var(--panel)", border: "1px solid var(--line)", borderRadius: 12, boxShadow: "0 16px 44px rgba(40,32,18,0.18)", padding: 6 }}>
+                    <div style={{ position: "relative", marginBottom: 4 }}>
+                      <span style={{ position: "absolute", left: 11, top: "50%", transform: "translateY(-50%)", color: "var(--ink-3)", display: "flex" }}>
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7"><circle cx="11" cy="11" r="7" /><path d="M21 21l-4-4" /></svg>
+                      </span>
+                      <input autoFocus className="winput" style={{ paddingLeft: 34, height: 38 }} placeholder="Search edges…" value={mapEdgeQ} onChange={e => setMapEdgeQ(e.target.value)} />
+                    </div>
+                    <div style={{ overflowY: "auto" }}>
+                      {edgePickerOpts.filter(o => !mapEdgeQ || (o.label + " " + o.from + " " + o.to).toLowerCase().includes(mapEdgeQ.toLowerCase())).map(o => {
+                        const sel = dests.some(d => d.kind === "edge" && d.id === o.id); return (
+                        <button key={o.id} onClick={() => { addDest("edge", o.id, o.label); setMapEdgeOpen(false); setMapEdgeQ(""); }}
+                          style={{ display: "flex", alignItems: "center", gap: 10, width: "100%", padding: "9px 11px", borderRadius: 8, border: "none", background: sel ? "var(--chip)" : "transparent", cursor: "pointer", fontFamily: "inherit", textAlign: "left" }}
+                          onMouseEnter={e => { if (!sel) e.currentTarget.style.background = "var(--panel-2)"; }}
+                          onMouseLeave={e => { if (!sel) e.currentTarget.style.background = "transparent"; }}>
+                          <span style={{ flex: 1, minWidth: 0 }}>
+                            <span style={{ display: "block", fontFamily: "'JetBrains Mono', monospace", fontSize: 13, fontWeight: 600, color: "var(--ink)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>:{o.label}</span>
+                            <span style={{ display: "block", fontFamily: "'JetBrains Mono', monospace", fontSize: 10.5, color: "var(--ink-4)", marginTop: 2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{o.from} → {o.to}</span>
+                          </span>
+                          {sel && <span style={{ color: "var(--green)", fontWeight: 700, fontSize: 12, flexShrink: 0 }}>✓</span>}
+                        </button>
+                      ); })}
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── v2: wrap mapping content in a tabbed card (tab = selected node) ── */}
+      <div style={(v2 && dests.length) ? { border: "1px solid var(--line)", borderRadius: 12, background: "var(--panel)", overflow: "visible", marginTop: 4 } : undefined}>
+        {(v2 && dests.length > 0) && (
+          <div style={{ display: "flex", gap: 2, padding: "0 12px", borderBottom: "1px solid var(--line)", background: "var(--panel)", borderRadius: "12px 12px 0 0", overflowX: "auto" }}>
+            {dests.map(d => { const on = d.key === activeKey; return (
+              <div key={d.key} onClick={() => setActiveKey(d.key)}
+                style={{ display: "flex", alignItems: "center", gap: 6, padding: "14px 14px", borderBottom: "2px solid " + (on ? "var(--ink)" : "transparent"), cursor: "pointer", fontFamily: "var(--sans)", whiteSpace: "nowrap" }}>
+                {d.kind === "node"
+                  ? <span style={{ display: "flex", flexShrink: 0 }}>{(typeof window !== "undefined" && window.ListGlyph) ? <window.ListGlyph node={_entNodes.find(n => n.id === d.id) || { id: d.id, label: d.label, type: "entity" }} size={19} /> : null}</span>
+                  : <span style={{ display: "flex", flexShrink: 0, color: on ? "var(--ink-2)" : "var(--ink-4)" }}><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><circle cx="6" cy="12" r="2.4" /><circle cx="18" cy="12" r="2.4" /><line x1="8.4" y1="12" x2="15.6" y2="12" /></svg></span>}
+                <span style={{ fontFamily: "var(--sans)", fontSize: 13, fontWeight: on ? 600 : 500, letterSpacing: "0.3px", textTransform: "uppercase", color: on ? "var(--ink)" : "var(--ink-2)" }}>{d.label}</span>
+              </div>
+            ); })}
+          </div>
+        )}
+        <div style={(v2 && dests.length) ? { padding: 18 } : undefined}>
+
+      {/* ── Source → Destination inline row (hidden in v2 — already implied) ── */}
+      {!v2 && <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 20 }}>
         {/* Source: read-only chip */}
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 9, letterSpacing: "0.6px", textTransform: "uppercase", color: "var(--ink-4)", marginBottom: 5 }}>Source Object</div>
@@ -3601,33 +3853,46 @@ function SrcMapping({ s, set, groups, activeObj, nodeProps, node, sel, openCol, 
             renderOption={o => <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 12.5 }}>{o.label}</span>}
           />
         </div>
-      </div>
+      </div>}
+
+      {/* ── v2 edge tab: foreign key linking to the destination node ───────── */}
+      {v2 && active && active.kind === "edge" && (() => {
+        const ae = edgePickerOpts.find(o => o.id === active.id) || {};
+        const destNode = _entNodes.find(n => n.id === ae.toId) || _winNodes.find(n => n.id === ae.toId) || null;
+        const destProps = (destNode && window.generateProps) ? window.generateProps(destNode) : [];
+        const destPk = (destProps.find(p => p.pk) || destProps[0] || {}).name || "id";
+        const norm = x => (x || "").toLowerCase().replace(/[^a-z0-9]/g, "");
+        const toSuggest = (allFields.find(c => norm(c.col) === norm(ae.to) + "id") || {}).col || "";
+        const toKey = mapping[mk(current.name, "__to__")] || toSuggest;
+        const fromNode = _entNodes.find(n => n.id === ae.fromId) || _winNodes.find(n => n.id === ae.fromId) || null;
+        return (
+          <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", padding: "2px", marginBottom: 16 }}>
+            <span style={{ fontSize: 16, fontWeight: 600, color: "var(--ink)" }}>{ae.from}</span>
+            <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 10.5, fontWeight: 700, letterSpacing: "0.3px", color: "var(--ink-3)", background: "var(--panel)", border: "1px solid var(--line)", padding: "3px 9px", borderRadius: 20 }}>:{ae.label}</span>
+            <span style={{ fontSize: 16, fontWeight: 600, color: "var(--ink)" }}>{ae.to}</span>
+            {headerMenuEl}
+          </div>
+        );
+      })()}
+
+      {/* ── v2 node tab: destination node summary (consistent with edge) ───── */}
+      {v2 && active && active.kind === "node" && destNodeId && (
+        <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "2px", marginBottom: 16 }}>
+          <span style={{ fontSize: 16, fontWeight: 600, color: "var(--ink)" }}>Map Properties</span>
+          {headerMenuEl}
+        </div>
+      )}
 
       {/* Gate: field table only appears after destination is chosen */}
       {/* toolbar + mapping table — only shown once destination is selected */}
-      {chosenDestId && <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
-        {/* field-view dropdown (defaults to All fields; width hugs its text) */}
-        <CustomSelect className="csel-auto" value={tab} onChange={setTab}
-          options={[
-            { id: "all",      label: "All fields", count: total },
-            { id: "mapped",   label: "Mapped",     count: mappedCount },
-            { id: "unmapped", label: "Unmapped",   count: total - mappedCount },
-          ]}
-          renderTrigger={o => <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <span style={{ fontSize: 13, color: "var(--ink)", fontWeight: 500 }}>{o.label}</span>
-            <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 10.5, fontWeight: 600, padding: "1px 6px", borderRadius: 10, background: "var(--chip)", color: "var(--ink-3)" }}>{o.count}</span>
-          </span>}
-          renderOption={o => <span style={{ display: "flex", alignItems: "center", gap: 8, width: "100%" }}>
-            <span style={{ flex: 1 }}>{o.label}</span>
-            <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 10.5, fontWeight: 600, padding: "1px 6px", borderRadius: 10, background: "var(--chip)", color: "var(--ink-3)" }}>{o.count}</span>
-          </span>} />
+      {(destNodeId || (v2 && active && active.kind === "edge")) && <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
 
         {/* filter records */}
         <div style={{ position: "relative" }}>
           <button onClick={() => setFilterOpen(o => !o)}
             style={{ display: "flex", alignItems: "center", gap: 8, padding: "0 13px", height: 34, borderRadius: 8, border: "1px solid " + (filterOpen || activeFilters.length ? "var(--ink)" : "var(--line)"), background: filterOpen ? "var(--bg-canvas)" : "var(--panel)", cursor: "pointer", fontFamily: "inherit", fontSize: 13, color: "var(--ink)", fontWeight: 500 }}>
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M3 5h18M6 12h12M10 19h4" /></svg>
-            Filter records
+                  Filter
             {activeFilters.length > 0 && <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 10.5, fontWeight: 700, minWidth: 18, textAlign: "center", padding: "1px 6px", borderRadius: 10, background: "var(--ink)", color: "var(--panel)" }}>{activeFilters.length}</span>}
           </button>
           {filterOpen && current && (
@@ -3645,13 +3910,13 @@ function SrcMapping({ s, set, groups, activeObj, nodeProps, node, sel, openCol, 
           Transformed field
         </button>
 
-        <button onClick={autoMap} disabled={autoMapping} title="Auto-map fields to destination properties with AI"
+        {!(v2 && active && active.kind === "edge") && <button onClick={autoMap} disabled={autoMapping} title="Auto-map fields to destination properties with AI"
           style={{ display: "flex", alignItems: "center", gap: 7, marginLeft: "auto", padding: "0 14px", height: 34, borderRadius: 8, border: "1px solid var(--line)", background: "var(--panel)", cursor: autoMapping ? "default" : "pointer", fontFamily: "inherit", fontSize: 13, color: "var(--ink)", fontWeight: 500 }}>
           <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M12 2.2l1.9 6.4a2 2 0 0 0 1.3 1.3l6.4 1.9-6.4 1.9a2 2 0 0 0-1.3 1.3L12 21.8l-1.9-6.4a2 2 0 0 0-1.3-1.3L2.4 12.2l6.4-1.9a2 2 0 0 0 1.3-1.3L12 2.2z" /></svg>
           {autoMapping ? "Mapping…" : "Auto Map"}
-        </button>
+        </button>}
 
-        <div style={{ position: "relative", marginLeft: 10, width: 240 }}>
+        <div style={{ position: "relative", marginLeft: (v2 && active && active.kind === "edge") ? "auto" : 10, width: 240 }}>
           <span style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", color: "var(--ink-3)", display: "flex" }}>
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7"><circle cx="11" cy="11" r="7" /><path d="M21 21l-4-4" /></svg>
           </span>
@@ -3659,7 +3924,7 @@ function SrcMapping({ s, set, groups, activeObj, nodeProps, node, sel, openCol, 
         </div>
       </div>}
 
-      {chosenDestId && <>
+      {destNodeId && <>
       {/* active record-filter summary */}
       {activeFilters.length > 0 && (
         <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", marginBottom: 12, padding: "9px 12px", border: "1px solid var(--line)", borderRadius: 9, background: "var(--bg-canvas)" }}>
@@ -3696,7 +3961,7 @@ function SrcMapping({ s, set, groups, activeObj, nodeProps, node, sel, openCol, 
         );
         const empty = sourceVisible.length === 0 && agentVisible.length === 0 && tfields.length === 0;
         return (
-          <div style={{ border: "1px solid var(--line)", borderRadius: 11, background: "var(--panel)", overflow: "hidden" }}>
+          <div style={{ border: "1px solid var(--line)", borderRadius: 11, background: "var(--panel)", overflow: v2 ? "visible" : "hidden" }}>
             {tableHeader(true)}
             {hasAgents ? (
               <>
@@ -3717,6 +3982,81 @@ function SrcMapping({ s, set, groups, activeObj, nodeProps, node, sel, openCol, 
         );
       })()}
       </>}
+
+      {/* ── v2 edge tab: source fields → editable Attributes ──────────────── */}
+      {v2 && active && active.kind === "edge" && (
+        <div style={{ border: "1px solid var(--line)", borderRadius: 11, background: "var(--panel)", overflow: "visible" }}>
+          <div style={{ display: "grid", gridTemplateColumns: GRID, gap: 12, padding: "10px 16px", background: "var(--panel-2)", borderBottom: "1px solid var(--line-2)", borderRadius: "11px 11px 0 0", fontFamily: "'JetBrains Mono', monospace", fontSize: 10, letterSpacing: "0.5px", textTransform: "uppercase", color: "var(--ink-3)" }}>
+            <div>Source fields</div><div>Transformations</div><div></div><div>Attributes</div>
+          </div>
+          {allFields.filter(colVisible).map((col, i) => {
+            const key = mk(current.name, col.col);
+            const val = mapping[key];
+            const editing = editAttrKey === key;
+            return (
+              <div key={key} style={{ display: "grid", gridTemplateColumns: GRID, gap: 12, padding: "12px 16px", alignItems: "center", borderTop: i ? "1px solid var(--line-2)" : "none" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}>
+                  <MapTypeGlyph type={col.type} />
+                  <code style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 13, color: "var(--ink)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{col.label || col.col}</code>
+                </div>
+                {(() => { const tlist = transforms[key] || []; return (
+                <button onClick={() => setOpenCol(current.name + "::" + col.col)} style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap", width: "100%", padding: "7px 10px", borderRadius: 8, borderWidth: 1, borderStyle: tlist.length ? "solid" : "dashed", borderColor: tlist.length ? "var(--line)" : "transparent", background: "transparent", cursor: "pointer", fontFamily: "inherit", textAlign: "left", minHeight: 34, fontSize: 12, color: "var(--ink-4)" }}
+                  onMouseEnter={e => { e.currentTarget.style.background = "var(--panel-2)"; if (!tlist.length) e.currentTarget.style.borderColor = "var(--line)"; }}
+                  onMouseLeave={e => { e.currentTarget.style.background = "transparent"; if (!tlist.length) e.currentTarget.style.borderColor = "transparent"; }}>
+                  {tlist.length === 0 ? "+ Add transformation" : tlist.map((t, j) => <span key={j} style={{ display: "inline-flex", alignItems: "center", gap: 4, fontFamily: "'JetBrains Mono', monospace", fontSize: 10.5, padding: "2px 7px", borderRadius: 5, background: "var(--chip)", border: "1px solid var(--line)", color: "var(--ink-2)" }}>{t.fn ? tfLabel(t.fn) : "function…"}</span>)}
+                </button>
+                ); })()}
+                <div style={{ textAlign: "center", color: val ? "var(--green)" : "var(--ink-4)", fontSize: 15 }}>→</div>
+                {editing ? (
+                  <input autoFocus value={editAttrVal}
+                    onChange={e => setEditAttrVal(e.target.value.replace(/[^a-zA-Z0-9_]/g, "").toLowerCase())}
+                    onBlur={() => { if (editAttrVal.trim()) updateMap(key, editAttrVal.trim()); setEditAttrKey(""); }}
+                    onKeyDown={e => { if (e.key === "Enter") { if (editAttrVal.trim()) updateMap(key, editAttrVal.trim()); setEditAttrKey(""); } if (e.key === "Escape") setEditAttrKey(""); }}
+                    placeholder="attribute_name"
+                    style={{ width: "100%", boxSizing: "border-box", height: 40, padding: "0 11px", border: "1px solid var(--ink)", borderRadius: 8, fontFamily: "'JetBrains Mono', monospace", fontSize: 12.5, color: "var(--ink)", background: "var(--bg-canvas)", outline: "none" }} />
+                ) : val ? (() => {
+                  const tKey = key + "::__t__";
+                  const attrType = mapping[tKey] || col.type;
+                  return (
+                  <div onMouseEnter={e => { e.currentTarget.style.borderColor = "var(--line)"; e.currentTarget.style.background = "var(--panel)"; }} onMouseLeave={e => { if (typeMenuKey !== key) { e.currentTarget.style.borderColor = "transparent"; e.currentTarget.style.background = "transparent"; } }} style={{ position: "relative", display: "flex", alignItems: "center", gap: 9, width: "100%", height: 40, padding: "0 8px 0 11px", border: "1px solid transparent", borderRadius: 8, background: "transparent" }}>
+                    {/* clickable type glyph → rich type dropdown (full-width, anchored to the cell) */}
+                    <button onClick={e => { e.stopPropagation(); setTypeMenuKey(k => k === key ? "" : key); }} title="Change type" style={{ border: "none", background: "transparent", padding: 0, cursor: "pointer", display: "flex", flexShrink: 0 }}>
+                      <MapTypeGlyph type={attrType} />
+                    </button>
+                    <code onClick={() => { setEditAttrKey(key); setEditAttrVal(val); }} style={{ flex: 1, fontFamily: "'JetBrains Mono', monospace", fontSize: 12.5, color: "var(--ink)", overflow: "hidden", textOverflow: "ellipsis", cursor: "text" }}>{val}</code>
+                    <span onClick={e => { e.stopPropagation(); setTypeMenuKey(k => k === key ? "" : key); }} style={{ display: "flex", alignItems: "center", gap: 3, fontFamily: "'JetBrains Mono', monospace", fontSize: 10, color: "var(--ink-4)", flexShrink: 0, cursor: "pointer" }}>{attrType}<svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M6 9l6 6 6-6" /></svg></span>
+                    {typeMenuKey === key && (
+                      <>
+                        <div style={{ position: "fixed", inset: 0, zIndex: 410 }} onClick={() => setTypeMenuKey("")} />
+                        <div style={{ position: "absolute", top: "calc(100% + 6px)", left: 0, right: 0, zIndex: 411, maxHeight: 300, overflowY: "auto", background: "var(--panel)", border: "1px solid var(--line)", borderRadius: 9, boxShadow: "0 12px 32px rgba(40,32,18,0.16)", padding: 4 }}>
+                          {ATTR_TYPES.map(t => (
+                            <button key={t} onClick={() => { updateMap(tKey, t); setTypeMenuKey(""); }}
+                              style={{ display: "flex", alignItems: "center", gap: 8, width: "100%", padding: "7px 9px", borderRadius: 6, border: "none", background: attrType === t ? "var(--chip)" : "transparent", cursor: "pointer", fontFamily: "inherit", textAlign: "left" }}
+                              onMouseEnter={e => { if (attrType !== t) e.currentTarget.style.background = "var(--panel-2)"; }} onMouseLeave={e => { if (attrType !== t) e.currentTarget.style.background = "transparent"; }}>
+                              <MapTypeGlyph type={t} size={20} />
+                              <code style={{ flex: 1, fontFamily: "'JetBrains Mono', monospace", fontSize: 12.5 }}>{t}</code>
+                              {attrType === t && <span style={{ color: "var(--green)", fontWeight: 700, fontSize: 11 }}>✓</span>}
+                            </button>
+                          ))}
+                        </div>
+                      </>
+                    )}
+                  </div>
+                  );
+                })() : (
+                  <button onClick={() => { setEditAttrKey(key); setEditAttrVal(""); }}
+                    style={{ display: "flex", alignItems: "center", gap: 7, width: "100%", height: 40, padding: "0 11px", border: "1px dashed transparent", borderRadius: 8, background: "transparent", cursor: "pointer", fontFamily: "inherit", textAlign: "left", color: "var(--ink-4)", fontSize: 12.5 }}
+                    onMouseEnter={e => { e.currentTarget.style.background = "var(--panel-2)"; e.currentTarget.style.borderColor = "var(--line)"; }} onMouseLeave={e => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.borderColor = "transparent"; }}>
+                    <span style={{ fontSize: 15, lineHeight: 1, color: "var(--ink-3)" }}>+</span> Add attribute
+                  </button>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+        </div>
+      </div>
     </StepWrap>
   );
 }

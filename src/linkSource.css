@@ -485,7 +485,7 @@
   .flow-step:hover { background: var(--bg-canvas); }
   .flow-step.on { background: var(--bg-canvas); border: 1px solid var(--line); }
   .flow-step.done .flow-step-n { background: var(--green); color: var(--bg-canvas); border-color: var(--green); }
-  .flow-step.on .flow-step-n { background: var(--ink); color: var(--bg-canvas); border-color: var(--ink); }
+  .flow-step.on .flow-step-n { background: var(--ink-3); color: var(--bg-canvas); border-color: var(--ink-3); }
   .flow-step-n { width: 28px; height: 28px; border-radius: 50%; border: 1px solid var(--line); display: grid; place-items: center; font-family: "JetBrains Mono", monospace; font-size: 12px; font-weight: 700; color: var(--ink-3); background: var(--bg-canvas); flex-shrink: 0; }
   .flow-step-text { min-width: 0; }
   .flow-step-label { font-size: 13.5px; color: var(--ink); font-weight: 500; line-height: 1.1; }
@@ -933,6 +933,10 @@
   /* content-width variant: trigger hugs its text instead of filling the container */
   .csel.csel-auto { width: auto; display: inline-block; }
   .csel-auto .csel-trigger { width: auto; padding: 6px 12px; height: 34px; box-sizing: border-box; }
+  /* Ghost trigger — borderless until hover/open, to reduce table clutter */
+  .csel-ghost .csel-trigger { border-color: transparent; background: transparent; }
+  .csel-ghost .csel-trigger:hover, .csel-ghost .csel-trigger.open { border-color: var(--line); background: var(--panel); }
+  .csel-ghost .csel-chevron { display: none; }
   .csel-auto .csel-val { flex: 0 1 auto; }
   .csel-auto .csel-menu { right: auto; min-width: 100%; white-space: nowrap; }
   .csel-search { display: flex; align-items: center; gap: 8px; padding: 4px 9px; margin: 0 0 4px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg-canvas); color: var(--ink-3); }
