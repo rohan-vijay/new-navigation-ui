@@ -3920,7 +3920,7 @@ function NewEdgeFlow({ onClose, onCreate, fromNode, toNode, initialLabel, nodes:
   var [permsWrite, setPermsWrite]     = useState([{ kind:"group", id:"data-platform", label:"data-platform team" }]);
   var [permsAdmin, setPermsAdmin]     = useState([{ kind:"user",  id:"morgan.lee",    label:"Morgan Lee (you)" }]);
 
-  var stepNames = ["Basics", "Properties", "Review"];
+  var stepNames = ["Basics", "Attributes", "Review"];
 
   // Prefer the live nodes from App state — module-scope NODES wouldn't
   // include nodes the user has just added on the canvas.
@@ -4065,7 +4065,7 @@ function NewEdgeFlow({ onClose, onCreate, fromNode, toNode, initialLabel, nodes:
               var isOn = step === n;
               var isDone = step > n;
               var sub = n === 1 ? (label && fromN && toN ? ":" + label + (populationKind ? " · " + (populationOptions.find(function(o){return o.id===populationKind;}) || {}).title : "") : "Label, endpoints & population")
-                      : n === 2 ? (edgeProps.length === 0 ? "None — optional" : edgeProps.length + " propert" + (edgeProps.length === 1 ? "y" : "ies"))
+                      : n === 2 ? (edgeProps.length === 0 ? "None — optional" : edgeProps.length + " attribute" + (edgeProps.length === 1 ? "" : "s"))
                       : "Publish";
               return (
                 <button key={n} onClick={function(){ if (n < step || canContinue()) setStep(n); }}
@@ -4175,7 +4175,7 @@ function NewEdgeFlow({ onClose, onCreate, fromNode, toNode, initialLabel, nodes:
             )}
 
 
-            {/* STEP 2 — Properties */}
+            {/* STEP 2 — Attributes */}
             {step === 2 && (
               <div style={{ display:"flex", flexDirection:"column", gap:18 }}>
                 {edgeProps.length === 0 ? (
