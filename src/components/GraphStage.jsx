@@ -4477,61 +4477,6 @@ function NewEdgeFlow({ onClose, onCreate, fromNode, toNode, initialLabel, nodes:
 
           </div>
 
-          {/* RIGHT — LIVE PREVIEW */}
-          {(function(){
-            var srcCol = fromN ? colorForNode(fromN) : null;
-            var tgtCol = toN ? colorForNode(toN) : null;
-            var parts = cardinality.split(":");
-            var srcCard = parts[0] === "1" ? "one" : parts[0] === "N" ? "many" : "—";
-            var tgtCard = parts[1] === "1" ? "one" : parts[1] === "M" ? "many" : "—";
-            var attrs = edgeProps.filter(function(p){ return (p.name || "").trim(); }).map(function(p){ return p.name; });
-            var circle = function(n, col, fallback){
-              return (
-                <div style={{ width:78, height:78, borderRadius:"50%", background: col ? col.stroke : "var(--line)", color:"#fff", display:"flex", alignItems:"center", justifyContent:"center", fontSize:13, fontWeight:700, textAlign:"center", padding:8, boxSizing:"border-box", lineHeight:1.15, boxShadow:"0 2px 8px rgba(40,32,18,0.12)" }}>{n ? n.label : <span style={{ opacity:0.85, fontWeight:500 }}>{fallback}</span>}</div>
-              );
-            };
-            return (
-              <div style={{ borderLeft:"1px solid var(--line)", background:"var(--panel-2)", padding:"22px 20px", overflowY:"auto", display:"flex", flexDirection:"column", gap:16 }}>
-                <div style={{ fontFamily:"JetBrains Mono", fontSize:10, letterSpacing:"0.8px", color:"var(--ink-3)", textTransform:"uppercase" }}>Live preview</div>
-
-                {/* ── Full-width edge preview ── */}
-                <div style={{ border:"1px solid var(--line)", borderRadius:12, background:"var(--panel)", padding:"28px 20px 20px", position:"relative", overflow:"hidden" }}>
-                  {/* Row: circle · line+label · circle */}
-                  <div style={{ display:"flex", alignItems:"center", width:"100%" }}>
-                    {/* Source circle */}
-                    {circle(fromN, srcCol, "Source")}
-
-                    {/* Line + centre badge */}
-                    <div style={{ flex:1, position:"relative", display:"flex", alignItems:"center", justifyContent:"center", height:78 }}>
-                      {/* full-width horizontal line */}
-                      <div style={{ position:"absolute", left:0, right:0, top:"50%", height:1, background: srcCol ? srcCol.stroke : "var(--line)", opacity:0.55 }} />
-                      {/* centre stack: label badge · arrow */}
-                      <div style={{ position:"relative", display:"flex", flexDirection:"column", alignItems:"center", gap:4 }}>
-                        <span style={{ fontFamily:"JetBrains Mono", fontSize:11, fontWeight:700, letterSpacing:"0.5px", color:"var(--gold)", background:"var(--gold-fill)", border:"1px solid var(--gold-soft)", padding:"3px 11px", borderRadius:20, whiteSpace:"nowrap" }}>{label ? ":" + label : ":RELATIONSHIP"}</span>
-                        <span style={{ color: srcCol ? srcCol.stroke : "var(--ink-3)", display:"flex" }}>
-                          {modelBothSides
-                            ? <svg width="20" height="13" viewBox="0 0 24 16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="2" y1="5" x2="20" y2="5"/><polyline points="16 1 20 5 16 9"/><line x1="22" y1="11" x2="4" y2="11"/><polyline points="8 7 4 11 8 15"/></svg>
-                            : <svg width="20" height="10" viewBox="0 0 24 12" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="2" y1="6" x2="20" y2="6"/><polyline points="15 1 21 6 15 11"/></svg>}
-                        </span>
-                        {attrs.length > 0 && <span style={{ fontFamily:"JetBrains Mono", fontSize:10, color:"var(--ink-3)", whiteSpace:"nowrap" }}>{"{ " + attrs.join(", ") + " }"}</span>}
-                      </div>
-                    </div>
-
-                    {/* Target circle */}
-                    {circle(toN, tgtCol, "Target")}
-                  </div>
-
-                  {/* Cardinality labels below each circle */}
-                  <div style={{ display:"flex", justifyContent:"space-between", marginTop:8, paddingLeft:39, paddingRight:39 }}>
-                    <span style={{ fontFamily:"JetBrains Mono", fontSize:10.5, color:"var(--ink-3)" }}>{srcCard}</span>
-                    <span style={{ fontFamily:"JetBrains Mono", fontSize:10.5, color:"var(--ink-3)" }}>{tgtCard}</span>
-                  </div>
-                </div>
-
-                
-              </div>
-            );
-          })()}
         </div>
 
         {/* FOOTER */}
