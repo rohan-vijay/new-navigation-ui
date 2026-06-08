@@ -9,6 +9,7 @@ import GraphStage, { SIDEBAR_NODES, GRAPH_EDGES, ListGlyph, colorForNode, AddNod
 // Make node schema available to LinkSourceFlow.buildEditState (runs at module load time)
 if (typeof window !== 'undefined') { window.NODES = SIDEBAR_NODES; window.generateProps = generateProps; }
 import RecordsPage from './RecordsPage'
+import ECGDetailPage from './ECGDetailPage'
 import SkillLibrary from './SkillLibrary'
 import { AGENT_LIBRARY, AGENT_GROUP_ORDER } from '../data/agentLibrary'
 import { FeatureModeProvider, useFeatureMode } from '../featureMode'
@@ -179,6 +180,7 @@ function GraphCanvasInner({ title = 'New graph', onBack, onAgentAI }) {
   const [sourceFlow, setSourceFlow] = useState(false)
   const [editSourceSpec, setEditSourceSpec] = useState(null)
   const [nodeDetail, setNodeDetail] = useState(null)
+  const [ecgOpen, setEcgOpen] = useState(false)
 
   const AGENT_BY_ID = useMemo(() => { const m = {}; AGENT_LIBRARY.forEach(c => c.skills.forEach(s => { m[s.id] = { ...s, cat: c.cat } })); return m }, [])
   const importAgents = (ids) => {
@@ -240,12 +242,14 @@ function GraphCanvasInner({ title = 'New graph', onBack, onAgentAI }) {
       </div>
 
       {/* Body */}
-      {nodeDetail ? (
+      {ecgOpen ? (
+        <ECGDetailPage onBack={() => setEcgOpen(false)} />
+      ) : nodeDetail ? (
         <NodeDetailPage node={nodeDetail} onBack={() => setNodeDetail(null)} onCanvas={() => { setNodeDetail(null); setTab('Graph') }} />
       ) : tab === 'Graph' ? (
         <GraphStage />
       ) : tab === 'Nodes' ? (
-        <NodesList onOpen={id => setNodeDetail(SIDEBAR_NODES.find(n => n.id === id))} />
+        <NodesList onOpen={id => setNodeDetail(SIDEBAR_NODES.find(n => n.id === id))} onOpenECG={() => setEcgOpen(true)} />
       ) : tab === 'Edges' ? (
         <EdgesList />
       ) : tab === 'Sources' ? (
@@ -1021,7 +1025,7 @@ const NODE_SORTERS = {
 }
 const NODE_FILTERS = { 'All categories': null, Core: 'core', Support: 'support', Derived: 'derived', Source: 'source' }
 
-function NodesList({ onOpen }) {
+function NodesList({ onOpen, onOpenECG }) {
   const [sort, setSort] = useState('Name (A–Z)')
   const [filter, setFilter] = useState('All categories')
   const [search, setSearch] = useState('')
@@ -1063,6 +1067,22 @@ function NodesList({ onOpen }) {
             </tr>
           </thead>
           <tbody>
+            <tr onClick={() => onOpenECG?.()} style={{ background: '#fff', cursor: 'pointer', transition: 'background .12s, box-shadow .12s' }}
+              onMouseOver={e => { e.currentTarget.style.background = '#f5f3ff'; e.currentTarget.style.boxShadow = 'inset 3px 0 0 #7c3aed' }}
+              onMouseOut={e => { e.currentTarget.style.background = '#fff'; e.currentTarget.style.boxShadow = 'none' }}>
+              <td colSpan={NODE_COLS.length + 1} style={{ padding: '12px 18px', borderBottom: '1px solid #f1f2f1' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <span style={{ width: 28, height: 28, borderRadius: 7, background: '#ede9fc', border: '1px solid #d4c9f8', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                    <svg width="14" height="14" viewBox="0 0 18 18" fill="none"><path d="M9 2.8l2.25 4.5L16 8.4l-3.5 3.4.82 4.8L9 14.3l-4.32 2.3.82-4.8L2 8.4l4.75-1.1L9 2.8z" fill="#7c3aed" opacity="0.9" /></svg>
+                  </span>
+                  <span style={{ fontFamily: 'var(--mono)', fontSize: 13, fontWeight: 600, color: '#1a1a1a' }}>Enterprise Context Graph</span>
+                  <span style={{ fontFamily: 'var(--mono)', fontSize: 10, padding: '2px 7px', borderRadius: 4, background: '#ede9fc', color: '#7c3aed', fontWeight: 700 }}>47 entities</span>
+                  <span style={{ fontFamily: 'var(--mono)', fontSize: 10, padding: '2px 7px', borderRadius: 4, background: '#ccfbf1', color: '#0d9488', fontWeight: 700 }}>13 sources</span>
+                  <span style={{ fontFamily: 'var(--mono)', fontSize: 10, padding: '2px 7px', borderRadius: 4, background: '#f9f0de', color: '#b07a20', fontWeight: 700 }}>100+ use cases</span>
+                  <span style={{ marginLeft: 'auto', fontFamily: 'var(--sans)', fontSize: 12, color: '#9097a0' }}>Complete customer engagement graph →</span>
+                </div>
+              </td>
+            </tr>
             {NODES.map((n, i) => {
               const last = i === NODES.length - 1
               const cell = { padding: '12px 18px', verticalAlign: 'middle', overflow: 'hidden', borderBottom: last ? 'none' : '1px solid #f1f2f1' }
