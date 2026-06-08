@@ -2479,7 +2479,16 @@ function SrcEntityMap({ s, set, groups, activeObj, sel, openCol, setOpenCol }) {
   const destId = entityNode[eid] || "";
   const isNew = destId === "__new__";
   const destNode = nodes.find(n => n.id === destId) || null;
-  const props = destNode && window.generateProps ? window.generateProps(destNode).map(p => ({ id: p.name, label: p.name, type: p.type })) : [];
+  // Resolve a node to source the destination properties/edges from. Even before the
+  // user explicitly picks a destination, default to the entity that matches this object
+  // (e.g. "Contract") so the property/edge dropdown is never empty.
+  const _objLc = current ? (current.label || current.name || "").toLowerCase() : "";
+  const targetNode = destNode
+    || nodes.find(n => n.label.toLowerCase() === _objLc)
+    || nodes.find(n => n.id === _objLc)
+    || nodes.find(n => n.id === "contract") || nodes.find(n => n.id === "account")
+    || nodes[0] || null;
+  const props = targetNode && window.generateProps ? window.generateProps(targetNode).map(p => ({ id: p.name, label: p.name, type: p.type })) : [];
   // Edges connected to the destination node — their attributes are also mappable targets.
   const allEdges = (typeof window !== "undefined" && window.EDGES) || [];
   const edgeAttrsFor = () => [
@@ -2488,10 +2497,10 @@ function SrcEntityMap({ s, set, groups, activeObj, sel, openCol, setOpenCol }) {
     { name: "confidence",    type: "decimal" },
     { name: "source_system", type: "string" },
   ];
-  const destEdges = destNode ? allEdges.filter(e => e.s === destNode.id || e.t === destNode.id) : [];
+  const destEdges = targetNode ? allEdges.filter(e => e.s === targetNode.id || e.t === targetNode.id) : [];
   // Two-tab destination picker: node Properties · Edge attributes (grouped per edge).
   const _edgeGroups = destEdges.map((e, ei) => {
-    const out = e.s === destNode.id;
+    const out = e.s === targetNode.id;
     const other = nodes.find(n => n.id === (out ? e.t : e.s)) || (((typeof window !== "undefined" && window.NODES) || []).find(n => n.id === (out ? e.t : e.s)));
     return {
       key: "e" + ei + ":" + e.label,

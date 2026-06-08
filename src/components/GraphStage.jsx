@@ -1038,7 +1038,7 @@ function Minimap({ nodes, viewport, size }) {
 
 // ---------- BOTTOM LEGEND ---------------------------------------------------
 
-function Legend({ filter, setFilter }) {
+function Legend({ filter, setFilter, showCounts, setShowCounts }) {
   const cats = [
     { id: "core",      label: "Core",      stroke: "var(--blue)",   fill: "var(--blue-fill)" },
     { id: "secondary", label: "Secondary", stroke: "var(--purple)", fill: "var(--purple-fill)" },
@@ -1052,6 +1052,15 @@ function Legend({ filter, setFilter }) {
           {c.label}
         </button>
       ))}
+      {setShowCounts && (
+        <>
+          <span className="legend-div" />
+          <button className={"legend-pill" + (showCounts ? "" : " off")} onClick={() => setShowCounts(v => !v)} title="Toggle instance counts on nodes">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><line x1="4" y1="20" x2="4" y2="13" /><line x1="10" y1="20" x2="10" y2="8" /><line x1="16" y1="20" x2="16" y2="4" /><line x1="22" y1="20" x2="22" y2="11" /></svg>
+          Counts
+          </button>
+        </>
+      )}
     </div>
   );
 }
@@ -1483,6 +1492,7 @@ export default function GraphStage() {
   const [selected, setSelected] = useState(null)
   const [hover, setHover] = useState(null)
   const [filter, setFilter] = useState("all")
+  const [showCounts, setShowCounts] = useState(true)
   const initView = useMemo(() => {
     const xs = BASE_NODES.map(n => n.x), ys = BASE_NODES.map(n => n.y)
     const cx = (Math.min(...xs) + Math.max(...xs)) / 2
@@ -1610,7 +1620,7 @@ export default function GraphStage() {
           filter={filter} query={query} savedView={null}
           viewport={viewport} setViewport={setViewport}
           sidebarOpen={sidebarOpen}
-          showInferred showEdgeLabels showCounts
+          showInferred showEdgeLabels showCounts={showCounts}
           editMode={editMode}
           cursorMode={cursorMode}
           multiSelected={multiSelected} setMultiSelected={setMultiSelected}
@@ -1620,7 +1630,7 @@ export default function GraphStage() {
           onEditOpenNode={id => { setSelected(id) }}
           onEditEdge={idx => { const e = edges[idx]; if (!e) return; setPendingEdgeFrom({ fromId: e.s, toId: e.t, editIdx: idx, initialLabel: e.label || "" }) }}
         />
-        <Legend filter={filter} setFilter={setFilter} />
+        <Legend filter={filter} setFilter={setFilter} showCounts={showCounts} setShowCounts={setShowCounts} />
         <div className="bottomright">
           <Minimap nodes={nodes} viewport={viewport} size={{ w: 1100, h: 700 }} />
           <ZoomControls viewport={viewport} setViewport={setViewport} nodes={nodes} size={{ w: 1100, h: 700 }} />
