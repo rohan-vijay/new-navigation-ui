@@ -639,13 +639,13 @@ const SOURCES = [
 ]
 
 /* ── Node detail page ──────────────────────────────────── */
-const DETAIL_TABS = ['Properties', 'Edges', 'Survivorship', 'Data Quality Rules', 'Data Matching', 'Computation', 'Activity']
+const DETAIL_TABS = ['Properties', 'Edges', 'Survivorship', 'Data Quality', 'Data Matching', 'Computation', 'Activity']
 const _ic = { fill: 'none', stroke: 'currentColor', strokeWidth: 1.7, strokeLinecap: 'round', strokeLinejoin: 'round' }
 const TAB_ICON = {
   Properties: <svg width="14" height="14" viewBox="0 0 24 24" {..._ic}><rect x="4" y="5" width="16" height="14" rx="2" /><line x1="4" y1="10" x2="20" y2="10" /><line x1="9.5" y1="10" x2="9.5" y2="19" /></svg>,
   Edges: <svg width="14" height="14" viewBox="0 0 24 24" {..._ic}><circle cx="6" cy="12" r="2.4" /><circle cx="18" cy="12" r="2.4" /><line x1="8.4" y1="12" x2="15.6" y2="12" /></svg>,
   Survivorship: <svg width="14" height="14" viewBox="0 0 24 24" {..._ic}><path d="M12 3l7 3v6c0 4-3 6.6-7 7.6C8 18.6 5 16 5 12V6z" /></svg>,
-  'Data Quality Rules': <svg width="14" height="14" viewBox="0 0 24 24" {..._ic}><path d="M12 4l1.7 4.6L18 10l-4.3 1.4L12 16l-1.7-4.6L6 10l4.3-1.4z" /></svg>,
+  'Data Quality': <svg width="14" height="14" viewBox="0 0 24 24" {..._ic}><path d="M12 4l1.7 4.6L18 10l-4.3 1.4L12 16l-1.7-4.6L6 10l4.3-1.4z" /></svg>,
   'Data Matching': <svg width="14" height="14" viewBox="0 0 24 24" {..._ic}><circle cx="6.5" cy="6" r="2" /><circle cx="6.5" cy="18" r="2" /><circle cx="17.5" cy="12" r="2" /><path d="M8.5 6.5c1 3.5 3 5 7 5.4M8.5 17.5c1-3.5 3-5 7-5.4" /></svg>,
   Computation: <svg width="14" height="14" viewBox="0 0 24 24" {..._ic}><path d="M9.5 4c-2 0-2.8 1-2.8 3v1.6c0 1.5-1 2.4-2.2 2.4 1.2 0 2.2.9 2.2 2.4V17c0 2 .8 3 2.8 3" /><path d="M14.5 4c2 0 2.8 1 2.8 3v1.6c0 1.5 1 2.4 2.2 2.4-1.2 0-2.2.9-2.2 2.4V17c0 2-.8 3-2.8 3" /></svg>,
   Activity: <svg width="14" height="14" viewBox="0 0 24 24" {..._ic}><polyline points="3 12 8 12 10 6 14 18 16 12 21 12" /></svg>,
@@ -760,7 +760,7 @@ const DETAIL_TAB_CFG = {
     filters: { 'All status': null, Active: r => r.on, Off: r => !r.on },
     search: r => r.title + ' ' + r.property, placeholder: 'Search rules', cta: 'New Rule',
   },
-  'Data Quality Rules': {
+  'Data Quality': {
     sorters: { 'Rule (A–Z)': (a, b) => a.title.localeCompare(b.title), 'Compliance': (a, b) => b.compliance - a.compliance, 'Severity': (a, b) => a.severity.localeCompare(b.severity) },
     filters: { 'All status': null, Active: r => r.on, Off: r => !r.on, Errors: r => r.severity === 'ERROR', Warnings: r => r.severity === 'WARN' },
     search: r => r.title + ' ' + r.kind, placeholder: 'Search rules', cta: 'New Rule',
@@ -794,7 +794,7 @@ function NodeDetailPage({ node, onBack, onCanvas }) {
   const comps = useMemo(() => genComputations(node), [node])
   const activity = useMemo(() => genActivity(node), [node])
 
-  const RAW = { Properties: props, Edges: edges, Survivorship: rules.survivorship, 'Data Quality Rules': rules.quality, 'Data Matching': rules.match, Computation: comps, Activity: activity }
+  const RAW = { Properties: props, Edges: edges, Survivorship: rules.survivorship, 'Data Quality': rules.quality, 'Data Matching': rules.match, Computation: comps, Activity: activity }
   const tabCount = Object.fromEntries(Object.entries(RAW).map(([k, v]) => [k, v.length]))
 
   // Per-tab toolbar state; reset to the tab's defaults whenever the tab changes.
@@ -932,7 +932,7 @@ function NodeDetailPage({ node, onBack, onCanvas }) {
           empty="No survivorship rules configured." />
       )}
 
-      {tab === 'Data Quality Rules' && (
+      {tab === 'Data Quality' && (
         <DetailTable
           cols={[{ label: 'Rule', w: '32%' }, { label: 'Kind', w: '14%' }, { label: 'Severity', w: '14%' }, { label: 'Compliance', w: '14%' }, { label: 'Status', w: '13%' }, { label: 'Last Run', w: '13%' }]}
           rows={view.map(r => [
