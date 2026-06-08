@@ -139,8 +139,86 @@ const PS_EDGES = [
 ];
 
 const IS_PS_GRAPH = false;
-const NODES = IS_PS_GRAPH ? PS_NODES : _ENT_NODES;
-const EDGES = IS_PS_GRAPH ? PS_EDGES : _ENT_EDGES;
+// ── Enterprise Context Graph: realistic customer-engagement dataset ──────────
+// 34 entities + 13 sources = 47 nodes, ~64 edges. Positioned in lifecycle
+// clusters (marketing / sales / product / success / finance) with sources on an
+// outer ring. Synthetic but stable stats per node.
+function buildECG() {
+  const CL = { marketing:[-480,-260], sales:[-30,30], product:[420,-200], success:[-330,350], finance:[470,300] };
+  // [label, cluster, state, size]
+  const ENTS = [
+    ["Account","sales","core",34],["Contact","sales","core",28],["Lead","marketing","core",26],["Opportunity","sales","core",30],
+    ["Campaign","marketing","core",26],["Channel","marketing","core",20],["Email","marketing","core",22],["Webinar","marketing","core",18],
+    ["Form","marketing","core",18],["Audience","marketing","signal",22],["Persona","marketing","signal",20],
+    ["Quote","sales","core",22],["Proposal","sales","core",22],["Competitor","sales","risk",20],["Meeting","sales","core",22],["Call","sales","core",22],
+    ["Product","product","core",28],["Feature","product","core",22],["Subscription","product","core",28],["Usage Event","product","signal",24],["Entitlement","product","core",20],["Signal","product","signal",24],
+    ["Ticket","success","incident",24],["Case","success","incident",22],["Health Score","success","signal",22],["NPS Response","success","core",18],["Renewal","success","core",24],["Churn Risk","success","risk",22],["Interaction","success","core",26],["Activity","success","core",18],
+    ["Invoice","finance","core",26],["Payment","finance","core",22],["Contract","finance","core",24],["Order","finance","core",24],
+  ];
+  const SRCS = ["Salesforce","HubSpot","Marketo","NetSuite","Snowflake","Segment","Zendesk","Stripe","Gong","Outreach","Intercom","Workday","Jira"];
+  const slug = s => s.toLowerCase().replace(/[^a-z0-9]+/g,"_").replace(/^_|_$/g,"");
+  const fmtK = n => n >= 1000 ? (n/1000).toFixed(n>=10000?0:1).replace(/\.0$/,"")+"K" : String(n);
+  const counts = {}; ENTS.forEach(e => { counts[e[1]] = (counts[e[1]]||0)+1; });
+  const idx = {};
+  const nodes = [];
+  ENTS.forEach((e, i) => {
+    const [label, cl, state, size] = e;
+    const k = (idx[cl] = (idx[cl]||0)); idx[cl]++;
+    const tot = counts[cl];
+    const R = 78 + Math.min(tot,7)*13;
+    const a = (k/Math.max(tot,1))*Math.PI*2 + (cl.length*0.7);
+    const seed = label.length*7 + i*13;
+    const inst = ((seed*1287)%180000) + 200;
+    nodes.push({
+      id: slug(label), label, type:"entity", state, cat: state==="core"?"core":state==="signal"?"derived":"support",
+      x: Math.round(CL[cl][0] + Math.cos(a)*R), y: Math.round(CL[cl][1] + Math.sin(a)*R), size,
+      instances: fmtK(inst), instancesN: inst, props: 8 + (seed%14), edges: 0,
+      fill: 72 + (seed%27), conf: 80 + (seed%19), fresh: ["6m","12m","24m","1h","4h","1d"][seed%6],
+      pii: (label==="Contact"||label==="Account"||label==="NPS Response"||label==="Payment")?(2+(seed%3)):0,
+      change: ["LOW","MEDIUM","HIGH"][seed%3], desc: label+" entity in the customer engagement graph",
+    });
+  });
+  SRCS.forEach((label, i) => {
+    const a = (i/SRCS.length)*Math.PI*2 - Math.PI/2;
+    const seed = label.length*5 + i*11;
+    nodes.push({
+      id: slug(label), label, type:"source", state:"core", cat:"source",
+      x: Math.round(Math.cos(a)*820), y: Math.round(Math.sin(a)*640), size:24,
+      instances:"—", instancesN:0, props: 12 + (seed%24), edges:0,
+      fill: 96 + (seed%4), conf: 98 + (seed%2), fresh: ["2m","5m","12m","1h"][seed%4],
+      pii: (label==="Salesforce"||label==="Workday"||label==="Stripe")?(3+(seed%4)):0,
+      change:"LOW", desc: label+" connected source system",
+    });
+  });
+  const E = [
+    ["contact","account","WORKS_AT","direct"],["account","contact","HAS_CONTACT","direct"],["lead","contact","CONVERTS_TO","direct"],
+    ["account","opportunity","HAS_OPPORTUNITY","direct"],["opportunity","account","FOR_ACCOUNT","inferred"],["campaign","lead","GENERATES","direct"],
+    ["campaign","channel","USES","direct"],["email","campaign","PART_OF","direct"],["webinar","campaign","PART_OF","direct"],["form","lead","CAPTURES","direct"],
+    ["audience","contact","CONTAINS","inferred"],["persona","contact","DESCRIBES","inferred"],["opportunity","quote","HAS_QUOTE","direct"],["quote","proposal","BECOMES","direct"],
+    ["opportunity","competitor","AGAINST","inferred"],["meeting","opportunity","ABOUT","direct"],["call","account","LOGGED_ON","direct"],
+    ["account","subscription","SUBSCRIBES_TO","direct"],["subscription","product","FOR_PRODUCT","direct"],["product","feature","HAS_FEATURE","direct"],
+    ["subscription","entitlement","GRANTS","direct"],["usage_event","feature","ON_FEATURE","direct"],["usage_event","account","FROM_ACCOUNT","inferred"],
+    ["signal","account","OBSERVED_ON","direct"],["signal","usage_event","DERIVED_FROM","inferred"],["account","ticket","RAISES","direct"],["ticket","case","ESCALATES_TO","direct"],
+    ["account","health_score","HAS_HEALTH","direct"],["health_score","signal","INPUTS","inferred"],["nps_response","contact","FROM_CONTACT","direct"],
+    ["account","renewal","UP_FOR","direct"],["renewal","churn_risk","RISKS","inferred"],["churn_risk","account","FLAGS","inferred"],
+    ["interaction","account","TOUCHES","inferred"],["interaction","contact","INVOLVES","direct"],["account","invoice","BILLED_BY","direct"],
+    ["invoice","payment","PAID_BY","direct"],["account","contract","GOVERNED_BY","direct"],["subscription","contract","UNDER","direct"],
+    ["order","subscription","FULFILLS","direct"],["activity","opportunity","ON","direct"],
+    ["salesforce","account","SOURCES","source"],["salesforce","opportunity","SOURCES","source"],["salesforce","contact","SOURCES","source"],
+    ["hubspot","lead","SOURCES","source"],["hubspot","campaign","SOURCES","source"],["marketo","email","SOURCES","source"],["marketo","form","SOURCES","source"],
+    ["netsuite","invoice","SOURCES","source"],["netsuite","order","SOURCES","source"],["snowflake","usage_event","SOURCES","source"],["snowflake","signal","SOURCES","source"],
+    ["segment","interaction","SOURCES","source"],["segment","audience","SOURCES","source"],["zendesk","ticket","SOURCES","source"],["zendesk","case","SOURCES","source"],
+    ["stripe","payment","SOURCES","source"],["stripe","subscription","SOURCES","source"],["gong","call","SOURCES","source"],["gong","meeting","SOURCES","source"],
+    ["outreach","email","SOURCES","source"],["intercom","interaction","SOURCES","source"],["workday","persona","SOURCES","source"],["jira","case","SOURCES","source"],
+  ];
+  const ids = {}; nodes.forEach(n => { ids[n.id] = n; });
+  const edges = E.filter(e => ids[e[0]] && ids[e[1]]).map(e => ({ s:e[0], t:e[1], label:e[2], kind:e[3] }));
+  edges.forEach(e => { ids[e.s].edges++; ids[e.t].edges++; });
+  return { nodes, edges };
+}
+const _ECG = buildECG();
+const NODES = _ECG.nodes;
+const EDGES = _ECG.edges;
 
 const SIDEBAR_NODES = [...NODES].filter(n => n.type !== "agent").sort((a, b) => a.label.localeCompare(b.label));
 
