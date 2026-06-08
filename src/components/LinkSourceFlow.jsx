@@ -3255,6 +3255,36 @@ function SrcMapping({ s, set, groups, activeObj, nodeProps, node, sel, openCol, 
 
   // Map ONE object at a time — the active object is driven by the sidebar sub-nav.
   const current = (activeObj && groupList.find(g => g.name === activeObj)) || groupList[0] || null;
+  // Resolve a destination node (the pipeline may not carry one), then build a rich
+  // grouped destination list: node properties + the attributes of each connected edge.
+  const _winNodes = (typeof window !== "undefined" && window.NODES) || [];
+  const _entNodes = _winNodes.filter(n => n.type === "entity");
+  const _objName = current ? (current.name || "").toLowerCase() : "";
+  const targetNode = node
+    || _entNodes.find(n => n.label.toLowerCase() === _objName)
+    || _entNodes.find(n => n.id === "contract") || _entNodes.find(n => n.id === "account")
+    || _entNodes[0] || null;
+  const _tProps = targetNode && window.generateProps
+    ? window.generateProps(targetNode).map(p => ({ id: p.name, label: p.name, type: p.type }))
+    : (nodeProps || []).map(p => ({ id: p.id, label: p.id, type: p.type }));
+  const _winEdges = (typeof window !== "undefined" && window.EDGES) || [];
+  const _tEdges = targetNode ? _winEdges.filter(e => e.s === targetNode.id || e.t === targetNode.id) : [];
+  const _edgeAttrs = () => [
+    { name: "since", type: "datetime" }, { name: "weight", type: "decimal" },
+    { name: "confidence", type: "decimal" }, { name: "source_system", type: "string" },
+  ];
+  const destGroups = targetNode ? [
+    { label: targetNode.label + " · properties", items: _tProps },
+    ..._tEdges.map(e => {
+      const out = e.s === targetNode.id;
+      const other = _winNodes.find(n => n.id === (out ? e.t : e.s));
+      return {
+        label: ":" + e.label + "  " + (out ? "→" : "←") + "  " + (other ? other.label : "?"),
+        items: _edgeAttrs(e).map(a => ({ id: "edge:" + e.label + ":" + a.name, label: a.name, type: a.type, onEdge: e.label })),
+      };
+    }),
+    { label: "Create new", items: [{ id: "__new__", label: "+ New property" }] },
+  ] : [{ label: "", items: [{ id: "__new__", label: "+ New property" }] }];
   const curCols = current ? current.cols : [];
   // Fields the assigned agents add — mappable alongside the source columns.
   const agentFields = current ? agentFieldsFor(s, current.name) : [];
@@ -3299,10 +3329,10 @@ function SrcMapping({ s, set, groups, activeObj, nodeProps, node, sel, openCol, 
             </span>
           </button>
           <div style={{ textAlign: "center", color: mapped ? "var(--green)" : "var(--ink-4)", fontSize: 15 }}>→</div>
-          <CustomSelect value={mapped || ""} onChange={v => updateMap(key, v)} placeholder="Select field"
-            options={nodeProps.map(p => ({ id: p.id, label: p.id, type: p.type })).concat([{ id: "__new__", label: "+ New property…" }])}
-            renderTrigger={o => o.id && o.id !== "__new__" ? <span style={{ display: "flex", alignItems: "center", gap: 9 }}><MapTypeGlyph type={o.type} size={22} /><span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 12.5, color: "var(--ink)" }}>{o.label}</span>{o.id === "id" && <><MapBadge tone="var(--green)">PK</MapBadge><MapBadge>UK</MapBadge></>}</span> : <span style={{ color: o.id === "__new__" ? "var(--ink-2)" : "var(--ink-4)" }}>{o.label || "Select field"}</span>}
-            renderOption={o => o.id && o.id !== "__new__" ? <span style={{ display: "flex", alignItems: "center", gap: 9 }}><MapTypeGlyph type={o.type} size={20} />{o.label}</span> : <span style={{ color: o.id === "__new__" ? "var(--ink-2)" : "var(--ink-3)" }}>{o.label}</span>} />
+          <CustomSelect value={mapped || ""} onChange={v => updateMap(key, v)} placeholder="Select field" grouped searchable searchPlaceholder="Search properties & edge attributes…"
+            options={destGroups}
+            renderTrigger={o => o.id && o.id !== "__new__" ? <span style={{ display: "flex", alignItems: "center", gap: 9, minWidth: 0 }}><MapTypeGlyph type={o.type} size={22} /><span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 12.5, color: "var(--ink)", overflow: "hidden", textOverflow: "ellipsis" }}>{o.label}</span>{o.onEdge && <MapBadge tone="var(--gold)">{":" + o.onEdge}</MapBadge>}{o.id === "id" && <><MapBadge tone="var(--green)">PK</MapBadge><MapBadge>UK</MapBadge></>}</span> : <span style={{ color: o.id === "__new__" ? "var(--ink-2)" : "var(--ink-4)" }}>{o.label || "Select field"}</span>}
+            renderOption={o => o.id && o.id !== "__new__" ? <span style={{ display: "flex", alignItems: "center", gap: 9 }}><MapTypeGlyph type={o.type} size={20} /><span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 12.5 }}>{o.label}</span>{o.onEdge && <MapBadge tone="var(--gold)">edge</MapBadge>}</span> : <span style={{ color: o.id === "__new__" ? "var(--ink-2)" : "var(--ink-3)" }}>{o.label}</span>} />
         </div>
       </div>
     );
@@ -3340,10 +3370,10 @@ function SrcMapping({ s, set, groups, activeObj, nodeProps, node, sel, openCol, 
             {chain.length === 0 && <span style={{ fontSize: 11.5, color: "var(--ink-4)" }}>passthrough</span>}
           </button>
           <div style={{ textAlign: "center", color: mapped ? "var(--green)" : "var(--ink-4)", fontSize: 15 }}>→</div>
-          <CustomSelect value={mapped || ""} onChange={v => updateMap(key, v)} placeholder="Select field"
-            options={nodeProps.map(p => ({ id: p.id, label: p.id, type: p.type })).concat([{ id: "__new__", label: "+ New property…" }])}
-            renderTrigger={o => o.id && o.id !== "__new__" ? <span style={{ display: "flex", alignItems: "center", gap: 9 }}><MapTypeGlyph type={o.type} size={22} /><span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 12.5, color: "var(--ink)" }}>{o.label}</span></span> : <span style={{ color: o.id === "__new__" ? "var(--ink-2)" : "var(--ink-4)" }}>{o.label || "Select field"}</span>}
-            renderOption={o => o.id && o.id !== "__new__" ? <span style={{ display: "flex", alignItems: "center", gap: 9 }}><MapTypeGlyph type={o.type} size={20} />{o.label}</span> : <span style={{ color: o.id === "__new__" ? "var(--ink-2)" : "var(--ink-3)" }}>{o.label}</span>} />
+          <CustomSelect value={mapped || ""} onChange={v => updateMap(key, v)} placeholder="Select field" grouped searchable searchPlaceholder="Search properties & edge attributes…"
+            options={destGroups}
+            renderTrigger={o => o.id && o.id !== "__new__" ? <span style={{ display: "flex", alignItems: "center", gap: 9, minWidth: 0 }}><MapTypeGlyph type={o.type} size={22} /><span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 12.5, color: "var(--ink)", overflow: "hidden", textOverflow: "ellipsis" }}>{o.label}</span>{o.onEdge && <MapBadge tone="var(--gold)">{":" + o.onEdge}</MapBadge>}</span> : <span style={{ color: o.id === "__new__" ? "var(--ink-2)" : "var(--ink-4)" }}>{o.label || "Select field"}</span>}
+            renderOption={o => o.id && o.id !== "__new__" ? <span style={{ display: "flex", alignItems: "center", gap: 9 }}><MapTypeGlyph type={o.type} size={20} /><span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 12.5 }}>{o.label}</span>{o.onEdge && <MapBadge tone="var(--gold)">edge</MapBadge>}</span> : <span style={{ color: o.id === "__new__" ? "var(--ink-2)" : "var(--ink-3)" }}>{o.label}</span>} />
         </div>
       </div>
     );
