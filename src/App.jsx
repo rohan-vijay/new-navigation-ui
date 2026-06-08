@@ -23,12 +23,12 @@ import ScratchSkillModal from './components/ScratchSkillModal'
 function readParams() {
   const p = new URLSearchParams(window.location.search)
   return {
-    view: p.get('view') || 'graphs',
+    view: p.get('view') || 'context-graphs',
     graphId: p.get('graph') || null,
     skillId: p.get('skill') || null,
     groupId: p.get('grp') || null,
     ai: p.get('ai') === '1',
-    nav: p.get('nav') || 'agents',
+    nav: p.get('nav') || 'ontology',
     tab: p.get('tab') === 'groups' ? 'Skill Groups' : 'Skills',
   }
 }
