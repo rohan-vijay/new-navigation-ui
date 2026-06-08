@@ -331,7 +331,8 @@ function RecordsView({ onOpenRecord }) {
               const last = i === filteredRecords.length - 1
               return (
                 <tr key={r.id}
-                  style={{ background:'#fff', transition:'background .12s' }}
+                  onClick={() => onOpenRecord?.(r, selectedNodeObj)}
+                  style={{ background:'#fff', transition:'background .12s', cursor:'pointer' }}
                   onMouseOver={e => { e.currentTarget.style.background='#faf9f6' }}
                   onMouseOut={e => { e.currentTarget.style.background='#fff' }}>
                   {columns.map((p,ci) => {
@@ -365,117 +366,556 @@ function RecordsView({ onOpenRecord }) {
 
 // ── RecordDetailView ─────────────────────────────────────────────────────────
 function RecordDetailView({ record, node, onBack, onNavigate }) {
-  const props   = generateProps(node)
-  const related = generateRelatedRecords(record, node)
+  const [tab, setTab]                   = useState('Graph')
+  const [expandedProp, setExpandedProp] = useState(null)
+  const [twoHop, setTwoHop]             = useState(false)
+  const [hoverNode, setHoverNode]       = useState(null)
+  const [inspectedNode, setInspectedNode] = useState(null)
+  const [graphFullscreen, setGraphFullscreen] = useState(false)
+  const [graphPan, setGraphPan]         = useState({ x:0, y:0 })
+  const [graphZoom, setGraphZoom]       = useState(1)
+  const [iconHovered, setIconHovered]   = useState(false)
+  const graphDrag = useRef(null)
+
+  const props        = generateProps(node)
+  const c            = colorForNode(node)
+  const tabs         = ['Graph','Overview','Provenance','Activity']
+  const related      = generateRelatedRecords(record, node)
   const totalRelated = related.reduce((s,r) => s + r.count, 0)
 
   const provenance = props.map((p,i) => {
     const s = node.id.charCodeAt(0)*7 + i*17 + record.id.length*3
-    return { prop: p, value: record[p.name] ?? generateValueForProp(p,s) }
+    const conf = parseFloat((0.70 + (Math.abs(s)%28)/100).toFixed(2))
+    const sources = ['Salesforce CRM','NetSuite ERP','HubSpot Marketing','Manual / Admin','Snowflake Warehouse']
+    const src = p.computed ? 'computed' : sources[Math.abs(s)%4]
+    const ages = ['2m','18m','1h','4h','12h','1d','3d']
+    const hasConflict = !p.computed && !p.pk && (Math.abs(s)%7 === 0)
+    return {
+      prop: p,
+      value: record[p.name] != null ? record[p.name] : generateValueForProp(p,s),
+      source: src, conf, age: ages[Math.abs(s)%7],
+      rule: p.computed ? 'Computed via rule' : p.required ? 'NOT NULL constraint' : p.pii ? 'PII access gate' : null,
+      conflict: hasConflict ? { loser: sources[(Math.abs(s)+1)%4], loserValue: generateValueForProp(p,s+1000), resolution: 'source_priority strategy' } : null
+    }
   })
+
+  const activity = [
+    { when:'2m ago',  who:'Salesforce CRM',    action:'updated',   what:'name, owner_id',                            kind:'sync'     },
+    { when:'1h ago',  who:'agent:enrich_v3',   action:'computed',  what:'tier, risk_score',                          kind:'agent'    },
+    { when:'4h ago',  who:'HubSpot Marketing', action:'merged',    what:'industry, region',                          kind:'merge'    },
+    { when:'1d ago',  who:'morgan.lee',         action:'edited',    what:'billing_address (manual override)',          kind:'manual'   },
+    { when:'3d ago',  who:'schema-bot',         action:'validated', what:'all '+props.length+' properties · 0 violations', kind:'validate' },
+    { when:'12d ago', who:'Salesforce CRM',    action:'created',   what:'initial record',                            kind:'create'   },
+  ]
+
+  const grouped = {}
+  provenance.forEach(pv => { if (!grouped[pv.source]) grouped[pv.source] = []; grouped[pv.source].push(pv) })
+  const conflictCount = provenance.filter(p => p.conflict).length
 
   function navigateTo(recId, nodeId) {
     if (!onNavigate) return
     const targetNode = NODES.find(n => n.id === nodeId)
     if (!targetNode) return
+    setTab('Overview'); setHoverNode(null); setExpandedProp(null); setInspectedNode(null)
     onNavigate(buildRecordFromId(recId, targetNode), targetNode)
   }
 
+  function buildSecondHop(parentRec, parentNodeObj, parentSeed) {
+    const outE = EDGES.filter(e => e.s === parentNodeObj.id).slice(0,2)
+    const inE  = EDGES.filter(e => e.t === parentNodeObj.id).slice(0,1)
+    return [...outE, ...inE].slice(0,2).map((e, ci) => {
+      const isOut = e.s === parentNodeObj.id
+      const grandId = isOut ? e.t : e.s
+      const grand = NODES.find(n => n.id === grandId)
+      if (!grand || grand.id === node.id) return null
+      const seed = parentSeed + ci*41 + 17
+      const gp = generateProps(grand)
+      const nameProp = gp.find(p => ['name','title','company_name'].includes(p.name)) || gp[1] || gp[0]
+      return { id: grand.id+'-'+(100000+Math.abs(seed*1597)%899999), label: grand.label, nodeId: grand.id, keyName: nameProp?.name||'id', keyValue: nameProp ? generateValueForProp(nameProp,seed) : '—', edgeLabel: e.label, kind: e.kind, isOut }
+    }).filter(Boolean)
+  }
+
+  // ── shared tag helpers ──
+  function statusPill(status) {
+    const bg  = status==='active'?C.greenFill : status==='review'?C.goldFill : C.coralFill
+    const col = status==='active'?C.green     : status==='review'?C.gold     : C.coral
+    return <span style={{ fontFamily:'var(--mono)', fontSize:10, padding:'3px 8px', borderRadius:4, background:bg, color:col, fontWeight:700, letterSpacing:'0.5px', textTransform:'uppercase' }}>{status}</span>
+  }
+  function kindChip(kind) {
+    const bg  = kind==='inferred'?C.goldFill   : kind==='agent'?C.purpleFill : '#f1f2f1'
+    const col = kind==='inferred'?C.gold       : kind==='agent'?C.purple     : C.ink3
+    return <span style={{ fontFamily:'var(--mono)', fontSize:9, padding:'1px 5px', borderRadius:3, background:bg, color:col, fontWeight:700, textTransform:'uppercase', letterSpacing:'0.4px' }}>{kind}</span>
+  }
+
   const CARD     = { background:'#fff', border:'1px solid #ececea', borderRadius:12, overflow:'hidden' }
-  const CARD_HEAD = { display:'flex', alignItems:'center', justifyContent:'space-between', padding:'13px 18px', borderBottom:'1px solid #eaecea', fontFamily:'var(--sans)', fontSize:13, fontWeight:600, color:'#1a1a1a', background:'#F7F5F3', letterSpacing:0.1 }
+  const CARD_HEAD_ROW = { display:'flex', alignItems:'center', justifyContent:'space-between', padding:'12px 18px', borderBottom:'1px solid #eaecea', fontFamily:'var(--sans)', fontSize:13, fontWeight:600, color:'#1a1a1a', background:'#F7F5F3' }
+  const ghostBtn = (label, onClick) => (
+    <button onClick={onClick} style={{ background:'#fff', border:'1px solid #e3ddd1', borderRadius:8, padding:'5px 11px', fontSize:12, color:C.ink2, cursor:'pointer', fontFamily:'var(--sans)' }}
+      onMouseOver={e=>e.currentTarget.style.background='#f7f5f0'} onMouseOut={e=>e.currentTarget.style.background='#fff'}>{label}</button>
+  )
+
+  // ─────────────────────────────────────────────────────────────────────────
+  //  GRAPH TAB helpers
+  // ─────────────────────────────────────────────────────────────────────────
+  function buildFlat() {
+    const flat = []
+    related.forEach((r, ri) => r.related.forEach(rr => flat.push({ rr, parentIdx:ri, isOut:r.isOut })))
+    const nFlat = flat.length || 1
+    flat.forEach((f,i) => { const a=(i/nFlat)*Math.PI*2-Math.PI/2; f.x=550+Math.cos(a)*280; f.y=380+Math.sin(a)*280; f.angle=a })
+    return flat
+  }
+  function buildHops(flat) {
+    const hops = []
+    flat.forEach((f,i) => {
+      const parentNodeObj = NODES.find(n => n.id === f.rr.nodeId)
+      if (!parentNodeObj) return
+      const kids = buildSecondHop(f.rr, parentNodeObj, f.rr.id.length*31+i*13)
+      const arcSpan = Math.PI/7
+      kids.forEach((kid,ki) => {
+        const offset = kids.length>1 ? ((ki-(kids.length-1)/2)/(kids.length-1))*arcSpan : 0
+        const ang = f.angle+offset
+        hops.push({ rr:kid, parent:f, x:550+Math.cos(ang)*520, y:380+Math.sin(ang)*520 })
+      })
+    })
+    return hops
+  }
+
+  function GraphSVG({ fullscreen }) {
+    const W=1100, H=760, cx=550, cy=380
+    const flat = buildFlat()
+    const hops = twoHop ? buildHops(flat) : []
+    const pan = graphPan, zoom = fullscreen ? graphZoom : 1
+    return (
+      <svg width="100%" height="100%" viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="xMidYMid meet" style={{ display:'block' }}>
+        <defs>
+          <marker id="rec-arr"  viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6"  markerHeight="6"  orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill={C.ink3}/></marker>
+          <marker id="rec-arr2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="5"  markerHeight="5"  orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#c8c0b4"/></marker>
+        </defs>
+        <g transform={`translate(${pan.x},${pan.y}) translate(${cx},${cy}) scale(${zoom}) translate(${-cx},${-cy})`}>
+          {/* 2-hop edges */}
+          {hops.map((h,i) => {
+            const dx=h.x-h.parent.x, dy=h.y-h.parent.y, len=Math.sqrt(dx*dx+dy*dy)
+            const ux=dx/len, uy=dy/len
+            const sx=h.parent.x+ux*26, sy=h.parent.y+uy*26, tx=h.x-ux*26, ty=h.y-uy*26
+            return <g key={'h-e'+i}><line x1={sx} y1={sy} x2={tx} y2={ty} stroke="#d8d0c4" strokeWidth="0.9" opacity="0.5" strokeDasharray="3,2" markerEnd="url(#rec-arr2)"/><g transform={`translate(${(sx+tx)/2} ${(sy+ty)/2})`} style={{pointerEvents:'none'}}><rect x="-32" y="-7" width="64" height="13" rx="2.5" fill="#FEFDFB" stroke="#eae4d8"/><text textAnchor="middle" y="2.5" style={{fontFamily:'var(--mono)',fontSize:'8px',fill:C.ink3}}>{':'+h.rr.edgeLabel}</text></g></g>
+          })}
+          {/* 1-hop edges */}
+          {flat.map((f,i) => {
+            const dx=f.x-cx, dy=f.y-cy, len=Math.sqrt(dx*dx+dy*dy), ux=dx/len, uy=dy/len
+            const sx=cx+ux*40, sy=cy+uy*40, tx=f.x-ux*26, ty=f.y-uy*26
+            return <g key={'e'+i}><line x1={sx} y1={sy} x2={tx} y2={ty} stroke={C.ink3} strokeWidth="1.3" opacity="0.6" strokeDasharray={f.rr.kind==='inferred'?'4,3':'none'} markerEnd="url(#rec-arr)"/><g transform={`translate(${(cx+f.x)/2} ${(cy+f.y)/2})`} style={{pointerEvents:'none'}}><rect x="-44" y="-9" width="88" height="18" rx="3" fill="#FEFDFB" stroke="#eae4d8"/><text textAnchor="middle" y="3.5" style={{fontFamily:'var(--mono)',fontSize:'9.5px',fill:C.ink2}}>{':'+f.rr.edgeLabel}</text></g></g>
+          })}
+          {/* 2-hop nodes */}
+          {hops.map((h,i) => {
+            const nObj = NODES.find(n => n.id === h.rr.nodeId)
+            const col  = colorForNode(nObj)
+            const isInsp = inspectedNode?.id === h.rr.id
+            const isHov  = hoverNode === h.rr.id
+            return <g key={'h-n'+i} style={{cursor:'pointer'}} onClick={()=>{ if(graphDrag.current?.moved) return; setInspectedNode(h.rr) }} onMouseEnter={()=>setHoverNode(h.rr.id)} onMouseLeave={()=>setHoverNode(null)}>
+              <circle cx={h.x} cy={h.y} r={isInsp?30:isHov?28:26} fill={col.fill} stroke={isInsp||isHov?C.ink:col.stroke} strokeWidth={isInsp?3:isHov?2.6:1.8}/>
+              <text x={h.x} y={h.y-34} textAnchor="middle" style={{fontFamily:'var(--mono)',fontSize:'11.5px',fontWeight:600,fill:C.ink,pointerEvents:'none'}}>{h.rr.id}</text>
+              <text x={h.x} y={h.y+42} textAnchor="middle" style={{fontFamily:'var(--mono)',fontSize:'10.5px',fill:C.ink3,pointerEvents:'none'}}>{String(h.rr.keyValue).slice(0,18)}</text>
+            </g>
+          })}
+          {/* Centre node */}
+          <g style={{cursor:'pointer'}} onClick={()=>{ if(graphDrag.current?.moved) return; setInspectedNode(null) }}>
+            <circle cx={cx} cy={cy} r={38} fill={c.fill} stroke={inspectedNode===null?C.ink:c.stroke} strokeWidth={inspectedNode===null?3.6:2.8}/>
+            <text x={cx} y={cy-50} textAnchor="middle" style={{fontFamily:'var(--mono)',fontSize:'12px',fontWeight:600,fill:C.ink,pointerEvents:'none'}}>{record.id}</text>
+            <text x={cx} y={cy+60} textAnchor="middle" style={{fontFamily:'var(--mono)',fontSize:'11px',fill:C.ink3,pointerEvents:'none'}}>{record[Object.keys(record).find(k=>k==='name'||k==='company_name'||k==='title')]||node.label}</text>
+          </g>
+          {/* 1-hop nodes */}
+          {flat.map((f,i) => {
+            const otherCol = colorForNode(NODES.find(n => n.id === f.rr.nodeId))
+            const isInsp = inspectedNode?.id === f.rr.id
+            const isHov  = hoverNode === f.rr.id
+            return <g key={'n'+i} style={{cursor:'pointer'}} onClick={()=>{ if(graphDrag.current?.moved) return; setInspectedNode(f.rr) }} onMouseEnter={()=>setHoverNode(f.rr.id)} onMouseLeave={()=>setHoverNode(null)}>
+              <circle cx={f.x} cy={f.y} r={isInsp?30:isHov?28:26} fill={otherCol.fill} stroke={isInsp||isHov?C.ink:otherCol.stroke} strokeWidth={isInsp?3:isHov?2.6:1.8}/>
+              <text x={f.x} y={f.y-34} textAnchor="middle" style={{fontFamily:'var(--mono)',fontSize:'11.5px',fontWeight:600,fill:C.ink,pointerEvents:'none'}}>{f.rr.id}</text>
+              <text x={f.x} y={f.y+42} textAnchor="middle" style={{fontFamily:'var(--mono)',fontSize:'10.5px',fill:C.ink3,pointerEvents:'none'}}>{f.rr.keyName+': '+String(f.rr.keyValue).slice(0,20)}</text>
+            </g>
+          })}
+        </g>
+      </svg>
+    )
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────
+  //  GRAPH inspector pane
+  // ─────────────────────────────────────────────────────────────────────────
+  function InspectorPane() {
+    let insp
+    if (inspectedNode === null) {
+      insp = { isCentre:true, headerId:record.id, headerLabel: record[Object.keys(record).find(k=>k==='name'||k==='company_name'||k==='title')]||node.label, headerNode:node, edgeBadge:null, status:record.status, propsList:provenance.map(pv=>({name:pv.prop.name,value:pv.value,pii:pv.prop.pii,pk:pv.prop.pk,computed:pv.prop.computed,type:pv.prop.type,source:pv.source,age:pv.age,conf:pv.conf})), relatedCount:totalRelated, completeness:record._completeness, confidence:record._confidence, sourceLabel:record._source, updatedAgo:record._updatedAgo, createdAgo:record._createdAgo, targetRecordId:record.id, targetNodeId:node.id }
+    } else {
+      const nObj = NODES.find(n => n.id === inspectedNode.nodeId)||node
+      const inspProps = generateProps(nObj)
+      const inspSeed  = inspectedNode.id.length*13 + inspectedNode.id.charCodeAt(inspectedNode.id.length-1)*7
+      insp = { isCentre:false, headerId:inspectedNode.id, headerLabel:inspectedNode.keyValue, headerNode:nObj, edgeBadge:{ dir:inspectedNode.isOut?'out':'in', label:inspectedNode.edgeLabel, kind:inspectedNode.kind, fromLabel:node.label, toLabel:nObj.label }, status:['active','active','review','active','flagged'][Math.abs(inspSeed)%5], propsList:inspProps.map((p,idx)=>({ name:p.name, value:generateValueForProp(p,inspSeed+idx*11), pii:p.pii, pk:p.pk, computed:p.computed, type:p.type, source:['Salesforce CRM','NetSuite ERP','HubSpot Marketing','Manual / Admin'][(inspSeed+idx)%4], age:['2m','18m','1h','4h','12h','1d'][(inspSeed+idx)%6], conf:0.78+((Math.abs(inspSeed+idx)%20)/100) })), relatedCount:1+(Math.abs(inspSeed)%5), completeness:78+(Math.abs(inspSeed)%22), confidence:82+(Math.abs(inspSeed)%17), sourceLabel:['Salesforce CRM','NetSuite ERP','HubSpot Marketing','Manual / Admin'][Math.abs(inspSeed)%4], updatedAgo:['2m ago','14m ago','1h ago','4h ago','1d ago','3d ago'][Math.abs(inspSeed)%6], createdAgo:['12d ago','34d ago','2mo ago','6mo ago','1y ago','2y ago'][Math.abs(inspSeed)%6], targetRecordId:inspectedNode.id, targetNodeId:inspectedNode.nodeId }
+    }
+    const inspCol  = colorForNode(insp.headerNode)
+    const compColor = insp.completeness>=90?C.green:insp.completeness>=75?C.gold:C.coral
+    return (
+      <div style={{ ...CARD, display:'flex', flexDirection:'column', overflow:'hidden' }}>
+        {/* header */}
+        <div style={{ padding:'16px 18px 14px', borderBottom:'1px solid #eae4d8', background:'#f7f5f0' }}>
+          <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:8, marginBottom:10 }}>
+            <span style={{ fontFamily:'var(--mono)', fontSize:9.5, letterSpacing:'0.6px', color:C.ink3, textTransform:'uppercase' }}>{insp.isCentre?'This record':'Inspecting'}</span>
+            {!insp.isCentre && <button onClick={()=>setInspectedNode(null)} style={{ background:'none', border:'none', padding:0, color:C.ink3, cursor:'pointer', fontFamily:'var(--mono)', fontSize:10 }}>Clear ✕</button>}
+          </div>
+          <div style={{ display:'flex', alignItems:'center', gap:12 }}>
+            <span style={{ width:44, height:44, borderRadius:'50%', background:inspCol.fill, border:'1.5px solid '+inspCol.stroke, flexShrink:0 }} />
+            <div style={{ minWidth:0, flex:1 }}>
+              <div style={{ fontFamily:'var(--mono)', fontSize:15, fontWeight:600, color:C.ink, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{insp.headerId}</div>
+              <div style={{ fontSize:12.5, color:C.ink2, marginTop:3 }}>{insp.headerLabel}</div>
+              <div style={{ display:'flex', alignItems:'center', gap:6, marginTop:6 }}>
+                <span style={{ fontFamily:'var(--mono)', fontSize:9, padding:'2px 6px', borderRadius:3, background:'#f1f0ec', color:C.ink3, letterSpacing:'0.5px', fontWeight:700, textTransform:'uppercase' }}>{insp.headerNode.label}</span>
+                {statusPill(insp.status)}
+                <span style={{ fontFamily:'var(--mono)', fontSize:10, color:C.ink3 }}>· updated {insp.updatedAgo}</span>
+              </div>
+            </div>
+          </div>
+          {insp.edgeBadge && (
+            <div style={{ marginTop:12, padding:'7px 10px', borderRadius:7, background:'#fff', border:'1px solid #eae4d8', display:'flex', alignItems:'center', gap:6, fontSize:11 }}>
+              <span style={{ fontFamily:'var(--mono)', fontSize:10, color:C.ink3 }}>{insp.edgeBadge.dir==='out'?insp.edgeBadge.fromLabel+' →':insp.edgeBadge.fromLabel+' ←'}</span>
+              <code style={{ fontFamily:'var(--mono)', fontSize:10.5, color:C.ink2, fontWeight:600 }}>:{insp.edgeBadge.label}</code>
+              {kindChip(insp.edgeBadge.kind)}
+              <span style={{ marginLeft:'auto', fontFamily:'var(--mono)', fontSize:10, color:C.ink3 }}>→ {insp.edgeBadge.toLabel}</span>
+            </div>
+          )}
+        </div>
+        {/* mini KPIs */}
+        <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', borderBottom:'1px solid #eae4d8' }}>
+          {[{ lbl:'PROPERTIES', v:insp.propsList.length, color:C.ink },{ lbl:'COMPLETENESS', v:insp.completeness+'%', color:compColor },{ lbl:'RELATED', v:insp.relatedCount, color:C.ink }].map((k,i,a)=>(
+            <div key={k.lbl} style={{ padding:'11px 14px', borderRight:i<a.length-1?'1px solid #eae4d8':'none' }}>
+              <div style={{ fontFamily:'var(--mono)', fontSize:9, letterSpacing:'0.5px', color:C.ink3 }}>{k.lbl}</div>
+              <div style={{ fontFamily:'var(--mono)', fontSize:15, color:k.color, fontWeight:700, marginTop:3 }}>{k.v}</div>
+            </div>
+          ))}
+        </div>
+        {/* scrollable props */}
+        <div style={{ flex:1, minHeight:0, overflowY:'auto' }}>
+          <div style={{ padding:'10px 18px 5px', fontFamily:'var(--mono)', fontSize:9.5, letterSpacing:'0.5px', color:C.ink3, textTransform:'uppercase', display:'flex', justifyContent:'space-between' }}>
+            <span>Properties</span><span>{insp.propsList.length+' fields · '+insp.sourceLabel}</span>
+          </div>
+          {insp.propsList.map((pv,i)=>(
+            <div key={pv.name} style={{ display:'grid', gridTemplateColumns:'130px 1fr auto', gap:10, padding:'7px 18px', alignItems:'center', borderBottom:i<insp.propsList.length-1?'1px solid #f1f0ec':'none' }}>
+              <div style={{ display:'flex', alignItems:'center', gap:5, minWidth:0 }}>
+                {pv.pk && <span style={{ fontFamily:'var(--mono)', fontSize:8.5, padding:'1px 5px', borderRadius:3, background:C.ink, color:'#fff', fontWeight:700 }}>PK</span>}
+                <code style={{ fontFamily:'var(--mono)', fontSize:11, color:C.ink3, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }} title={pv.name}>{pv.name}</code>
+              </div>
+              <span style={{ fontFamily:'var(--mono)', fontSize:11.5, color:C.ink, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{String(pv.value)}</span>
+              <span style={{ display:'flex', gap:3, alignItems:'center' }}>
+                {pv.pii      && <span style={{ fontFamily:'var(--mono)', fontSize:8.5, padding:'1px 5px', borderRadius:3, background:C.coralFill, color:C.coral, fontWeight:700 }}>PII</span>}
+                {pv.computed && <span style={{ fontFamily:'var(--mono)', fontSize:8.5, padding:'1px 5px', borderRadius:3, background:C.purpleFill, color:C.purple, fontWeight:700 }}>FX</span>}
+              </span>
+            </div>
+          ))}
+        </div>
+        {/* footer */}
+        <div style={{ padding:'10px 16px', borderTop:'1px solid #eae4d8', display:'flex', alignItems:'center', justifyContent:'space-between', gap:8, background:'#f7f5f0' }}>
+          <span style={{ fontFamily:'var(--mono)', fontSize:10, color:C.ink3 }}>created {insp.createdAgo}</span>
+          {!insp.isCentre && <button className="btn-dark" style={{ fontSize:11.5, padding:'6px 12px' }} onClick={()=>navigateTo(insp.targetRecordId, insp.targetNodeId)}>Open full record →</button>}
+        </div>
+      </div>
+    )
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────
+  //  RENDER
+  // ─────────────────────────────────────────────────────────────────────────
+  const tabBadge = { Graph:totalRelated, Overview:props.length, Provenance:conflictCount||null, Activity:activity.length }
 
   return (
-    <div style={{ flex:1, overflowY:'auto', backgroundColor:'#fcfbf7', padding:'12px 26px 40px' }} className="dark-scroll">
-      {/* ── Header ── */}
-      <div style={{ display:'flex', alignItems:'center', marginBottom:20 }}>
-        <button onClick={onBack}
-          style={{ display:'flex', alignItems:'center', gap:6, background:'none', border:'none', cursor:'pointer', color:'#9097a0', padding:'0 12px 0 0', fontFamily:'var(--sans)', fontSize:13 }}
-          onMouseOver={e=>e.currentTarget.style.color='#1a1a1a'}
-          onMouseOut={e=>e.currentTarget.style.color='#9097a0'}>
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M15 18l-6-6 6-6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"/></svg>
-          Back
-        </button>
-        <div style={{ flex:1, display:'flex', alignItems:'baseline', gap:10 }}>
-          <span style={{ fontFamily:'var(--serif)', fontSize:23, fontWeight:500, color:'#1a1a1a', letterSpacing:-0.2 }}>{record.id}</span>
-          <StatusPill status={record.status} />
+    <div style={{ flex:1, display:'flex', flexDirection:'column', height:'100%', overflowY:'auto', backgroundColor:'#fcfbf7' }} className="dark-scroll">
+
+      {/* ── Header (matches NodeDetailPage style) ── */}
+      <div style={{ margin:'0 0 0', flexShrink:0 }}>
+        {/* breadcrumb */}
+        <div style={{ display:'flex', alignItems:'center', gap:6, padding:'10px 26px 0', fontFamily:'var(--mono)', fontSize:11, color:C.ink3 }}>
+          <button onClick={onBack} style={{ background:'none', border:'none', padding:0, cursor:'pointer', color:C.ink3, fontFamily:'var(--mono)', fontSize:11 }}
+            onMouseOver={e=>e.currentTarget.style.color=C.ink} onMouseOut={e=>e.currentTarget.style.color=C.ink3}>Records</button>
+          <span>/</span><span style={{ color:C.ink3 }}>{node.label}</span>
+          <span>/</span><span style={{ color:C.ink2, fontWeight:600 }}>{record.id}</span>
         </div>
-        <div style={{ display:'flex', gap:8 }}>
-          <button style={{ background:'#fff', border:'1px solid #d0d5d0', borderRadius:8, padding:'7px 14px', fontSize:13, color:'#374151', cursor:'pointer', fontFamily:'var(--sans)', boxShadow:'0 1px 2px rgba(0,0,0,0.06)' }}
-            onMouseOver={e=>e.currentTarget.style.background='#f7f6f3'}
-            onMouseOut={e=>e.currentTarget.style.background='#fff'}>Copy ID</button>
-          <DarkBtn>Edit record</DarkBtn>
+
+        {/* title zone */}
+        <div style={{ display:'flex', alignItems:'center', gap:10, background:'#FEFDFB', padding:'12px 26px 10px', marginTop:4 }}>
+          {/* icon → back arrow on hover */}
+          <span
+            onMouseEnter={()=>setIconHovered(true)}
+            onMouseLeave={()=>setIconHovered(false)}
+            onClick={iconHovered ? onBack : undefined}
+            title={iconHovered?'Back to records':undefined}
+            style={{ width:34, height:34, borderRadius:8, background:iconHovered?'#f2f0eb':'#fff', border:'1px solid #eee7da', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0, cursor:iconHovered?'pointer':'default', transition:'background .15s' }}>
+            {iconHovered
+              ? <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="#6b6b5e" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="10,3 5,8 10,13"/></svg>
+              : <NodeGlyph n={node} size={18} />}
+          </span>
+          <span style={{ fontFamily:'var(--serif)', fontSize:22, fontWeight:500, color:'#1a1a1a', letterSpacing:-0.2 }}>{record.id}</span>
+          <span style={{ fontFamily:'var(--mono)', fontSize:10.5, color:'#6b7280', border:'1px solid #e3ddd1', background:'#f5f3ef', padding:'2px 8px', borderRadius:6 }}>{node.label.toUpperCase()}</span>
+          {statusPill(record.status)}
+          <span style={{ fontFamily:'var(--mono)', fontSize:10.5, color:C.ink3 }}>{'created '+record._createdAgo+' · updated '+record._updatedAgo}</span>
+          <div style={{ flex:1 }} />
+          {ghostBtn('Open in source ↗')}
+          {ghostBtn('Copy ID')}
+          <button className="btn-dark" style={{ height:32, padding:'0 14px', fontSize:13 }}>Edit record</button>
+        </div>
+
+        {/* KPI strip */}
+        <div style={{ display:'grid', gridTemplateColumns:'repeat(6,1fr)', background:'#FEFDFB', borderTop:'1px solid #f1ede6' }}>
+          {[
+            { lbl:'Properties',   v: props.length },
+            { lbl:'Completeness', v: record._completeness+'%', color: record._completeness>=90?C.green:C.gold },
+            { lbl:'Confidence',   v: record._confidence+'%',   color: record._confidence>=90?C.green:C.gold },
+            { lbl:'Sources',      v: Object.keys(grouped).length },
+            { lbl:'Related',      v: totalRelated },
+            { lbl:'Conflicts',    v: conflictCount, color: conflictCount?C.gold:C.ink },
+          ].map((k,i,a)=>(
+            <div key={k.lbl} style={{ padding:'11px 18px', borderRight:i<a.length-1?'1px solid #f1ede6':'none' }}>
+              <div style={{ fontFamily:'var(--mono)', fontSize:9.5, color:C.ink3, letterSpacing:'0.4px', textTransform:'uppercase', marginBottom:4 }}>{k.lbl}</div>
+              <div style={{ fontFamily:'var(--mono)', fontSize:17, fontWeight:700, color:k.color||C.ink }}>{k.v}</div>
+            </div>
+          ))}
+        </div>
+
+        {/* tab rail */}
+        <div style={{ background:'#FEFDFB', borderTop:'1px solid #f1ede6', borderBottom:'1px solid #efece6', padding:'0 26px' }}>
+          <div style={{ display:'flex' }}>
+            {tabs.map(t => {
+              const isOn = tab===t
+              const badge = tabBadge[t]
+              return (
+                <button key={t} onClick={()=>setTab(t)} style={{ display:'flex', alignItems:'center', gap:5, padding:'11px 14px 10px', fontFamily:'var(--sans)', fontSize:13, fontWeight:isOn?600:400, color:isOn?'#1a1a1a':'#888077', background:'transparent', border:'none', borderBottom:isOn?'2px solid #1a1a1a':'2px solid transparent', cursor:'pointer', transition:'color .12s', marginBottom:-1 }}>
+                  {t}
+                  {badge != null && <span style={{ fontFamily:'var(--mono)', fontSize:10, padding:'1px 5px', borderRadius:10, background:isOn?'#1a1a1a':'#f0eeeb', color:isOn?'#fff':C.ink3, fontWeight:700 }}>{badge}</span>}
+                </button>
+              )
+            })}
+          </div>
         </div>
       </div>
 
-      {/* ── Two-column body ── */}
-      <div style={{ display:'grid', gridTemplateColumns:'minmax(0,1.6fr) minmax(280px,1fr)', gap:18, alignItems:'start' }}>
+      {/* ── Tab body ── */}
+      <div style={{ flex:1, padding:'20px 26px 40px', overflowY:'auto' }}>
 
-        {/* Left — property values */}
-        <div style={CARD}>
-          <div style={CARD_HEAD}>
-            <span>Properties <span style={{ fontWeight:400, color:'#9a948a', fontSize:12 }}>{props.length} fields</span></span>
-          </div>
-          <table style={{ width:'100%', borderCollapse:'collapse' }}>
-            <tbody>
-              {provenance.map((pv,i) => {
-                const p = pv.prop
-                const last = i === provenance.length - 1
-                return (
-                  <tr key={p.name} style={{ borderBottom: last ? 'none' : '1px solid #f1f2f1' }}>
-                    <td style={{ padding:'11px 18px', width:180, verticalAlign:'middle' }}>
-                      <div style={{ display:'flex', alignItems:'center', gap:5 }}>
-                        {p.pk && <span style={{ fontFamily:'var(--mono)', fontSize:8.5, padding:'1px 4px', borderRadius:3, background:'#1a1a1a', color:'#fff', fontWeight:700 }}>PK</span>}
-                        <code style={{ fontFamily:'var(--mono)', fontSize:12, color:'#374151', fontWeight:p.pk?600:400 }}>{p.name}</code>
-                      </div>
-                    </td>
-                    <td style={{ padding:'11px 18px', verticalAlign:'middle' }}>
-                      <span style={{ fontFamily:'var(--mono)', fontSize:13, color:'#1a1a1a' }}>{String(pv.value)}</span>
-                    </td>
-                    <td style={{ padding:'11px 18px', verticalAlign:'middle', textAlign:'right', whiteSpace:'nowrap' }}>
-                      <div style={{ display:'inline-flex', gap:4, alignItems:'center' }}>
-                        <span style={{ fontFamily:'var(--mono)', fontSize:10, color:'#b8bcb8' }}>{p.type}</span>
-                        {p.pii      && <span style={{ fontFamily:'var(--mono)', fontSize:8.5, padding:'1px 5px', borderRadius:3, background:'#fbe6e6', color:'#c84040', fontWeight:700 }}>PII</span>}
-                        {p.computed && <span style={{ fontFamily:'var(--mono)', fontSize:8.5, padding:'1px 5px', borderRadius:3, background:'#ede9fc', color:'#7c3aed', fontWeight:700 }}>FX</span>}
-                      </div>
-                    </td>
-                  </tr>
-                )
-              })}
-            </tbody>
-          </table>
-        </div>
-
-        {/* Right — connections */}
-        <div style={CARD}>
-          <div style={CARD_HEAD}>
-            <span>Connections <span style={{ fontWeight:400, color:'#9a948a', fontSize:12 }}>{totalRelated} across {related.length} edge types</span></span>
-          </div>
-          <div>
-            {related.map((r,i) => (
-              <div key={i} style={{ padding:'12px 16px', borderBottom: i<related.length-1 ? '1px solid #f1f2f1' : 'none' }}>
-                <div style={{ display:'flex', alignItems:'center', gap:7, marginBottom:8 }}>
-                  <code style={{ fontFamily:'var(--mono)', fontSize:11, color:'#374151', fontWeight:600 }}>:{r.edge.label}</code>
-                  <NodeGlyph n={r.otherNode} size={11} />
-                  <span style={{ fontFamily:'var(--sans)', fontSize:12, color:'#374151' }}>{r.otherNode.label}</span>
-                  <span style={{ fontFamily:'var(--mono)', fontSize:9, padding:'1px 5px', borderRadius:3, background: r.edge.kind==='inferred'?'#f9f0de' : r.edge.kind==='agent'?'#ede9fc' : '#f1f3f1', color: r.edge.kind==='inferred'?'#b07a20' : r.edge.kind==='agent'?'#7c3aed' : '#9097a0', fontWeight:700, textTransform:'uppercase', letterSpacing:'0.4px' }}>{r.edge.kind}</span>
+        {/* ── GRAPH ── */}
+        {tab==='Graph' && (
+          <div style={{ display:'grid', gridTemplateColumns:'minmax(0,2fr) minmax(340px,.7fr)', gap:18, height:'calc(100vh - 360px)', minHeight:520 }}>
+            <div style={{ ...CARD, padding:0, display:'flex', flexDirection:'column' }}>
+              <div style={CARD_HEAD_ROW}>
+                <span>Relationship graph</span>
+                <div style={{ display:'flex', gap:6, alignItems:'center' }}>
+                  {ghostBtn(twoHop?'Collapse to 1-hop':'Expand 2-hop', ()=>setTwoHop(v=>!v))}
+                  <button onClick={()=>setGraphFullscreen(true)} title="Expand" style={{ width:30, height:30, borderRadius:6, border:'1px solid #e3ddd1', background:'#fff', color:C.ink2, cursor:'pointer', display:'inline-flex', alignItems:'center', justifyContent:'center' }}>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg>
+                  </button>
                 </div>
-                <div style={{ display:'flex', flexDirection:'column', gap:1 }}>
-                  {r.related.map((rr,j) => (
-                    <div key={j} onClick={() => navigateTo(rr.id, rr.nodeId)}
-                      style={{ display:'flex', alignItems:'center', gap:8, padding:'5px 6px', cursor:'pointer', borderRadius:6, transition:'background .1s' }}
-                      onMouseEnter={e=>e.currentTarget.style.background='#f7f6f3'}
-                      onMouseLeave={e=>e.currentTarget.style.background='transparent'}>
-                      <code style={{ fontFamily:'var(--mono)', fontSize:11, color:'#1a1a1a', fontWeight:600, flexShrink:0 }}>{rr.id}</code>
-                      <span style={{ fontFamily:'var(--sans)', fontSize:12, color:'#9097a0', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', flex:1 }}>{rr.keyValue}</span>
-                      <span style={{ fontFamily:'var(--mono)', fontSize:10, color:'#b8bcb8', flexShrink:0 }}>{rr.since}</span>
+              </div>
+              <div
+                onMouseDown={e=>{ if(e.target.tagName==='circle') return; graphDrag.current={startX:e.clientX,startY:e.clientY,origX:graphPan.x,origY:graphPan.y,moved:false}; e.currentTarget.style.cursor='grabbing' }}
+                onMouseMove={e=>{ const d=graphDrag.current; if(!d) return; const dx=e.clientX-d.startX,dy=e.clientY-d.startY; if(!d.moved&&Math.hypot(dx,dy)>3) d.moved=true; if(d.moved) setGraphPan({x:d.origX+dx,y:d.origY+dy}) }}
+                onMouseUp={e=>{ graphDrag.current=null; e.currentTarget.style.cursor='grab' }}
+                onMouseLeave={e=>{ graphDrag.current=null; e.currentTarget.style.cursor='grab' }}
+                onDoubleClick={()=>setGraphPan({x:0,y:0})}
+                style={{ flex:1, minHeight:0, background:'#faf8f4', overflow:'hidden', cursor:'grab', userSelect:'none', position:'relative' }}>
+                <GraphSVG fullscreen={false}/>
+              </div>
+            </div>
+            <InspectorPane/>
+          </div>
+        )}
+
+        {/* ── OVERVIEW ── */}
+        {tab==='Overview' && (
+          <div style={{ display:'grid', gridTemplateColumns:'minmax(0,1.6fr) minmax(280px,1fr)', gap:18 }}>
+            {/* left — property values */}
+            <div style={CARD}>
+              <div style={CARD_HEAD_ROW}>
+                <span>Property values <span style={{ fontWeight:400, fontSize:12, color:C.ink3 }}>{props.length} fields · {record._source}</span></span>
+                <div style={{ display:'flex', gap:6 }}>
+                  {ghostBtn('Show nulls')}
+                  {ghostBtn('Export JSON')}
+                </div>
+              </div>
+              <div>
+                {provenance.map((pv,i)=>{
+                  const p=pv.prop
+                  return (
+                    <div key={p.name} style={{ display:'grid', gridTemplateColumns:'180px 1fr auto auto', alignItems:'center', gap:14, padding:'11px 18px', borderBottom:i<provenance.length-1?'1px solid #f1f0ec':'none' }}>
+                      <div style={{ display:'flex', alignItems:'center', gap:6, minWidth:0 }}>
+                        {p.pk && <span style={{ fontFamily:'var(--mono)', fontSize:9, padding:'1px 4px', borderRadius:3, background:C.ink, color:'#fff', fontWeight:700 }}>PK</span>}
+                        <code style={{ fontFamily:'var(--mono)', fontSize:12, color:C.ink, fontWeight:p.pk?600:400, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{p.name}</code>
+                      </div>
+                      <span style={{ fontFamily:'var(--mono)', fontSize:12.5, color:C.ink, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{String(pv.value)}</span>
+                      <span style={{ fontFamily:'var(--mono)', fontSize:10, color:C.ink3 }}>{p.type}</span>
+                      <div style={{ display:'flex', gap:3 }}>
+                        {p.pii      && <span style={{ fontFamily:'var(--mono)', fontSize:8.5, padding:'1px 5px', borderRadius:3, background:C.coralFill, color:C.coral, fontWeight:700 }}>PII</span>}
+                        {p.required && <span style={{ fontFamily:'var(--mono)', fontSize:8.5, padding:'1px 5px', borderRadius:3, background:'#f1f0ec', color:C.ink3, fontWeight:700 }}>REQ</span>}
+                        {p.computed && <span style={{ fontFamily:'var(--mono)', fontSize:8.5, padding:'1px 5px', borderRadius:3, background:C.purpleFill, color:C.purple, fontWeight:700 }}>FX</span>}
+                        {pv.conflict && <span style={{ fontFamily:'var(--mono)', fontSize:8.5, padding:'1px 5px', borderRadius:3, background:C.goldFill, color:C.gold, fontWeight:700 }}>⚠</span>}
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+
+            {/* right */}
+            <div style={{ display:'flex', flexDirection:'column', gap:18 }}>
+              <div style={CARD}>
+                <div style={CARD_HEAD_ROW}>
+                  <span>Connections <span style={{ fontWeight:400, fontSize:12, color:C.ink3 }}>{totalRelated} across {related.length} edge types</span></span>
+                  <button style={{ background:'none', border:'none', cursor:'pointer', fontFamily:'var(--sans)', fontSize:12, color:C.blue }} onClick={()=>setTab('Graph')}>See in graph →</button>
+                </div>
+                <div style={{ maxHeight:520, overflowY:'auto' }}>
+                  {related.map((r,i)=>(
+                    <div key={i} style={{ padding:'10px 16px', borderBottom:i<related.length-1?'1px solid #f1f0ec':'none' }}>
+                      <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:7 }}>
+                        <span style={{ fontFamily:'var(--mono)', fontSize:9.5, color:C.ink3 }}>{r.isOut?'→':'←'}</span>
+                        <code style={{ fontFamily:'var(--mono)', fontSize:11, color:C.ink2, fontWeight:600 }}>:{r.edge.label}</code>
+                        <NodeGlyph n={r.otherNode} size={12}/>
+                        <span style={{ fontSize:11.5, color:C.ink2 }}>{r.otherNode.label}</span>
+                        {kindChip(r.edge.kind)}
+                        <span style={{ marginLeft:'auto', fontFamily:'var(--mono)', fontSize:10, color:C.ink3 }}>{r.count}</span>
+                      </div>
+                      <div style={{ display:'flex', flexDirection:'column', gap:2 }}>
+                        {r.related.map((rr,j)=>(
+                          <div key={j} onClick={()=>navigateTo(rr.id,rr.nodeId)}
+                            style={{ display:'flex', alignItems:'center', gap:8, padding:'5px 6px', cursor:'pointer', borderRadius:5, transition:'background 80ms' }}
+                            onMouseEnter={e=>e.currentTarget.style.background='#f7f5f0'}
+                            onMouseLeave={e=>e.currentTarget.style.background='transparent'}>
+                            <code style={{ fontFamily:'var(--mono)', fontSize:10.5, color:C.blue, flexShrink:0 }}>{rr.id}</code>
+                            <span style={{ fontFamily:'var(--mono)', fontSize:10.5, color:C.ink3, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', minWidth:0 }}>{rr.keyValue}</span>
+                            <span style={{ marginLeft:'auto', fontFamily:'var(--mono)', fontSize:9.5, color:C.ink3, flexShrink:0 }}>{rr.since}</span>
+                          </div>
+                        ))}
+                      </div>
                     </div>
                   ))}
                 </div>
               </div>
-            ))}
+
+              <div style={CARD}>
+                <div style={CARD_HEAD_ROW}>Source contributions</div>
+                <div>
+                  {Object.keys(grouped).map((src,i,arr)=>{
+                    const fields=grouped[src]
+                    const pct=Math.round(fields.length/provenance.length*100)
+                    const avgConf=(fields.reduce((s,f)=>s+f.conf,0)/fields.length).toFixed(2)
+                    return (
+                      <div key={src} style={{ padding:'12px 18px', borderBottom:i<arr.length-1?'1px solid #f1f0ec':'none' }}>
+                        <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:6 }}>
+                          <span style={{ fontFamily:'var(--mono)', fontSize:11.5, color:C.ink2, fontWeight:600 }}>{src}</span>
+                          <span style={{ fontFamily:'var(--mono)', fontSize:10.5, color:C.ink3 }}>{fields.length+' fields · conf '+avgConf}</span>
+                        </div>
+                        <div style={{ height:5, borderRadius:3, background:'#f0eeeb', overflow:'hidden' }}>
+                          <div style={{ height:'100%', borderRadius:3, width:pct+'%', background:src==='computed'?C.purple:C.blue, transition:'width .3s' }}/>
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ── PROVENANCE ── */}
+        {tab==='Provenance' && (
+          <div style={CARD}>
+            <div style={CARD_HEAD_ROW}>
+              <span>How each value was built <span style={{ fontWeight:400, fontSize:12, color:C.ink3 }}>source · timestamp · confidence · rule applied</span></span>
+            </div>
+            <div>
+              {provenance.map((pv,i)=>{
+                const confColor = pv.conf>=0.9?C.green:pv.conf>=0.75?C.gold:C.coral
+                return (
+                  <div key={pv.prop.name} style={{ padding:'14px 18px', borderBottom:i<provenance.length-1?'1px solid #f1f0ec':'none' }}>
+                    <div style={{ display:'grid', gridTemplateColumns:'180px 1fr 140px 90px 80px', gap:14, alignItems:'center' }}>
+                      <code style={{ fontFamily:'var(--mono)', fontSize:12, color:C.ink, fontWeight:pv.prop.pk?600:400 }}>{pv.prop.name}</code>
+                      <div style={{ fontFamily:'var(--mono)', fontSize:12, color:C.ink2, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{String(pv.value)}</div>
+                      <span style={{ fontFamily:'var(--mono)', fontSize:11, color:pv.source==='computed'?C.purple:C.ink2 }}>{pv.source}</span>
+                      <span style={{ fontFamily:'var(--mono)', fontSize:11, color:C.ink3 }}>{pv.age+' ago'}</span>
+                      <span style={{ fontFamily:'var(--mono)', fontSize:11, fontWeight:700, color:confColor, textAlign:'right' }}>{pv.conf}</span>
+                    </div>
+                    {(pv.rule||pv.conflict) && (
+                      <div style={{ marginTop:8, marginLeft:194, display:'flex', flexDirection:'column', gap:6 }}>
+                        {pv.rule && <div style={{ fontSize:11, color:C.ink3, fontFamily:'var(--mono)' }}>↳ rule: <span style={{ color:C.ink2 }}>{pv.rule}</span></div>}
+                        {pv.conflict && (
+                          <div style={{ padding:'7px 10px', background:C.goldFill, borderRadius:5, fontSize:11, color:C.ink2 }}>
+                            <span style={{ fontFamily:'var(--mono)', fontWeight:700, color:C.gold }}>⚠ CONFLICT</span> · {pv.conflict.loser} sent <code style={{ fontFamily:'var(--mono)', background:'rgba(255,255,255,0.5)', padding:'1px 5px', borderRadius:3 }}>{String(pv.conflict.loserValue)}</code> · resolved by <b>{pv.conflict.resolution}</b>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* ── ACTIVITY ── */}
+        {tab==='Activity' && (
+          <div style={CARD}>
+            <div style={CARD_HEAD_ROW}>Change history <span style={{ fontWeight:400, fontSize:12, color:C.ink3 }}>last 30 days</span></div>
+            <div>
+              {activity.map((a,i)=>{
+                const dotColor = a.kind==='create'?C.green:a.kind==='sync'?C.blue:a.kind==='agent'?C.purple:a.kind==='manual'?C.coral:a.kind==='merge'?C.gold:C.ink3
+                return (
+                  <div key={i} style={{ display:'grid', gridTemplateColumns:'100px 12px 1fr', gap:14, alignItems:'center', padding:'12px 18px', borderBottom:i<activity.length-1?'1px solid #f1f0ec':'none' }}>
+                    <span style={{ fontFamily:'var(--mono)', fontSize:11, color:C.ink3 }}>{a.when}</span>
+                    <span style={{ width:8, height:8, borderRadius:'50%', background:dotColor, justifySelf:'center' }}/>
+                    <div style={{ display:'flex', alignItems:'baseline', gap:8, flexWrap:'wrap' }}>
+                      <span style={{ fontFamily:'var(--mono)', fontSize:11.5, color:C.ink2, fontWeight:600 }}>{a.who}</span>
+                      <span style={{ fontSize:12, color:C.ink3 }}>{a.action}</span>
+                      <span style={{ fontFamily:'var(--mono)', fontSize:11.5, color:C.ink }}>{a.what}</span>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* ── Fullscreen graph modal ── */}
+      {graphFullscreen && (
+        <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.5)', zIndex:240, display:'flex', alignItems:'center', justifyContent:'center' }} onClick={e=>{ if(e.target===e.currentTarget) setGraphFullscreen(false) }}>
+          <div style={{ width:'96vw', height:'94vh', background:'#faf8f4', borderRadius:14, border:'1px solid #e3ddd1', boxShadow:'0 32px 80px rgba(0,0,0,0.4)', display:'flex', flexDirection:'column', overflow:'hidden' }}>
+            <div style={{ flexShrink:0, padding:'14px 22px', borderBottom:'1px solid #e3ddd1', display:'flex', alignItems:'center', justifyContent:'space-between', background:'#FEFDFB' }}>
+              <div>
+                <div style={{ fontFamily:'var(--mono)', fontSize:10, letterSpacing:'0.7px', color:C.ink3, textTransform:'uppercase' }}>{node.label} · {record.id}</div>
+                <div style={{ fontFamily:'var(--serif)', fontSize:22, color:C.ink, marginTop:2 }}>Relationship graph</div>
+              </div>
+              <div style={{ display:'flex', gap:8, alignItems:'center' }}>
+                <span style={{ fontFamily:'var(--mono)', fontSize:10.5, color:C.ink3 }}>{buildFlat().length} direct · drag to pan · scroll to zoom</span>
+                {ghostBtn('Close ✕', ()=>setGraphFullscreen(false))}
+              </div>
+            </div>
+            <div
+              onMouseDown={e=>{ if(e.target.tagName==='circle') return; graphDrag.current={startX:e.clientX,startY:e.clientY,origX:graphPan.x,origY:graphPan.y,moved:false}; e.currentTarget.style.cursor='grabbing' }}
+              onMouseMove={e=>{ const d=graphDrag.current; if(!d) return; const dx=e.clientX-d.startX,dy=e.clientY-d.startY; if(!d.moved&&Math.hypot(dx,dy)>3) d.moved=true; if(d.moved) setGraphPan({x:d.origX+dx,y:d.origY+dy}) }}
+              onMouseUp={e=>{ graphDrag.current=null; e.currentTarget.style.cursor='grab' }}
+              onMouseLeave={e=>{ graphDrag.current=null; e.currentTarget.style.cursor='grab' }}
+              onDoubleClick={()=>{ setGraphPan({x:0,y:0}); setGraphZoom(1) }}
+              onWheel={e=>{ e.preventDefault(); setGraphZoom(z=>Math.max(0.3,Math.min(3,z*(e.deltaY<0?1.12:1/1.12)))) }}
+              style={{ flex:1, background:'#faf8f4', overflow:'hidden', cursor:'grab', userSelect:'none', position:'relative' }}>
+              <GraphSVG fullscreen={true}/>
+              {/* zoom controls */}
+              <div style={{ position:'absolute', left:18, bottom:18, display:'flex', flexDirection:'column', background:'#fff', border:'1px solid #e3ddd1', borderRadius:8, overflow:'hidden' }}
+                onMouseDown={e=>e.stopPropagation()} onDoubleClick={e=>e.stopPropagation()}>
+                <button onClick={()=>setGraphZoom(z=>Math.min(3,z*1.2))} style={{ width:34, height:32, border:'none', borderBottom:'1px solid #eae4d8', background:'transparent', cursor:'pointer', fontSize:16, color:C.ink2 }}>+</button>
+                <div style={{ width:34, padding:'4px 0', fontFamily:'var(--mono)', fontSize:10, color:C.ink3, textAlign:'center', borderBottom:'1px solid #eae4d8' }}>{Math.round(graphZoom*100)+'%'}</div>
+                <button onClick={()=>setGraphZoom(z=>Math.max(0.3,z/1.2))} style={{ width:34, height:32, border:'none', borderBottom:'1px solid #eae4d8', background:'transparent', cursor:'pointer', fontSize:16, color:C.ink2 }}>−</button>
+                <button onClick={()=>{ setGraphZoom(1); setGraphPan({x:0,y:0}) }} style={{ width:34, height:30, border:'none', background:'transparent', cursor:'pointer', color:C.ink2, display:'inline-flex', alignItems:'center', justifyContent:'center' }}>
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="4 14 4 20 10 20"/><polyline points="20 10 20 4 14 4"/><line x1="14" y1="10" x2="21" y2="3"/><line x1="3" y1="21" x2="10" y2="14"/></svg>
+                </button>
+              </div>
+            </div>
           </div>
         </div>
-      </div>
+      )}
     </div>
   )
 }
