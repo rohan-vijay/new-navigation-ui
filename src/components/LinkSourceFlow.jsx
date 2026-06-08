@@ -2501,15 +2501,8 @@ function SrcEntityMap({ s, set, groups, activeObj, sel, openCol, setOpenCol }) {
   const destId = entityNode[eid] || "";
   const isNew = destId === "__new__";
   const destNode = nodes.find(n => n.id === destId) || null;
-  // Resolve a node to source the destination properties/edges from. Even before the
-  // user explicitly picks a destination, default to the entity that matches this object
-  // (e.g. "Contract") so the property/edge dropdown is never empty.
-  const _objLc = current ? (current.label || current.name || "").toLowerCase() : "";
-  const targetNode = destNode
-    || nodes.find(n => n.label.toLowerCase() === _objLc)
-    || nodes.find(n => n.id === _objLc)
-    || nodes.find(n => n.id === "contract") || nodes.find(n => n.id === "account")
-    || nodes[0] || null;
+  // Only use the explicitly chosen destination node — no auto-suggest fallback.
+  const targetNode = destNode || null;
   const props = targetNode && window.generateProps ? window.generateProps(targetNode).map(p => ({ id: p.name, label: p.name, type: p.type })) : [];
   // Edges connected to the destination node — their attributes are also mappable targets.
   const allEdges = (typeof window !== "undefined" && window.EDGES) || [];
@@ -2620,17 +2613,62 @@ function SrcEntityMap({ s, set, groups, activeObj, sel, openCol, setOpenCol }) {
       )}
       {current && (
         <>
-          <FormRow label="Destination node" last>
-            <div style={{ maxWidth: 480 }}>
-              <CustomSelect value={destId} placeholder="Pick or create a node…" onChange={setNode} options={nodeOptions} searchable searchPlaceholder="Search nodes…"
-                renderTrigger={o => o.id === "__new__"
-                  ? <span style={{ color: "var(--ink-2)", fontWeight: 500 }}>{o.label}</span>
-                  : <span style={{ display: "flex", alignItems: "center", gap: 9 }}>{o.node && window.ListGlyph && <window.ListGlyph node={o.node} size={18} />}<span style={{ color: "var(--ink)" }}>{o.label}</span></span>}
+          {/* ── Source → Destination inline row (matches structured SrcMapping) ── */}
+          <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 20 }}>
+            {/* Source: read-only chip */}
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 9, letterSpacing: "0.6px", textTransform: "uppercase", color: "var(--ink-4)", marginBottom: 5 }}>Source Object</div>
+              <div style={{ display: "flex", alignItems: "center", gap: 9, padding: "0 12px", height: 38, border: "1px solid var(--line)", borderRadius: 8, background: "var(--panel-2)", overflow: "hidden" }}>
+                {sel && (
+                  <span style={{ width: 20, height: 20, borderRadius: 5, background: "var(--bg-canvas)", border: "1px solid var(--line)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, overflow: "hidden" }}>
+                    <SrcConnectorLogo c={sel} size={13} />
+                  </span>
+                )}
+                <span style={{ flex: 1, fontFamily: "'JetBrains Mono', monospace", fontSize: 13, fontWeight: 600, color: "var(--ink)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                  {current.label || current.name}
+                </span>
+                <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 8.5, padding: "2px 6px", borderRadius: 3, background: "var(--chip)", color: "var(--ink-3)", letterSpacing: "0.4px", flexShrink: 0 }}>LOCKED</span>
+              </div>
+            </div>
+
+            {/* Arrow */}
+            <div style={{ flexShrink: 0, paddingTop: 18 }}>
+              {destId
+                ? <svg width="24" height="24" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="11.5" fill="#1a7a40" stroke="#1a7a40"/><path d="M8 12h8M15 9l3 3-3 3" stroke="#fff" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                : <svg width="24" height="24" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="11.5" fill="var(--panel-2)" stroke="var(--line)"/><path d="M8 12h8M15 9l3 3-3 3" stroke="var(--ink-4)" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>}
+            </div>
+
+            {/* Destination picker */}
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 9, letterSpacing: "0.6px", textTransform: "uppercase", color: "var(--ink-4)", marginBottom: 5 }}>Destination Node</div>
+              <CustomSelect value={destId} placeholder="Select destination node…" onChange={setNode} options={nodeOptions} searchable searchPlaceholder="Search nodes…"
+                renderTrigger={o => o
+                  ? o.id === "__new__"
+                    ? <span style={{ color: "var(--ink-2)", fontWeight: 500, fontSize: 13 }}>{o.label}</span>
+                    : <span style={{ display: "flex", alignItems: "center", gap: 9 }}>
+                        <span style={{ width: 20, height: 20, borderRadius: 5, background: "var(--bg-canvas)", border: "1px solid var(--line)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                          <svg width="9" height="9" viewBox="0 0 10 10"><circle cx="5" cy="5" r="4.5" fill="none" stroke="var(--ink-3)" strokeWidth="1"/><circle cx="5" cy="5" r="1.8" fill="var(--ink-3)"/></svg>
+                        </span>
+                        <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 13, fontWeight: 600, color: "var(--ink)" }}>{o.label}</span>
+                      </span>
+                  : <span style={{ color: "var(--ink-4)", fontSize: 13 }}>Select destination node…</span>}
                 renderOption={o => o.id === "__new__"
                   ? <span style={{ color: "var(--ink-2)", fontWeight: 500 }}>{o.label}</span>
-                  : <span style={{ display: "flex", alignItems: "center", gap: 9 }}>{o.node && window.ListGlyph && <window.ListGlyph node={o.node} size={18} />}{o.label}</span>} />
+                  : <span style={{ display: "flex", alignItems: "center", gap: 9 }}>
+                      <span style={{ width: 18, height: 18, borderRadius: 4, background: "var(--bg-canvas)", border: "1px solid var(--line)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                        <svg width="8" height="8" viewBox="0 0 10 10"><circle cx="5" cy="5" r="4.5" fill="none" stroke="var(--ink-3)" strokeWidth="1"/><circle cx="5" cy="5" r="1.8" fill="var(--ink-3)"/></svg>
+                      </span>
+                      <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 12.5 }}>{o.label}</span>
+                    </span>} />
             </div>
-          </FormRow>
+          </div>
+
+          {/* Gate: field table only when destination is chosen */}
+          {!destId && (
+            <div style={{ borderTop: "1px solid var(--line)", paddingTop: 32, paddingBottom: 32, textAlign: "center" }}>
+              <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 12.5, color: "var(--ink-3)" }}>Select a destination node to start mapping fields</div>
+            </div>
+          )}
 
           {destId && (
             <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
