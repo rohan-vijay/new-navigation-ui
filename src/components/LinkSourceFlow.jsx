@@ -2467,6 +2467,9 @@ function SrcDiscover({ s, set, sel }) {
 
 // ── Unstructured Map: map each discovered entity to a graph node + its props ───
 function SrcEntityMap({ s, set, groups, activeObj, sel, openCol, setOpenCol }) {
+  const [q, setQ] = useState("");
+  const [tab, setTab] = useState("all");
+  const [filterOpen, setFilterOpen] = useState(false);
   const mapping = s.mapping || {};
   const transforms = s.transforms || {};
   const entityNode = s.entityNode || {};
@@ -2516,6 +2519,16 @@ function SrcEntityMap({ s, set, groups, activeObj, sel, openCol, setOpenCol }) {
   };
   const updateMap = (col, v) => set({ mapping: Object.assign({}, mapping, (function () { var o = {}; o[mk(col)] = v; return o; })()) });
   const mappedN = cols.filter(c => mapping[mk(c.col)]).length;
+  const recordFilters = s.recordFilters || {};
+  const activeFilters = current ? (recordFilters[eid] || []) : [];
+  const colVisible = (c) => {
+    const nm = c.label || c.col;
+    if (q && nm.toLowerCase().indexOf(q.toLowerCase()) < 0) return false;
+    const mp = isNew || !!mapping[mk(c.col)];
+    if (tab === "mapped") return mp;
+    if (tab === "unmapped") return !mp;
+    return true;
+  };
   const GRID = "minmax(160px,1.1fr) minmax(150px,1fr) 28px minmax(180px,1.1fr)";
   const nodeOptions = nodes.map(n => ({ id: n.id, label: n.label, node: n })).concat([{ id: "__new__", label: "+ New node type" + (current ? " — " + current.label : "") }]);
   const sectionLabel = (text, n, first) => (
@@ -2555,7 +2568,7 @@ function SrcEntityMap({ s, set, groups, activeObj, sel, openCol, setOpenCol }) {
                 ? <span style={{ display: "flex", alignItems: "center", gap: 9, minWidth: 0 }}><MapTypeGlyph type={o.type} size={22} /><span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 12.5, color: "var(--ink)", overflow: "hidden", textOverflow: "ellipsis" }}>{o.label}</span>{o.onEdge && <MapBadge tone="var(--gold)">{":" + o.onEdge}</MapBadge>}</span>
                 : <span style={{ color: o.id === "__new__" ? "var(--ink-2)" : "var(--ink-4)" }}>{o.label || "Select property"}</span>}
               renderOption={o => o.id && o.id !== "__new__"
-                ? <span style={{ display: "flex", alignItems: "center", gap: 9 }}><MapTypeGlyph type={o.type} size={20} /><span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 12.5 }}>{o.label}</span>{o.onEdge && <MapBadge tone="var(--gold)">edge</MapBadge>}</span>
+                ? <span style={{ display: "flex", alignItems: "center", gap: 9 }}><MapTypeGlyph type={o.type} size={20} /><span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 12.5 }}>{o.label}</span></span>
                 : <span style={{ color: o.id === "__new__" ? "var(--ink-2)" : "var(--ink-3)" }}>{o.label}</span>} />}
       </div>
     );
@@ -2567,7 +2580,7 @@ function SrcEntityMap({ s, set, groups, activeObj, sel, openCol, setOpenCol }) {
       )}
       {current && (
         <>
-          <FormRow label="Destination node" last={!destId}>
+          <FormRow label="Destination node" last>
             <div style={{ maxWidth: 480 }}>
               <CustomSelect value={destId} placeholder="Pick or create a node…" onChange={setNode} options={nodeOptions} searchable searchPlaceholder="Search nodes…"
                 renderTrigger={o => o.id === "__new__"
@@ -2580,6 +2593,53 @@ function SrcEntityMap({ s, set, groups, activeObj, sel, openCol, setOpenCol }) {
           </FormRow>
 
           {destId && (
+            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
+              <CustomSelect className="csel-auto" value={tab} onChange={setTab}
+                options={[
+                  { id: "all",      label: "All fields", count: cols.length },
+                  { id: "mapped",   label: "Mapped",     count: isNew ? cols.length : mappedN },
+                  { id: "unmapped", label: "Unmapped",   count: isNew ? 0 : cols.length - mappedN },
+                ]}
+                renderTrigger={o => <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <span style={{ fontSize: 13, color: "var(--ink)", fontWeight: 500 }}>{o.label}</span>
+                  <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 10.5, fontWeight: 600, padding: "1px 6px", borderRadius: 10, background: "var(--chip)", color: "var(--ink-3)" }}>{o.count}</span>
+                </span>}
+                renderOption={o => <span style={{ display: "flex", alignItems: "center", gap: 8, width: "100%" }}>
+                  <span style={{ flex: 1 }}>{o.label}</span>
+                  <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 10.5, fontWeight: 600, padding: "1px 6px", borderRadius: 10, background: "var(--chip)", color: "var(--ink-3)" }}>{o.count}</span>
+                </span>} />
+
+              <div style={{ position: "relative" }}>
+                <button onClick={() => setFilterOpen(o => !o)}
+                  style={{ display: "flex", alignItems: "center", gap: 8, padding: "0 13px", height: 40, borderRadius: 9, border: "1px solid " + (filterOpen || activeFilters.length ? "var(--ink)" : "var(--line)"), background: filterOpen ? "var(--bg-canvas)" : "var(--panel)", cursor: "pointer", fontFamily: "inherit", fontSize: 13, color: "var(--ink)", fontWeight: 500 }}>
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M3 5h18M6 12h12M10 19h4" /></svg>
+                  Filter records
+                  {activeFilters.length > 0 && <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 10.5, fontWeight: 700, minWidth: 18, textAlign: "center", padding: "1px 6px", borderRadius: 10, background: "var(--ink)", color: "var(--panel)" }}>{activeFilters.length}</span>}
+                </button>
+                {filterOpen && current && (
+                  <FilterRecordsPopover key={eid} cols={baseCols} initial={activeFilters} objName={current.label}
+                    onApply={rows => { set({ recordFilters: Object.assign({}, recordFilters, (function () { var o = {}; o[eid] = rows; return o; })()) }); setFilterOpen(false); }}
+                    onClear={() => { set({ recordFilters: Object.assign({}, recordFilters, (function () { var o = {}; o[eid] = []; return o; })()) }); setFilterOpen(false); }}
+                    onClose={() => setFilterOpen(false)} />
+                )}
+              </div>
+
+              <button onClick={() => setOpenCol && setOpenCol(eid + "::__newtf__")}
+                style={{ display: "flex", alignItems: "center", gap: 7, padding: "0 13px", height: 40, borderRadius: 9, border: "1px solid var(--line)", background: "var(--panel)", cursor: "pointer", fontFamily: "inherit", fontSize: 13, color: "var(--ink)", fontWeight: 500 }}>
+                <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 17, fontWeight: 400, color: "var(--ink-3)", lineHeight: 1 }}>+</span>
+                Transformed field
+              </button>
+
+              <div style={{ position: "relative", marginLeft: "auto", width: 240 }}>
+                <span style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", color: "var(--ink-3)", display: "flex" }}>
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7"><circle cx="11" cy="11" r="7" /><path d="M21 21l-4-4" /></svg>
+                </span>
+                <input className="winput" style={{ paddingLeft: 34 }} placeholder="Search fields…" value={q} onChange={e => setQ(e.target.value)} />
+              </div>
+            </div>
+          )}
+
+          {destId && (
             <div style={{ border: "1px solid var(--line)", borderRadius: 11, background: "var(--panel)", overflow: "hidden" }}>
               <div style={{ display: "flex", alignItems: "center", gap: 11, padding: "11px 16px", borderBottom: "1px solid var(--line)", background: "var(--panel-2)" }}>
                 <code style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 13, fontWeight: 600, color: "var(--ink)" }}>{current.label}</code>
@@ -2589,19 +2649,27 @@ function SrcEntityMap({ s, set, groups, activeObj, sel, openCol, setOpenCol }) {
               <div style={{ display: "grid", gridTemplateColumns: GRID, gap: 12, padding: "10px 16px", background: "var(--panel-2)", borderBottom: "1px solid var(--line-2)", fontFamily: "'JetBrains Mono', monospace", fontSize: 10, letterSpacing: "0.5px", textTransform: "uppercase", color: "var(--ink-3)" }}>
                 <div>Entity field</div><div>Transformations</div><div></div><div>{isNew ? "New property" : "Destination property"}</div>
               </div>
-              {hasAgents ? (
-                <>
-                  {baseCols.map((c, i) => renderFieldRow(c, "s-" + i, i))}
-                  {agentGroups.map(ag => (
-                    <React.Fragment key={ag.name}>
-                      {sectionLabel(ag.name, ag.fields.length)}
-                      {ag.fields.map((c, i) => renderFieldRow(c, ag.name + "-" + i, i))}
-                    </React.Fragment>
-                  ))}
-                </>
-              ) : (
-                baseCols.map((c, i) => renderFieldRow(c, "s-" + i, i))
-              )}
+              {(function () {
+                const vBase = baseCols.filter(colVisible);
+                const vAgentGroups = agentGroups.map(ag => ({ name: ag.name, fields: ag.fields.filter(colVisible) })).filter(ag => ag.fields.length);
+                const nothing = vBase.length === 0 && vAgentGroups.length === 0;
+                if (nothing) return (
+                  <div style={{ padding: "30px 16px", textAlign: "center", color: "var(--ink-4)", fontSize: 12.5 }}>No fields match.</div>
+                );
+                return hasAgents ? (
+                  <>
+                    {vBase.map((c, i) => renderFieldRow(c, "s-" + i, i))}
+                    {vAgentGroups.map(ag => (
+                      <React.Fragment key={ag.name}>
+                        {sectionLabel(ag.name, ag.fields.length)}
+                        {ag.fields.map((c, i) => renderFieldRow(c, ag.name + "-" + i, i))}
+                      </React.Fragment>
+                    ))}
+                  </>
+                ) : (
+                  vBase.map((c, i) => renderFieldRow(c, "s-" + i, i))
+                );
+              })()}
             </div>
           )}
         </>
@@ -3337,7 +3405,7 @@ function SrcMapping({ s, set, groups, activeObj, nodeProps, node, sel, openCol, 
           <div style={{ textAlign: "center", color: mapped ? "var(--green)" : "var(--ink-4)", fontSize: 15 }}>→</div>
           <CustomSelect value={mapped || ""} onChange={v => updateMap(key, v)} placeholder="Select field" tabs={destTabs} searchable searchPlaceholder="Search properties & edge attributes…"
             renderTrigger={o => o.id && o.id !== "__new__" ? <span style={{ display: "flex", alignItems: "center", gap: 9, minWidth: 0 }}><MapTypeGlyph type={o.type} size={22} /><span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 12.5, color: "var(--ink)", overflow: "hidden", textOverflow: "ellipsis" }}>{o.label}</span>{o.onEdge && <MapBadge tone="var(--gold)">{":" + o.onEdge}</MapBadge>}{o.id === "id" && <><MapBadge tone="var(--green)">PK</MapBadge><MapBadge>UK</MapBadge></>}</span> : <span style={{ color: o.id === "__new__" ? "var(--ink-2)" : "var(--ink-4)" }}>{o.label || "Select field"}</span>}
-            renderOption={o => o.id && o.id !== "__new__" ? <span style={{ display: "flex", alignItems: "center", gap: 9 }}><MapTypeGlyph type={o.type} size={20} /><span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 12.5 }}>{o.label}</span>{o.onEdge && <MapBadge tone="var(--gold)">edge</MapBadge>}</span> : <span style={{ color: o.id === "__new__" ? "var(--ink-2)" : "var(--ink-3)" }}>{o.label}</span>} />
+            renderOption={o => o.id && o.id !== "__new__" ? <span style={{ display: "flex", alignItems: "center", gap: 9 }}><MapTypeGlyph type={o.type} size={20} /><span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 12.5 }}>{o.label}</span></span> : <span style={{ color: o.id === "__new__" ? "var(--ink-2)" : "var(--ink-3)" }}>{o.label}</span>} />
         </div>
       </div>
     );
@@ -3377,7 +3445,7 @@ function SrcMapping({ s, set, groups, activeObj, nodeProps, node, sel, openCol, 
           <div style={{ textAlign: "center", color: mapped ? "var(--green)" : "var(--ink-4)", fontSize: 15 }}>→</div>
           <CustomSelect value={mapped || ""} onChange={v => updateMap(key, v)} placeholder="Select field" tabs={destTabs} searchable searchPlaceholder="Search properties & edge attributes…"
             renderTrigger={o => o.id && o.id !== "__new__" ? <span style={{ display: "flex", alignItems: "center", gap: 9, minWidth: 0 }}><MapTypeGlyph type={o.type} size={22} /><span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 12.5, color: "var(--ink)", overflow: "hidden", textOverflow: "ellipsis" }}>{o.label}</span>{o.onEdge && <MapBadge tone="var(--gold)">{":" + o.onEdge}</MapBadge>}</span> : <span style={{ color: o.id === "__new__" ? "var(--ink-2)" : "var(--ink-4)" }}>{o.label || "Select field"}</span>}
-            renderOption={o => o.id && o.id !== "__new__" ? <span style={{ display: "flex", alignItems: "center", gap: 9 }}><MapTypeGlyph type={o.type} size={20} /><span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 12.5 }}>{o.label}</span>{o.onEdge && <MapBadge tone="var(--gold)">edge</MapBadge>}</span> : <span style={{ color: o.id === "__new__" ? "var(--ink-2)" : "var(--ink-3)" }}>{o.label}</span>} />
+            renderOption={o => o.id && o.id !== "__new__" ? <span style={{ display: "flex", alignItems: "center", gap: 9 }}><MapTypeGlyph type={o.type} size={20} /><span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 12.5 }}>{o.label}</span></span> : <span style={{ color: o.id === "__new__" ? "var(--ink-2)" : "var(--ink-3)" }}>{o.label}</span>} />
         </div>
       </div>
     );

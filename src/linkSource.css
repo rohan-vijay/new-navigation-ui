@@ -72,7 +72,7 @@
 
   .sb-search { display: flex; align-items: center; gap: 8px; padding: 14px 14px 10px; }
   .sb-search-icon { color: var(--ink-3); display: grid; place-items: center; }
-  .sb-search input { flex: 1; border: 1px solid var(--line); background: var(--bg-canvas); border-radius: 8px; height: 32px; padding: 0 10px 0 30px; font-size: 13px; font-family: inherit; color: var(--ink); outline: none; margin-left: -22px; }
+  .sb-search input { flex: 1; border: 1px solid var(--line); background: var(--bg-canvas); border-radius: 8px; height: 32px; padding: 0 12px; font-size: 13px; font-family: inherit; color: var(--ink); outline: none; }
   .sb-search input::placeholder { color: var(--ink-3); }
   .sb-search input:focus { border-color: var(--ink-3); background: var(--panel-2); }
   .sb-search-key { font-family: "JetBrains Mono", monospace; font-size: 10.5px; color: var(--ink-3); padding: 1px 5px; border: 1px solid var(--line); border-radius: 4px; background: var(--bg-canvas); }
@@ -940,9 +940,10 @@
   .csel-search input::placeholder { color: var(--ink-4); }
   .csel-group { font-family: var(--sans); font-size: 10px; font-weight: 600; letter-spacing: 0.5px; text-transform: uppercase; color: var(--ink-3); padding: 10px 11px 5px; }
   .csel-grp + .csel-grp .csel-group { border-top: 1px solid var(--line-2); margin-top: 3px; padding-top: 11px; }
-  .csel-opt { display: flex; align-items: center; gap: 10px; width: 100%; padding: 8px 10px; border: 0; background: transparent; cursor: pointer; font-family: inherit; font-size: 13px; text-align: left; border-radius: 8px; transition: background .1s; }
+  .csel-opt { display: flex; align-items: center; gap: 9px; width: 100%; padding: 5px 9px; border: 0; background: transparent; cursor: pointer; font-family: inherit; font-size: 13px; text-align: left; border-radius: 7px; transition: background .1s; }
   .csel-opt:hover { background: var(--panel-2); }
   .csel-opt.on { background: var(--chip); }
+  .csel-opt svg[width="20"], .csel-opt > span > svg { flex-shrink: 0; }
   .csel-opt-label { font-size: 13px; color: var(--ink); flex-shrink: 0; }
   .csel-opt-sub { font-family: "JetBrains Mono", monospace; font-size: 11px; color: var(--ink-3); flex: 1; text-align: right; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 200px; }
   .csel-tick { color: var(--green); flex-shrink: 0; margin-left: auto; }

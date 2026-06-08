@@ -274,7 +274,7 @@ function RecordsView({ onOpenRecord }) {
               style={{ display:'flex', alignItems:'center', gap:10, padding:'7px 14px', border:'1px solid #e3e6e3', borderRadius:8, background: dropOpen ? '#f1f3f1' : '#fff', cursor:'pointer', fontFamily:'var(--sans)', fontSize:15, fontWeight:600, color:'#1a1a1a', minWidth:200 }}>
               <NodeGlyph n={selectedNodeObj} size={18} />
               <span style={{ fontWeight:600 }}>{selectedNodeObj.label}</span>
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" style={{ marginLeft:4, transition:'transform 120ms', transform: dropOpen ? 'rotate(180deg)' : 'none' }}>
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" style={{ marginLeft:'auto', color:'#9a917d', transition:'transform 120ms', transform: dropOpen ? 'rotate(180deg)' : 'none' }}>
                 <path d="M6 9l6 6 6-6" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/>
               </svg>
             </button>

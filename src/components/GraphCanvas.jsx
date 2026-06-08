@@ -912,7 +912,7 @@ function NodeDetailPage({ node, onBack, onCanvas }) {
             return [
               monoCell(':' + e.label, '#5b5547'),
               <span style={{ fontSize: 15, color: '#9a948a' }}>{e.dir}</span>,
-              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}><span style={{ width: 24, height: 24, borderRadius: 6, background: '#fff', border: '1px solid #eee7da', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}><ListGlyph node={e.other} size={14} /></span><span style={{ fontSize: 13, color: '#1a1a1a' }}>{e.other.label}</span></span>,
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}><span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}><ListGlyph node={e.other} size={15} /></span><span style={{ fontSize: 13, color: '#1a1a1a' }}>{e.other.label}</span></span>,
               <span style={{ fontFamily: 'var(--mono)', fontSize: 11.5, color: k.color, border: `1px solid ${k.border}`, background: k.bg, padding: '2px 8px', borderRadius: 6 }}>{k.label}</span>,
               monoCell(e.cardinality, '#374151'),
               <span style={{ fontSize: 13.5, fontWeight: 600, color: '#1a1a1a' }}>{e.instances.toLocaleString()}</span>,
@@ -1005,10 +1005,10 @@ const OwnerCell = ({ owner }) => (
   </span>
 )
 const CAT_TAG = {
-  core:    { label: 'Core',    color: '#2f6f43', bg: '#eef4ee', border: '#d6e6d8' },
-  support: { label: 'Support', color: '#8a7340', bg: '#faf5ea', border: '#e7dcc1' },
-  derived: { label: 'Derived', color: '#6b5aa6', bg: '#f2effa', border: '#ddd5ef' },
-  source:  { label: 'Source',  color: '#3a6ea0', bg: '#eef3f9', border: '#d3e0ee' },
+  core:    { label: 'Core',      color: '#3a6ea0', bg: '#eef3f9', border: '#d3e0ee' },
+  support: { label: 'Secondary', color: '#6b5aa6', bg: '#f2effa', border: '#ddd5ef' },
+  derived: { label: 'Derived',   color: '#8a7340', bg: '#faf5ea', border: '#e7dcc1' },
+  source:  { label: 'Source',    color: '#2f6f43', bg: '#eef4ee', border: '#d6e6d8' },
 }
 const fillColor = (v) => v >= 92 ? '#2f9e5a' : v >= 80 ? '#a98c54' : '#c0492f'
 

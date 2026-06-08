@@ -470,7 +470,7 @@ function Canvas({ nodes, setNodes, edges, setEdges, selected, setSelected, hover
 
   // filter / dim logic
   const queryHit = (n) => !query || n.label.toLowerCase().includes(query.toLowerCase());
-  const filterHit = (n) => filter === "all" || n.type === filter;
+  const filterHit = (n) => filter === "all" || (n.cat === "support" ? "secondary" : n.cat) === filter;
   const visible = useMemo(() => new Set(nodes.filter(n => filterHit(n) && queryHit(n)).map(n => n.id)), [nodes, filter, query]);
 
   // saved-view dim sets
@@ -1039,16 +1039,19 @@ function Minimap({ nodes, viewport, size }) {
 // ---------- BOTTOM LEGEND ---------------------------------------------------
 
 function Legend({ filter, setFilter }) {
+  const cats = [
+    { id: "core",      label: "Core",      stroke: "var(--blue)",   fill: "var(--blue-fill)" },
+    { id: "secondary", label: "Secondary", stroke: "var(--purple)", fill: "var(--purple-fill)" },
+    { id: "derived",   label: "Derived",   stroke: "var(--gold)",   fill: "var(--gold-fill)" },
+  ];
   return (
     <div className="legend">
-      <button className={"legend-pill" + (filter === "entity" || filter === "all" ? "" : " off")} onClick={() => setFilter(filter === "entity" ? "all" : "entity")}>
-        <svg width="14" height="14" viewBox="-12 -12 24 24"><circle r="8.5" fill="var(--blue-fill)" stroke="var(--blue)" strokeWidth="1.4" /></svg>
-        Entities
-      </button>
-      <button className={"legend-pill" + (filter === "source" || filter === "all" ? "" : " off")} onClick={() => setFilter(filter === "source" ? "all" : "source")}>
-        <svg width="14" height="14" viewBox="-12 -12 24 24"><rect x="-8" y="-8" width="16" height="16" rx="1.5" fill="var(--green-fill)" stroke="var(--green)" strokeWidth="1.4" /></svg>
-        Sources
-      </button>
+      {cats.map(c => (
+        <button key={c.id} className={"legend-pill" + (filter === c.id || filter === "all" ? "" : " off")} onClick={() => setFilter(filter === c.id ? "all" : c.id)}>
+          <svg width="14" height="14" viewBox="-12 -12 24 24"><circle r="8.5" fill={c.fill} stroke={c.stroke} strokeWidth="1.4" /></svg>
+          {c.label}
+        </button>
+      ))}
     </div>
   );
 }
@@ -1402,7 +1405,7 @@ const TABS = ["Graph", "Nodes", "Edges", "Knowledge", "Sources", "Records", "Vio
 function Sidebar({ open, onToggle, filter, setFilter, query, setQuery, selected, onSelect, hover, setHover, savedView, setSavedView }) {
   const filtered = useMemo(() => {
     return SIDEBAR_NODES.filter(n => {
-      if (filter !== "all" && n.type !== filter) return false;
+      if (filter !== "all" && (n.cat === "support" ? "secondary" : n.cat) !== filter) return false;
       if (query && !n.label.toLowerCase().includes(query.toLowerCase())) return false;
       return true;
     });
@@ -1423,11 +1426,8 @@ function Sidebar({ open, onToggle, filter, setFilter, query, setQuery, selected,
         </button>
       )}
       <div className="sb-search">
-        <span className="sb-search-icon">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="6" stroke="currentColor" strokeWidth="1.6" /><path d="M20 20l-3.5-3.5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" /></svg>
-        </span>
         <input
-          placeholder="Search nodes…"
+          placeholder="Search"
           value={query}
           onChange={e => setQuery(e.target.value)}
         />
@@ -1438,7 +1438,6 @@ function Sidebar({ open, onToggle, filter, setFilter, query, setQuery, selected,
 
       <div className="sb-section-head">
         <span>{filtered.length} NODES</span>
-        <span className="sb-section-sort">A–Z</span>
       </div>
 
       <div className="sb-list">
@@ -1453,7 +1452,6 @@ function Sidebar({ open, onToggle, filter, setFilter, query, setQuery, selected,
             <ListGlyph node={n} />
             <div className="sb-item-text">
               <div className="sb-item-label">{n.label}</div>
-              <div className="sb-item-sub">{TYPE_META[n.type].tag}</div>
             </div>
             <svg className="sb-item-arrow" width="12" height="12" viewBox="0 0 24 24" fill="none"><path d="M9 6l6 6-6 6" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" /></svg>
           </button>
@@ -1961,8 +1959,8 @@ function metricColor(v) {
 // — node template + property config data —
 var NODE_CATEGORIES_CONFIG = [
   { id:"core",      code:"CORE", label:"Core entity",      color:"var(--blue)",   fill:"var(--blue-fill)",   desc:"A first-class business object that other entities relate to — Account, Customer, Product." },
-  { id:"secondary", code:"SEC",  label:"Secondary entity", color:"var(--green)",  fill:"var(--green-fill)",  desc:"Operational records that support the core — Ticket, Interaction, Task, Note." },
-  { id:"derived",   code:"DRV",  label:"Derived entity",   color:"var(--purple)", fill:"var(--purple-fill)", desc:"Computed or analytical entities — Account Health, Forecast, Risk Score." }
+  { id:"secondary", code:"SEC",  label:"Secondary entity", color:"var(--purple)", fill:"var(--purple-fill)", desc:"Operational records that support the core — Ticket, Interaction, Task, Note." },
+  { id:"derived",   code:"DRV",  label:"Derived entity",   color:"var(--gold)",   fill:"var(--gold-fill)",   desc:"Computed or analytical entities — Account Health, Forecast, Risk Score." }
 ];
 
 // Department groups for the template picker — order = display order.
@@ -2567,21 +2565,13 @@ function Inspector({ node, onClose, onViewDetails, onEditSchema, edges: liveEdge
   const idxProps = properties.filter(p => p.indexed).length;
   const piiProps = properties.filter(p => p.pii).length;
 
-  const TABS = [`Props · ${properties.length}`, `Edges · ${outgoing.length}`, "Sources"];
+  const TABS = [`Props · ${properties.length}`, `Edges · ${outgoing.length}`];
 
   return (
     <aside className="inspector">
       <div className="inspector-head">
         <div className="ih-icon">
-          <svg width="34" height="34" viewBox="-22 -22 44 44">
-            {node.type === "agent" ? (
-              <polygon points={[0,1,2,3,4,5].map(i=>{const a=(Math.PI/3)*i-Math.PI/2;const r=14;return `${(r*Math.cos(a)).toFixed(2)},${(r*Math.sin(a)).toFixed(2)}`}).join(" ")} fill={c.fill} stroke={c.stroke} strokeWidth="1.6" />
-            ) : node.type === "source" ? (
-              <rect x="-13" y="-13" width="26" height="26" rx="3" fill={c.fill} stroke={c.stroke} strokeWidth="1.6" />
-            ) : (
-              <circle r="13" fill={c.fill} stroke={c.stroke} strokeWidth="1.6" />
-            )}
-          </svg>
+          <ListGlyph node={node} size={34} />
         </div>
         <div className="ih-text">
           <div className="ih-row">
@@ -2746,30 +2736,6 @@ function Inspector({ node, onClose, onViewDetails, onEditSchema, edges: liveEdge
               </div>
             )}
           </>
-        )}
-
-        {tab === "Sources" && (
-          <div className="ih-block">
-            <div className="ih-block-head">Data sources <span className="ih-block-sub">{sources.length} connected</span></div>
-            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-              {sources.map((s, i) => (
-                <div key={i} style={{ border: "1px solid var(--line-2)", borderRadius: 8, padding: "12px 14px", background: "var(--panel-2)", display: "flex", flexDirection: "column", gap: 8 }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8 }}>
-                    <div>
-                      <div style={{ fontSize: 13, fontWeight: 500, color: "var(--ink)" }}>{s.name}</div>
-                      <div style={{ fontFamily: "JetBrains Mono", fontSize: 10.5, color: "var(--ink-3)", marginTop: 3 }}>{s.freq}</div>
-                    </div>
-                    <span className={"src-status src-status-" + s.status} style={{ flexShrink: 0 }}>{s.status}</span>
-                  </div>
-                  <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                    <span className="snap-tag">{s.type.toUpperCase()}</span>
-                    {s.rows !== "—" && <span style={{ fontFamily: "JetBrains Mono", fontSize: 10.5, color: "var(--ink-3)" }}>{s.rows} rows</span>}
-                    {s.errors > 0 && <span style={{ fontFamily: "JetBrains Mono", fontSize: 10.5, color: "var(--coral)", marginLeft: "auto" }}>{s.errors} errors</span>}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
         )}
 
         {tab === "Rules" && (
@@ -6239,9 +6205,9 @@ function PropertiesPane({ node, properties }) {
             var IDX_ICON = <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><polyline points="13 2 4 14 12 14 11 22 20 10 12 10 13 2"/></svg>;
             var PII_ICON = <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>;
             var UNQ_ICON = <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><circle cx="7" cy="14" r="3"/><path d="M10 12l9-9 2 2-9 9"/><path d="M16 6l3 3"/></svg>;
-            function FlagPill({ tone, title, icon }) {
+            function FlagPill({ tone, title, label }) {
               return (
-                <span title={title} style={{ display:"inline-flex", alignItems:"center", justifyContent:"center", width:20, height:20, borderRadius:5, background:tone.bg, color:tone.fg, flexShrink:0 }}>{icon}</span>
+                <span title={title} style={{ display:"inline-flex", alignItems:"center", justifyContent:"center", height:18, padding:"0 6px", borderRadius:4, background:tone.bg, color:tone.fg, fontFamily:"JetBrains Mono", fontSize:9.5, fontWeight:700, letterSpacing:"0.4px", flexShrink:0 }}>{label}</span>
               );
             }
             function renderRow(p, depth, parentKey) {
@@ -6295,9 +6261,6 @@ function PropertiesPane({ node, properties }) {
                     {disclosure}
                     <span style={{ fontSize:13, color:"var(--ink)", fontWeight:500 }}>{displayName}</span>
                     {p.pk && <span className="snap-tag snap-pk">PK</span>}
-                    {p.computed && <span title="Computed" style={{ display:"inline-flex", alignItems:"center", gap:3, padding:"2px 5px 2px 4px", borderRadius:4, background:"var(--gold-fill)", color:"var(--gold)", fontFamily:"JetBrains Mono", fontSize:9, fontWeight:700, letterSpacing:"0.3px", flexShrink:0 }}>
-                      <span style={{ fontStyle:"italic" }}>fx</span><span>COMPUTED</span>
-                    </span>}
                     {hasChildren && <span title={p.children.length + " nested fields"} style={{ display:"inline-flex", alignItems:"center", padding:"1px 6px", borderRadius:4, background:"var(--chip)", color:"var(--ink-3)", fontFamily:"JetBrains Mono", fontSize:10, fontWeight:600, flexShrink:0 }}>{p.children.length}</span>}
                     {nestable && (
                       <button
@@ -6337,10 +6300,10 @@ function PropertiesPane({ node, properties }) {
                     </div>
                   </div>
                   <div className="props-cell" style={{ display:"flex", alignItems:"center", gap:5 }}>
-                    {p.required && <FlagPill title="Required"   tone={{ bg:"var(--chip)", fg:"var(--ink-3)" }} icon={REQ_ICON} />}
-                    {p.indexed  && <FlagPill title="Indexed"    tone={{ bg:"var(--chip)", fg:"var(--ink-3)" }} icon={IDX_ICON} />}
-                    {p.unique   && <FlagPill title="Unique"     tone={{ bg:"var(--chip)", fg:"var(--ink-3)" }} icon={UNQ_ICON} />}
-                    {p.pii      && <FlagPill title="PII"        tone={{ bg:"var(--chip)", fg:"var(--ink-3)" }} icon={PII_ICON} />}
+                    {p.required && <FlagPill title="Required"   tone={{ bg:"var(--coral-fill)", fg:"var(--coral)" }} label="REQ" />}
+                    {p.indexed  && <FlagPill title="Indexed"    tone={{ bg:"var(--blue-fill)",  fg:"var(--blue)" }}  label="IDX" />}
+                    {p.unique   && <FlagPill title="Unique"     tone={{ bg:"var(--chip)",       fg:"#8a7340" }}      label="UNQ" />}
+                    {p.pii      && <FlagPill title="PII"        tone={{ bg:"var(--chip)",       fg:"var(--ink-2)" }} label="PII" />}
                     {!p.required && !p.indexed && !p.unique && !p.pii && <span style={{ fontFamily:"JetBrains Mono", fontSize:10.5, color:"var(--ink-4)" }}>—</span>}
                   </div>
                   <div className="props-cell props-chevron">›</div>
