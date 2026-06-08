@@ -2472,6 +2472,28 @@ function SrcEntityMap({ s, set, groups, activeObj, sel, openCol, setOpenCol }) {
   const isNew = destId === "__new__";
   const destNode = nodes.find(n => n.id === destId) || null;
   const props = destNode && window.generateProps ? window.generateProps(destNode).map(p => ({ id: p.name, label: p.name, type: p.type })) : [];
+  // Edges connected to the destination node — their attributes are also mappable targets.
+  const allEdges = (typeof window !== "undefined" && window.EDGES) || [];
+  const edgeAttrsFor = () => [
+    { name: "since",         type: "datetime" },
+    { name: "weight",        type: "decimal" },
+    { name: "confidence",    type: "decimal" },
+    { name: "source_system", type: "string" },
+  ];
+  const destEdges = destNode ? allEdges.filter(e => e.s === destNode.id || e.t === destNode.id) : [];
+  // Grouped destination options: node properties, then each edge's attributes, then "new".
+  const destGroups = destNode ? [
+    { label: destNode.label + " · properties", items: props },
+    ...destEdges.map(e => {
+      const out = e.s === destNode.id;
+      const other = nodes.find(n => n.id === (out ? e.t : e.s)) || (((typeof window !== "undefined" && window.NODES) || []).find(n => n.id === (out ? e.t : e.s)));
+      return {
+        label: ":" + e.label + "  " + (out ? "→" : "←") + "  " + (other ? other.label : "?"),
+        items: edgeAttrsFor(e).map(a => ({ id: "edge:" + e.label + ":" + a.name, label: a.name, type: a.type, onEdge: e.label })),
+      };
+    }),
+    { label: "Create new", items: [{ id: "__new__", label: "+ New property" }] },
+  ] : [{ label: "", items: [{ id: "__new__", label: "+ New property" }] }];
   const mk = col => eid + "::" + col;
   const baseCols = current ? current.cols : [];
   const agentCols = current ? agentFieldsFor(s, eid) : [];
@@ -2522,10 +2544,14 @@ function SrcEntityMap({ s, set, groups, activeObj, sel, openCol, setOpenCol }) {
         <div style={{ textAlign: "center", color: (isNew || mapped) ? "var(--green)" : "var(--ink-4)", fontSize: 15 }}>→</div>
         {isNew
           ? <span style={{ display: "flex", alignItems: "center", gap: 9, padding: "7px 2px" }}><MapTypeGlyph type={c.type} size={22} /><code style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 12.5, color: "var(--ink)" }}>{nm}</code><MapBadge tone="var(--purple)">NEW</MapBadge></span>
-          : <CustomSelect value={mapped || ""} onChange={v => updateMap(c.col, v)} placeholder="Select property" searchable searchPlaceholder="Search properties…"
-              options={props.concat([{ id: "__new__", label: "+ New property" }])}
-              renderTrigger={o => o.id && o.id !== "__new__" ? <span style={{ display: "flex", alignItems: "center", gap: 9 }}><MapTypeGlyph type={o.type} size={22} /><span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 12.5, color: "var(--ink)" }}>{o.label}</span></span> : <span style={{ color: o.id === "__new__" ? "var(--ink-2)" : "var(--ink-4)" }}>{o.label || "Select property"}</span>}
-              renderOption={o => o.id && o.id !== "__new__" ? <span style={{ display: "flex", alignItems: "center", gap: 9 }}><MapTypeGlyph type={o.type} size={20} />{o.label}</span> : <span style={{ color: o.id === "__new__" ? "var(--ink-2)" : "var(--ink-3)" }}>{o.label}</span>} />}
+          : <CustomSelect value={mapped || ""} onChange={v => updateMap(c.col, v)} placeholder="Select property" grouped searchable searchPlaceholder="Search node properties & edge attributes…"
+              options={destGroups}
+              renderTrigger={o => o.id && o.id !== "__new__"
+                ? <span style={{ display: "flex", alignItems: "center", gap: 9, minWidth: 0 }}><MapTypeGlyph type={o.type} size={22} /><span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 12.5, color: "var(--ink)", overflow: "hidden", textOverflow: "ellipsis" }}>{o.label}</span>{o.onEdge && <MapBadge tone="var(--gold)">{":" + o.onEdge}</MapBadge>}</span>
+                : <span style={{ color: o.id === "__new__" ? "var(--ink-2)" : "var(--ink-4)" }}>{o.label || "Select property"}</span>}
+              renderOption={o => o.id && o.id !== "__new__"
+                ? <span style={{ display: "flex", alignItems: "center", gap: 9 }}><MapTypeGlyph type={o.type} size={20} /><span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 12.5 }}>{o.label}</span>{o.onEdge && <MapBadge tone="var(--gold)">edge</MapBadge>}</span>
+                : <span style={{ color: o.id === "__new__" ? "var(--ink-2)" : "var(--ink-3)" }}>{o.label}</span>} />}
       </div>
     );
   };
