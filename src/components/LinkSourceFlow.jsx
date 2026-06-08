@@ -3523,7 +3523,11 @@ function SrcMapping({ s, set, groups, activeObj, nodeProps, node, sel, openCol, 
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 9, letterSpacing: "0.6px", textTransform: "uppercase", color: "var(--ink-4)", marginBottom: 5 }}>Source Object</div>
           <div style={{ display: "flex", alignItems: "center", gap: 9, padding: "0 12px", height: 38, border: "1px solid var(--line)", borderRadius: 8, background: "var(--panel-2)", overflow: "hidden" }}>
-            {sel && <SrcConnectorLogo c={sel} size={20} />}
+            {sel && (
+              <span style={{ width: 20, height: 20, borderRadius: 5, background: "var(--bg-canvas)", border: "1px solid var(--line)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, overflow: "hidden" }}>
+                <SrcConnectorLogo c={sel} size={13} />
+              </span>
+            )}
             <span style={{ flex: 1, fontFamily: "'JetBrains Mono', monospace", fontSize: 13, fontWeight: 600, color: "var(--ink)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
               {current ? current.name : (sel ? sel.name : "—")}
             </span>
