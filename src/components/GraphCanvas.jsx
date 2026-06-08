@@ -786,6 +786,7 @@ function NodeDetailPage({ node, onBack, onCanvas }) {
   const [tab, setTab] = useState('Properties')
   const [menuOpen, setMenuOpen] = useState(false)
   const [edgeFlowOpen, setEdgeFlowOpen] = useState(false)
+  const [iconHovered, setIconHovered] = useState(false)
   const cat = CAT_TAG[node.cat] || CAT_TAG.core
   const props = useMemo(() => generateProps(node), [node])
   const rules = useMemo(() => generateRules(node), [node])
@@ -829,7 +830,16 @@ function NodeDetailPage({ node, onBack, onCanvas }) {
       <div style={{ margin: '-12px -26px 18px' }}>
         {/* title zone */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, background: '#FEFDFB', padding: '14px 26px 12px' }}>
-          <span style={{ width: 32, height: 32, borderRadius: 8, background: '#fff', border: '1px solid #eee7da', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}><ListGlyph node={node} size={18} /></span>
+          <span
+            onClick={iconHovered ? onBack : undefined}
+            onMouseEnter={() => setIconHovered(true)}
+            onMouseLeave={() => setIconHovered(false)}
+            title={iconHovered ? 'Back to nodes list' : undefined}
+            style={{ width: 32, height: 32, borderRadius: 8, background: iconHovered ? '#f2f0eb' : '#fff', border: '1px solid #eee7da', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, cursor: iconHovered ? 'pointer' : 'default', transition: 'background .15s' }}>
+            {iconHovered
+              ? <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="#6b6b5e" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="10,3 5,8 10,13" /></svg>
+              : <ListGlyph node={node} size={18} />}
+          </span>
           <span style={{ fontFamily: 'var(--serif)', fontSize: 22, fontWeight: 500, color: '#1a1a1a', letterSpacing: -0.2, marginLeft: -2 }}>{node.label}</span>
           <span style={{ fontFamily: 'var(--mono)', fontSize: 11.5, color: cat.color, border: `1px solid ${cat.border}`, background: cat.bg, padding: '2px 8px', borderRadius: 6 }}>{cat.label}</span>
 
