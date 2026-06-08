@@ -707,8 +707,7 @@ function NewGraphFlow({ onClose, onCreate }) {
               </button>
             )}
             <div>
-              <div style={{ fontFamily:"JetBrains Mono", fontSize:10, letterSpacing:"0.8px", color:"var(--ink-3)", textTransform:"uppercase", marginBottom:4 }}>{view === "template" ? "Choose a template" : "New context graph"}</div>
-              <div style={{ fontFamily:"Instrument Serif", fontSize:26, color:"var(--ink)", lineHeight:1.1 }}>{graphName || "Untitled graph"}</div>
+              <div style={{ fontFamily:"Instrument Serif", fontSize:26, color:"var(--ink)", lineHeight:1.1 }}>Create New Graph</div>
             </div>
           </div>
           <button onClick={onClose} style={{ width:32, height:32, borderRadius:"50%", border:"1px solid var(--line)", background:"none", cursor:"pointer", fontSize:15, color:"var(--ink-3)", flexShrink:0 }}>✕</button>
