@@ -3247,7 +3247,7 @@ function AddNodeFlow({ onClose, onCreate }) {
               return (
                 <button key={n} onClick={function(){ if (n < step || canContinue()) setStep(n); }}
                   style={{ display:"flex", gap:12, padding:"10px 12px", borderRadius:7, border: isOn ? "1px solid var(--line)" : "1px solid transparent", background: isOn ? "var(--bg-canvas)" : "transparent", cursor:"pointer", fontFamily:"inherit", textAlign:"left", alignItems:"center" }}>
-                  <span style={{ width:28, height:28, borderRadius:"50%", border:"1px solid " + (isDone ? "var(--green)" : isOn ? "var(--ink)" : "var(--line)"), background: isDone ? "var(--green)" : isOn ? "var(--ink)" : "var(--bg-canvas)", color: isDone || isOn ? "var(--bg-canvas)" : "var(--ink-3)", display:"flex", alignItems:"center", justifyContent:"center", fontFamily:"JetBrains Mono", fontSize: 12, fontWeight:700, flexShrink:0, lineHeight:1 }}>{isDone ? <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"><polyline points="3.5,8.5 6.5,11.5 12.5,5" /></svg> : n}</span>
+                  <span style={{ width:28, height:28, borderRadius:"50%", border:"1px solid " + (isDone ? "var(--green)" : isOn ? "var(--ink-3)" : "var(--line)"), background: isDone ? "var(--green)" : isOn ? "var(--ink-3)" : "var(--bg-canvas)", color: isDone || isOn ? "var(--bg-canvas)" : "var(--ink-3)", display:"flex", alignItems:"center", justifyContent:"center", fontFamily:"JetBrains Mono", fontSize: 12, fontWeight:700, flexShrink:0, lineHeight:1 }}>{isDone ? <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"><polyline points="3.5,8.5 6.5,11.5 12.5,5" /></svg> : n}</span>
                   <div style={{ minWidth:0 }}>
                     <div style={{ fontSize:13, color:"var(--ink)", fontWeight: isOn ? 500 : 400, lineHeight:1.2 }}>{nm}</div>
                     <div style={{ fontFamily:"JetBrains Mono", fontSize:10, color:"var(--ink-3)", marginTop:3, lineHeight:1.3, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{sub}</div>
@@ -4066,22 +4066,22 @@ function AddNodeFlow({ onClose, onCreate }) {
 
 
 // — NewEdgeFlow —
-function NewEdgeFlow({ onClose, onCreate, fromNode, toNode, initialLabel, nodes: liveNodes }) {
+function NewEdgeFlow({ onClose, onCreate, fromNode, toNode, initialLabel, initialCardinality, initialAttributes, initialBothSides, initialUndirected, editMode, nodes: liveNodes }) {
   var [step, setStep]                 = useWizardStep("estep", 1);
   var [label, setLabel]               = useState(initialLabel || "");
   var [desc, setDesc]                 = useState("");
   var [fromId, setFromId]             = useState(fromNode ? fromNode.id : null);
   var [toId, setToId]                 = useState(toNode ? toNode.id : null);
-  var lockFrom = !!fromNode; // edge created from a specific entity → source is fixed
-  var [cardinality, setCardinality]   = useState("");
+  var lockFrom = !!fromNode && !editMode; // edge created from a specific entity → source is fixed (but editable while editing)
+  var [cardinality, setCardinality]   = useState(initialCardinality || "");
   var [inverseLabel, setInverseLabel] = useState("");
   var [linkProp, setLinkProp]         = useState("");
   var [linkTargetProp, setLinkTargetProp] = useState("");
   var [showReq, setShowReq]           = useState(false);
   var [requiredAtFrom, setRequiredAtFrom] = useState(false);
   var [symmetric, setSymmetric]       = useState(false);
-  var [modelBothSides, setModelBothSides] = useState(true);
-  var [undirected, setUndirected]     = useState(false);
+  var [modelBothSides, setModelBothSides] = useState(initialBothSides != null ? !!initialBothSides : true);
+  var [undirected, setUndirected]     = useState(!!initialUndirected);
   // Population
   var [populationKind, setPopulationKind] = useState(null);
   var [popSourceId, setPopSourceId]   = useState(null);
@@ -4092,7 +4092,7 @@ function NewEdgeFlow({ onClose, onCreate, fromNode, toNode, initialLabel, nodes:
   var [popObjectId, setPopObjectId]   = useState(null);
   var [popAutomationId, setPopAutomationId] = useState(null);
   // Properties
-  var [edgeProps, setEdgeProps]       = useState([]);
+  var [edgeProps, setEdgeProps]       = useState(initialAttributes || []);
   // Governance
   var [owner, setOwner]               = useState("morgan.lee");
   var [permsRead,  setPermsRead]      = useState([{ kind:"group", id:"everyone",      label:"Everyone in org" }]);
@@ -4273,7 +4273,7 @@ function NewEdgeFlow({ onClose, onCreate, fromNode, toNode, initialLabel, nodes:
         {/* HEADER */}
         <div style={{ flexShrink:0, height:56, borderBottom:"1px solid var(--line)", display:"flex", alignItems:"center", justifyContent:"space-between", padding:"0 22px", background:"var(--panel)" }}>
           <div style={{ display:"flex", alignItems:"center", gap:14 }}>
-            <div style={{ fontFamily:"Instrument Serif", fontSize:20, color:"var(--ink)" }}>{label ? ":" + label : "New edge type"}</div>
+            <div style={{ fontFamily:"Instrument Serif", fontSize:20, color:"var(--ink)" }}>{editMode ? "Edit edge type" : (label ? ":" + label : "New edge type")}</div>
             {fromN && toN && (
               <div style={{ display:"flex", alignItems:"center", gap:6, fontFamily:"JetBrains Mono", fontSize:11, color:"var(--ink-3)" }}>
                 <span>{fromN.label}</span>
@@ -4299,7 +4299,7 @@ function NewEdgeFlow({ onClose, onCreate, fromNode, toNode, initialLabel, nodes:
               return (
                 <button key={n} onClick={function(){ setStep(n); }}
                   style={{ display:"flex", gap:12, padding:"10px 12px", borderRadius:7, border: isOn ? "1px solid var(--line)" : "1px solid transparent", background: isOn ? "var(--bg-canvas)" : "transparent", cursor:"pointer", fontFamily:"inherit", textAlign:"left", alignItems:"center" }}>
-                  <span style={{ width:28, height:28, borderRadius:"50%", border:"1px solid " + (isDone ? "var(--green)" : isOn ? "var(--ink)" : "var(--line)"), background: isDone ? "var(--green)" : isOn ? "var(--ink)" : "var(--bg-canvas)", color: isDone || isOn ? "var(--bg-canvas)" : "var(--ink-3)", display:"flex", alignItems:"center", justifyContent:"center", fontFamily:"JetBrains Mono", fontSize: 12, fontWeight:700, flexShrink:0, lineHeight:1 }}>{isDone ? <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"><polyline points="3.5,8.5 6.5,11.5 12.5,5" /></svg> : n}</span>
+                  <span style={{ width:28, height:28, borderRadius:"50%", border:"1px solid " + (isDone ? "var(--green)" : isOn ? "var(--ink-3)" : "var(--line)"), background: isDone ? "var(--green)" : isOn ? "var(--ink-3)" : "var(--bg-canvas)", color: isDone || isOn ? "var(--bg-canvas)" : "var(--ink-3)", display:"flex", alignItems:"center", justifyContent:"center", fontFamily:"JetBrains Mono", fontSize: 12, fontWeight:700, flexShrink:0, lineHeight:1 }}>{isDone ? <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"><polyline points="3.5,8.5 6.5,11.5 12.5,5" /></svg> : n}</span>
                   <div style={{ minWidth:0 }}>
                     <div style={{ fontSize:13, color:"var(--ink)", fontWeight: isOn ? 500 : 400, lineHeight:1.2 }}>{nm}</div>
                     <div style={{ fontFamily:"JetBrains Mono", fontSize:10, color:"var(--ink-3)", marginTop:3, lineHeight:1.3, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{sub}</div>
@@ -4314,7 +4314,7 @@ function NewEdgeFlow({ onClose, onCreate, fromNode, toNode, initialLabel, nodes:
             <div style={{ marginBottom:20 }}>
               <div style={{ fontFamily:"Instrument Serif", fontSize:28, color:"var(--ink)", lineHeight:1.1, marginBottom:8 }}>{stepNames[step-1]}</div>
               <div style={{ fontSize:13, color:"var(--ink-3)", lineHeight:1.55 }}>
-                {step === 1 && "Name the relationship, pick the two node types it connects, and decide how instances are populated. The label reads like a verb — :WORKS_AT, :BILLED_AS, :OWNS."}
+                {step === 1 && "Name the relationship and pick the two entities it connects."}
                 {step === 2 && "Optional. Add properties that vary per edge — like a weight, a confidence score, or when the relationship started. Skip if every instance is identical."}
                 {step === 3 && "Last look before this edge type becomes available to agents, queries and the schema."}
               </div>
@@ -4344,7 +4344,7 @@ function NewEdgeFlow({ onClose, onCreate, fromNode, toNode, initialLabel, nodes:
                       {[{ v:"1:1", l:"One to One" }, { v:"1:N", l:"One to Many" }, { v:"N:1", l:"Many to One" }, { v:"N:M", l:"Many to Many" }].map(function(o){
                         var on = cardinality === o.v;
                         return <button key={o.v} onClick={function(){ setCardinality(o.v); }}
-                          style={{ display:"flex", alignItems:"center", justifyContent:"center", height:42, padding:"0 8px", boxSizing:"border-box", border:"1px solid " + (on ? "var(--ink)" : "var(--line)"), borderRadius:8, background: on ? "var(--chip)" : "var(--panel)", color: on ? "var(--ink)" : "var(--ink-2)", fontSize:13, fontWeight: on ? 600 : 500, fontFamily:"inherit", cursor:"pointer" }}>{o.l}</button>;
+                          style={{ display:"flex", alignItems:"center", justifyContent:"center", height:42, padding:"0 8px", boxSizing:"border-box", border:"1px solid " + (on ? "var(--ink-4)" : "var(--line)"), borderRadius:8, background: on ? "var(--chip)" : "var(--panel)", color: on ? "var(--ink)" : "var(--ink-2)", fontSize:13, fontWeight: on ? 600 : 500, fontFamily:"inherit", cursor:"pointer" }}>{o.l}</button>;
                       })}
                     </div>
                   </div>
@@ -4360,7 +4360,7 @@ function NewEdgeFlow({ onClose, onCreate, fromNode, toNode, initialLabel, nodes:
                   <div style={{ display:"grid", gridTemplateColumns:"1fr 34px 1fr", gap:10, alignItems:"start" }}>
                     {/* SOURCE ENTITY */}
                     <div style={cardBox}>
-                      <label style={Object.assign({}, fl, { marginTop:0 })}>Source Entity {reqMark(showReq && !fromId)}</label>
+                      <label style={Object.assign({}, fl, { marginTop:0 })}>Source Node {reqMark(showReq && !fromId)}</label>
                       <NodePicker value={fromId} onChange={setFromId} placeholder="Select source entity" disabled={lockFrom} />
                       <label style={Object.assign({}, fl, { marginTop:18 })}>Primary Key {reqMark(showReq && !linkProp)}</label>
                       <NodePropSelect node={fromN} value={linkProp} onChange={setLinkProp} placeholder={fromN ? "Select source field" : "Select source entity first"} />
@@ -4376,7 +4376,7 @@ function NewEdgeFlow({ onClose, onCreate, fromNode, toNode, initialLabel, nodes:
 
                     {/* TARGET ENTITY */}
                     <div style={cardBox}>
-                      <label style={Object.assign({}, fl, { marginTop:0 })}>Target Entity {reqMark(showReq && !toId)}</label>
+                      <label style={Object.assign({}, fl, { marginTop:0 })}>Target Node {reqMark(showReq && !toId)}</label>
                       <NodePicker value={toId} onChange={setToId} placeholder="Select target entity" />
                       <label style={Object.assign({}, fl, { marginTop:18 })}>Foreign Key {reqMark(showReq && !linkTargetProp)}</label>
                       <NodePropSelect node={toN} value={linkTargetProp} onChange={setLinkTargetProp} placeholder={toN ? "Select target field" : "Select target entity first"} />
@@ -4388,14 +4388,14 @@ function NewEdgeFlow({ onClose, onCreate, fromNode, toNode, initialLabel, nodes:
                   {(function(){
                     var toggleRow = function(key, title, icon, desc, on, onToggle){
                       return (
-                        <div key={key} style={{ display:"flex", alignItems:"flex-start", gap:14, padding:"13px 15px", border:"1px solid var(--line-2)", borderRadius:10, background:"var(--panel-2)" }}>
+                        <div key={key} onClick={onToggle} role="switch" aria-checked={on} style={{ display:"flex", alignItems:"flex-start", gap:14, padding:"13px 15px", border:"1px solid " + (on ? "var(--ink-4)" : "var(--line-2)"), borderRadius:10, background:"var(--panel-2)", cursor:"pointer" }}>
                           <div style={{ flex:1, minWidth:0 }}>
                             <div style={{ display:"flex", alignItems:"center", gap:7, fontSize:13, fontWeight:600, color:"var(--ink-2)", marginBottom:3 }}>{title}{icon}</div>
                             <div style={{ fontSize:11.5, color:"var(--ink-3)", lineHeight:1.5 }}>{desc}</div>
                           </div>
-                          <button onClick={onToggle} style={{ flexShrink:0, marginTop:2, width:38, height:22, borderRadius:11, border:"none", background: on ? "var(--green)" : "var(--line)", position:"relative", cursor:"pointer", padding:0, transition:"background 120ms" }}>
+                          <span style={{ flexShrink:0, marginTop:2, width:38, height:22, borderRadius:11, background: on ? "var(--ink)" : "var(--line)", position:"relative", transition:"background 120ms" }}>
                             <span style={{ position:"absolute", top:2, left: on ? 18 : 2, width:18, height:18, borderRadius:"50%", background:"#fff", boxShadow:"0 1px 2px rgba(0,0,0,0.2)", transition:"left 120ms" }} />
-                          </button>
+                          </span>
                         </div>
                       );
                     };
@@ -4484,7 +4484,7 @@ function NewEdgeFlow({ onClose, onCreate, fromNode, toNode, initialLabel, nodes:
             <button className="btn-ghost" onClick={onClose}>Cancel</button>
             {step < 2
               ? <button className="btn-dark" onClick={function(){ if (canContinue()) { setShowReq(false); setStep(function(s){ return s + 1; }); } else { setShowReq(true); } }}>Continue →</button>
-              : <button className="btn-dark" disabled={!canContinue()} onClick={function(){ if (onCreate) onCreate({ label: label, from: fromN, to: toN }); onClose(); }} style={{ opacity: canContinue() ? 1 : 0.45 }}>Create edge type ↵</button>
+              : <button className="btn-dark" disabled={!canContinue()} onClick={function(){ if (onCreate) onCreate({ label: label, from: fromN, to: toN }); onClose(); }} style={{ opacity: canContinue() ? 1 : 0.45 }}>{editMode ? "Save changes ↵" : "Create edge type ↵"}</button>
             }
           </div>
         </div>
@@ -7473,7 +7473,7 @@ function AddPropertyFlowModal({ node, mode, initialProperty, seedComputed, seedP
               return (
                 <button key={n} onClick={function(){ if (canGoTo) { if (mode === "manual") setStep(n); else setBulkStep(n); } }}
                   style={{ display:"flex", gap:12, padding:"10px 12px", borderRadius:7, border: isOn ? "1px solid var(--line)" : "1px solid transparent", background: isOn ? "var(--bg-canvas)" : "transparent", cursor: canGoTo ? "pointer" : "default", fontFamily:"inherit", textAlign:"left", alignItems:"center", opacity: canGoTo ? 1 : 0.55 }}>
-                  <span style={{ width:28, height:28, borderRadius:"50%", border:"1px solid " + (isDone ? "var(--green)" : isOn ? "var(--ink)" : "var(--line)"), background: isDone ? "var(--green)" : isOn ? "var(--ink)" : "var(--bg-canvas)", color: isDone || isOn ? "var(--bg-canvas)" : "var(--ink-3)", display:"flex", alignItems:"center", justifyContent:"center", fontFamily:"JetBrains Mono", fontSize:12, fontWeight:700, flexShrink:0, lineHeight:1 }}>{isDone ? <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"><polyline points="3.5,8.5 6.5,11.5 12.5,5" /></svg> : n}</span>
+                  <span style={{ width:28, height:28, borderRadius:"50%", border:"1px solid " + (isDone ? "var(--green)" : isOn ? "var(--ink-3)" : "var(--line)"), background: isDone ? "var(--green)" : isOn ? "var(--ink-3)" : "var(--bg-canvas)", color: isDone || isOn ? "var(--bg-canvas)" : "var(--ink-3)", display:"flex", alignItems:"center", justifyContent:"center", fontFamily:"JetBrains Mono", fontSize:12, fontWeight:700, flexShrink:0, lineHeight:1 }}>{isDone ? <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"><polyline points="3.5,8.5 6.5,11.5 12.5,5" /></svg> : n}</span>
                   <div style={{ minWidth:0 }}>
                     <div style={{ fontSize:13, color:"var(--ink)", fontWeight: isOn ? 500 : 400, lineHeight:1.2 }}>{nm}</div>
                     <div style={{ fontFamily:"JetBrains Mono", fontSize:10, color:"var(--ink-3)", marginTop:3, lineHeight:1.3, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{sub}</div>
