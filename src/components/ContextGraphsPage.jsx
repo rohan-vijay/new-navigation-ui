@@ -1,7 +1,6 @@
 import { useState } from 'react'
 import { Dropdown, SharedIcon, StatusBadge } from './SkillsPage'
 import { NewGraphFlow } from './NewGraphFlow'
-import ECGDetailPage from './ECGDetailPage'
 
 // sample Enterprise Context Graphs
 const GRAPHS = [
@@ -43,9 +42,7 @@ export default function ContextGraphsPage({ onCreate, onOpenGraph }) {
   const [statusFilter, setStatusFilter] = useState('All status')
   const [search, setSearch] = useState('')
   const [newGraph, setNewGraph] = useState(false)
-  const [ecgOpen, setEcgOpen] = useState(false)
 
-  if (ecgOpen) return <ECGDetailPage onBack={() => setEcgOpen(false)} />
 
   let rows = GRAPHS
     .filter(g => statusFilter === 'All status' || g.status === statusFilter)

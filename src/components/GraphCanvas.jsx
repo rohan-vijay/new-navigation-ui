@@ -9,7 +9,6 @@ import GraphStage, { SIDEBAR_NODES, GRAPH_EDGES, ListGlyph, colorForNode, AddNod
 // Make node schema available to LinkSourceFlow.buildEditState (runs at module load time)
 if (typeof window !== 'undefined') { window.NODES = SIDEBAR_NODES; window.generateProps = generateProps; }
 import RecordsPage from './RecordsPage'
-import ECGDetailPage from './ECGDetailPage'
 import SkillLibrary from './SkillLibrary'
 import { AGENT_LIBRARY, AGENT_GROUP_ORDER } from '../data/agentLibrary'
 import { FeatureModeProvider, useFeatureMode } from '../featureMode'
@@ -180,7 +179,6 @@ function GraphCanvasInner({ title = 'New graph', onBack, onAgentAI }) {
   const [sourceFlow, setSourceFlow] = useState(false)
   const [editSourceSpec, setEditSourceSpec] = useState(null)
   const [nodeDetail, setNodeDetail] = useState(null)
-  const [ecgOpen, setEcgOpen] = useState(false)
 
   const AGENT_BY_ID = useMemo(() => { const m = {}; AGENT_LIBRARY.forEach(c => c.skills.forEach(s => { m[s.id] = { ...s, cat: c.cat } })); return m }, [])
   const importAgents = (ids) => {
@@ -242,14 +240,12 @@ function GraphCanvasInner({ title = 'New graph', onBack, onAgentAI }) {
       </div>
 
       {/* Body */}
-      {ecgOpen ? (
-        <ECGDetailPage onBack={() => setEcgOpen(false)} />
-      ) : nodeDetail ? (
+      {nodeDetail ? (
         <NodeDetailPage node={nodeDetail} onBack={() => setNodeDetail(null)} onCanvas={() => { setNodeDetail(null); setTab('Graph') }} />
       ) : tab === 'Graph' ? (
         <GraphStage />
       ) : tab === 'Nodes' ? (
-        <NodesList onOpen={id => setNodeDetail(SIDEBAR_NODES.find(n => n.id === id))} onOpenECG={() => setEcgOpen(true)} />
+        <NodesList onOpen={id => setNodeDetail(SIDEBAR_NODES.find(n => n.id === id))} />
       ) : tab === 'Edges' ? (
         <EdgesList />
       ) : tab === 'Sources' ? (
@@ -1025,7 +1021,7 @@ const NODE_SORTERS = {
 }
 const NODE_FILTERS = { 'All categories': null, Core: 'core', Support: 'support', Derived: 'derived', Source: 'source' }
 
-function NodesList({ onOpen, onOpenECG }) {
+function NodesList({ onOpen }) {
   const [sort, setSort] = useState('Name (A–Z)')
   const [filter, setFilter] = useState('All categories')
   const [search, setSearch] = useState('')
