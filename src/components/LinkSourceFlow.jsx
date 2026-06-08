@@ -639,7 +639,7 @@ function CustomSelect({ value, onChange, options, placeholder = "—", renderTri
   const groupBlock = g => {
     const items = g.items.filter(matches);
     if (!items.length) return null;
-    return <div key={g.label}>{g.label ? <div className="csel-group">{g.label}</div> : null}{items.map(optBtn)}</div>;
+    return <div key={g.key || g.label} className="csel-grp">{g.label ? <div className="csel-group">{g.label}</div> : null}{items.map(optBtn)}</div>;
   };
 
   return (
@@ -2487,11 +2487,12 @@ function SrcEntityMap({ s, set, groups, activeObj, sel, openCol, setOpenCol }) {
   ];
   const destEdges = destNode ? allEdges.filter(e => e.s === destNode.id || e.t === destNode.id) : [];
   // Two-tab destination picker: node Properties · Edge attributes (grouped per edge).
-  const _edgeGroups = destEdges.map(e => {
+  const _edgeGroups = destEdges.map((e, ei) => {
     const out = e.s === destNode.id;
     const other = nodes.find(n => n.id === (out ? e.t : e.s)) || (((typeof window !== "undefined" && window.NODES) || []).find(n => n.id === (out ? e.t : e.s)));
     return {
-      label: ":" + e.label + "  " + (out ? "→" : "←") + "  " + (other ? other.label : "?"),
+      key: "e" + ei + ":" + e.label,
+      label: <span className="csel-edgehd"><span className="csel-edgehd-rel">:{e.label}</span><span className="csel-edgehd-arrow">{out ? "→" : "←"}</span><span className="csel-edgehd-node">{other ? other.label : "?"}</span></span>,
       items: edgeAttrsFor(e).map(a => ({ id: "edge:" + e.label + ":" + a.name, label: a.name, type: a.type, onEdge: e.label })),
     };
   });
@@ -3277,11 +3278,12 @@ function SrcMapping({ s, set, groups, activeObj, nodeProps, node, sel, openCol, 
     { name: "since", type: "datetime" }, { name: "weight", type: "decimal" },
     { name: "confidence", type: "decimal" }, { name: "source_system", type: "string" },
   ];
-  const _mEdgeGroups = (targetNode ? _tEdges : []).map(e => {
+  const _mEdgeGroups = (targetNode ? _tEdges : []).map((e, ei) => {
     const out = e.s === targetNode.id;
     const other = _winNodes.find(n => n.id === (out ? e.t : e.s));
     return {
-      label: ":" + e.label + "  " + (out ? "→" : "←") + "  " + (other ? other.label : "?"),
+      key: "e" + ei + ":" + e.label,
+      label: <span className="csel-edgehd"><span className="csel-edgehd-rel">:{e.label}</span><span className="csel-edgehd-arrow">{out ? "→" : "←"}</span><span className="csel-edgehd-node">{other ? other.label : "?"}</span></span>,
       items: _edgeAttrs(e).map(a => ({ id: "edge:" + e.label + ":" + a.name, label: a.name, type: a.type, onEdge: e.label })),
     };
   });
