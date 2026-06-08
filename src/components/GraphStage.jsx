@@ -4356,14 +4356,46 @@ function NewEdgeFlow({ onClose, onCreate, fromNode, toNode, initialLabel, initia
                       </div>
                     );
                     var hideLbl = function(mt){ return <label style={Object.assign({}, fl, { marginTop:mt, visibility:"hidden" })} aria-hidden="true">.</label>; };
+                    // Key field labels and hints depend on cardinality
+                    var srcKeyLabel, tgtKeyLabel, srcKeyHint, tgtKeyHint;
+                    if (cardinality === "1:1") {
+                      srcKeyLabel = "Source key"; tgtKeyLabel = "Target key";
+                      srcKeyHint = "Unique identifier on the source node";
+                      tgtKeyHint = "Matching identifier on the target node";
+                    } else if (cardinality === "1:N") {
+                      srcKeyLabel = "Primary key"; tgtKeyLabel = "Foreign key";
+                      srcKeyHint = 'PK on the "one" side (source)';
+                      tgtKeyHint = 'FK on the "many" side (target) — references the source PK';
+                    } else if (cardinality === "N:1") {
+                      srcKeyLabel = "Foreign key"; tgtKeyLabel = "Primary key";
+                      srcKeyHint = 'FK on the "many" side (source) — references the target PK';
+                      tgtKeyHint = 'PK on the "one" side (target)';
+                    } else if (cardinality === "N:M") {
+                      srcKeyLabel = "Source join field"; tgtKeyLabel = "Target join field";
+                      srcKeyHint = "Field used to identify the source node in the join";
+                      tgtKeyHint = "Field used to identify the target node in the join";
+                    } else {
+                      srcKeyLabel = "Source key"; tgtKeyLabel = "Target key";
+                      srcKeyHint = null; tgtKeyHint = null;
+                    }
+                    var isNM = cardinality === "N:M";
                     return (
-                  <div style={{ display:"grid", gridTemplateColumns:"1fr 34px 1fr", gap:10, alignItems:"start" }}>
-                    {/* SOURCE ENTITY */}
+                  <div style={{ display:"flex", flexDirection:"column", gap:12 }}>
+                    {/* N:M info banner */}
+                    {isNM && (
+                      <div style={{ display:"flex", alignItems:"flex-start", gap:10, padding:"11px 14px", borderRadius:9, background:"#f0f4ff", border:"1px solid #c7d5f8" }}>
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#4f6fc8" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink:0, marginTop:1 }}><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                        <span style={{ fontSize:12, color:"#3b4f8a", lineHeight:1.55 }}>Many-to-Many edges are modelled as a direct relationship between nodes — no junction table needed. Specify the identifier field on each side used to resolve the connection.</span>
+                      </div>
+                    )}
+                    <div style={{ display:"grid", gridTemplateColumns:"1fr 34px 1fr", gap:10, alignItems:"start" }}>
+                    {/* SOURCE NODE */}
                     <div style={cardBox}>
                       <label style={Object.assign({}, fl, { marginTop:0 })}>Source Node {reqMark(showReq && !fromId)}</label>
                       <NodePicker value={fromId} onChange={setFromId} placeholder="Select source entity" disabled={lockFrom} />
-                      <label style={Object.assign({}, fl, { marginTop:18 })}>Primary Key {reqMark(showReq && !linkProp)}</label>
-                      <NodePropSelect node={fromN} value={linkProp} onChange={setLinkProp} placeholder={fromN ? "Select source field" : "Select source entity first"} />
+                      <label style={Object.assign({}, fl, { marginTop:18 })}>{srcKeyLabel} {reqMark(showReq && !linkProp)}</label>
+                      <NodePropSelect node={fromN} value={linkProp} onChange={setLinkProp} placeholder={fromN ? "Select source field" : "Select source node first"} />
+                      {srcKeyHint && <div style={{ fontSize:11, color:"var(--ink-4)", marginTop:4, lineHeight:1.45 }}>{srcKeyHint}</div>}
                     </div>
 
                     {/* PER-ROW ARROWS */}
@@ -4374,13 +4406,15 @@ function NewEdgeFlow({ onClose, onCreate, fromNode, toNode, initialLabel, initia
                       {rowArrow}
                     </div>
 
-                    {/* TARGET ENTITY */}
+                    {/* TARGET NODE */}
                     <div style={cardBox}>
                       <label style={Object.assign({}, fl, { marginTop:0 })}>Target Node {reqMark(showReq && !toId)}</label>
                       <NodePicker value={toId} onChange={setToId} placeholder="Select target entity" />
-                      <label style={Object.assign({}, fl, { marginTop:18 })}>Foreign Key {reqMark(showReq && !linkTargetProp)}</label>
-                      <NodePropSelect node={toN} value={linkTargetProp} onChange={setLinkTargetProp} placeholder={toN ? "Select target field" : "Select target entity first"} />
+                      <label style={Object.assign({}, fl, { marginTop:18 })}>{tgtKeyLabel} {reqMark(showReq && !linkTargetProp)}</label>
+                      <NodePropSelect node={toN} value={linkTargetProp} onChange={setLinkTargetProp} placeholder={toN ? "Select target field" : "Select target node first"} />
+                      {tgtKeyHint && <div style={{ fontSize:11, color:"var(--ink-4)", marginTop:4, lineHeight:1.45 }}>{tgtKeyHint}</div>}
                     </div>
+                  </div>
                   </div>
                     );
                   })()}
