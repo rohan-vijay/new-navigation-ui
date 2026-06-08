@@ -2465,6 +2465,28 @@ function SrcDiscover({ s, set, sel }) {
   );
 }
 
+// Auto-map helper: pick the best destination property for a source field name.
+function _normField(s) { return (s || "").toLowerCase().replace(/[^a-z0-9]/g, ""); }
+function autoMatchProp(srcName, props) {
+  const list = (props || []).filter(p => p.id && p.id !== "__new__");
+  if (!list.length) return null;
+  const n = _normField(srcName);
+  // 1. exact normalized match
+  let hit = list.find(p => _normField(p.label) === n);
+  if (hit) return hit;
+  // 2. common alias map (source → destination semantics)
+  const aliases = { fileid: "id", recordid: "id", name: "name", filename: "name", title: "name", filetype: "type", sourceurl: "externalref", url: "externalref", owner: "ownerid", createdat: "createdat", modifiedat: "updatedat", updatedat: "updatedat" };
+  if (aliases[n]) { hit = list.find(p => _normField(p.label) === aliases[n]); if (hit) return hit; }
+  // 3. substring either direction (require len ≥ 4 to avoid noise)
+  hit = list.find(p => { const pn = _normField(p.label); return pn.length >= 4 && n.length >= 4 && (pn.includes(n) || n.includes(pn)); });
+  if (hit) return hit;
+  // 4. token overlap
+  const toks = new Set((srcName || "").toLowerCase().split(/[^a-z0-9]+/).filter(Boolean));
+  let best = null, bestScore = 0;
+  list.forEach(p => { const pt = (p.label || "").toLowerCase().split(/[^a-z0-9]+/).filter(Boolean); const sc = pt.filter(t => toks.has(t)).length; if (sc > bestScore) { bestScore = sc; best = p; } });
+  return bestScore > 0 ? best : null;
+}
+
 // ── Unstructured Map: map each discovered entity to a graph node + its props ───
 function SrcEntityMap({ s, set, groups, activeObj, sel, openCol, setOpenCol }) {
   const [q, setQ] = useState("");
@@ -2527,6 +2549,15 @@ function SrcEntityMap({ s, set, groups, activeObj, sel, openCol, setOpenCol }) {
     set({ entityNode: Object.assign({}, entityNode, (function () { var o = {}; o[eid] = nid; return o; })()), mapping: m });
   };
   const updateMap = (col, v) => set({ mapping: Object.assign({}, mapping, (function () { var o = {}; o[mk(col)] = v; return o; })()) });
+  const [autoMapping, setAutoMapping] = useState(false);
+  const autoMap = () => {
+    if (isNew) return;
+    setAutoMapping(true);
+    const m = Object.assign({}, mapping);
+    cols.forEach(c => { const hit = autoMatchProp(c.col, props); if (hit) m[mk(c.col)] = hit.id; });
+    set({ mapping: m });
+    setTimeout(() => setAutoMapping(false), 450);
+  };
   const mappedN = cols.filter(c => mapping[mk(c.col)]).length;
   const recordFilters = s.recordFilters || {};
   const activeFilters = current ? (recordFilters[eid] || []) : [];
@@ -2572,7 +2603,7 @@ function SrcEntityMap({ s, set, groups, activeObj, sel, openCol, setOpenCol }) {
         <div style={{ textAlign: "center", color: (isNew || mapped) ? "var(--green)" : "var(--ink-4)", fontSize: 15 }}>→</div>
         {isNew
           ? <span style={{ display: "flex", alignItems: "center", gap: 9, padding: "7px 2px" }}><MapTypeGlyph type={c.type} size={22} /><code style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 12.5, color: "var(--ink)" }}>{nm}</code><MapBadge tone="var(--purple)">NEW</MapBadge></span>
-          : <CustomSelect value={mapped || ""} onChange={v => updateMap(c.col, v)} placeholder="Select property" tabs={destTabs} searchable searchPlaceholder="Search properties & edge attributes…"
+          : <CustomSelect value={mapped || ""} onChange={v => updateMap(c.col, v)} placeholder="Select property" options={destTabs[0].items} searchable searchPlaceholder="Search properties…"
               renderTrigger={o => o.id && o.id !== "__new__"
                 ? <span style={{ display: "flex", alignItems: "center", gap: 9, minWidth: 0 }}><MapTypeGlyph type={o.type} size={22} /><span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 12.5, color: "var(--ink)", overflow: "hidden", textOverflow: "ellipsis" }}>{o.label}</span>{o.onEdge && <MapBadge tone="var(--gold)">{":" + o.onEdge}</MapBadge>}</span>
                 : <span style={{ color: o.id === "__new__" ? "var(--ink-2)" : "var(--ink-4)" }}>{o.label || "Select property"}</span>}
@@ -2620,7 +2651,7 @@ function SrcEntityMap({ s, set, groups, activeObj, sel, openCol, setOpenCol }) {
 
               <div style={{ position: "relative" }}>
                 <button onClick={() => setFilterOpen(o => !o)}
-                  style={{ display: "flex", alignItems: "center", gap: 8, padding: "0 13px", height: 40, borderRadius: 9, border: "1px solid " + (filterOpen || activeFilters.length ? "var(--ink)" : "var(--line)"), background: filterOpen ? "var(--bg-canvas)" : "var(--panel)", cursor: "pointer", fontFamily: "inherit", fontSize: 13, color: "var(--ink)", fontWeight: 500 }}>
+                  style={{ display: "flex", alignItems: "center", gap: 8, padding: "0 13px", height: 34, borderRadius: 8, border: "1px solid " + (filterOpen || activeFilters.length ? "var(--ink)" : "var(--line)"), background: filterOpen ? "var(--bg-canvas)" : "var(--panel)", cursor: "pointer", fontFamily: "inherit", fontSize: 13, color: "var(--ink)", fontWeight: 500 }}>
                   <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M3 5h18M6 12h12M10 19h4" /></svg>
                   Filter records
                   {activeFilters.length > 0 && <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 10.5, fontWeight: 700, minWidth: 18, textAlign: "center", padding: "1px 6px", borderRadius: 10, background: "var(--ink)", color: "var(--panel)" }}>{activeFilters.length}</span>}
@@ -2634,16 +2665,22 @@ function SrcEntityMap({ s, set, groups, activeObj, sel, openCol, setOpenCol }) {
               </div>
 
               <button onClick={() => setOpenCol && setOpenCol(eid + "::__newtf__")}
-                style={{ display: "flex", alignItems: "center", gap: 7, padding: "0 13px", height: 40, borderRadius: 9, border: "1px solid var(--line)", background: "var(--panel)", cursor: "pointer", fontFamily: "inherit", fontSize: 13, color: "var(--ink)", fontWeight: 500 }}>
+                style={{ display: "flex", alignItems: "center", gap: 7, padding: "0 13px", height: 34, borderRadius: 8, border: "1px solid var(--line)", background: "var(--panel)", cursor: "pointer", fontFamily: "inherit", fontSize: 13, color: "var(--ink)", fontWeight: 500 }}>
                 <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 17, fontWeight: 400, color: "var(--ink-3)", lineHeight: 1 }}>+</span>
                 Transformed field
               </button>
 
-              <div style={{ position: "relative", marginLeft: "auto", width: 240 }}>
+              {!isNew && <button onClick={autoMap} disabled={autoMapping} title="Auto-map fields to destination properties with AI"
+                style={{ display: "flex", alignItems: "center", gap: 7, marginLeft: "auto", padding: "0 14px", height: 34, borderRadius: 8, border: "1px solid var(--line)", background: "var(--panel)", cursor: autoMapping ? "default" : "pointer", fontFamily: "inherit", fontSize: 13, color: "var(--ink)", fontWeight: 500 }}>
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M12 2.2l1.9 6.4a2 2 0 0 0 1.3 1.3l6.4 1.9-6.4 1.9a2 2 0 0 0-1.3 1.3L12 21.8l-1.9-6.4a2 2 0 0 0-1.3-1.3L2.4 12.2l6.4-1.9a2 2 0 0 0 1.3-1.3L12 2.2z" /></svg>
+                {autoMapping ? "Mapping…" : "Auto Map"}
+              </button>}
+
+              <div style={{ position: "relative", marginLeft: isNew ? "auto" : 10, width: 240 }}>
                 <span style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", color: "var(--ink-3)", display: "flex" }}>
                   <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7"><circle cx="11" cy="11" r="7" /><path d="M21 21l-4-4" /></svg>
                 </span>
-                <input className="winput" style={{ paddingLeft: 34 }} placeholder="Search fields…" value={q} onChange={e => setQ(e.target.value)} />
+                <input className="winput" style={{ paddingLeft: 34, height: 34, paddingTop: 0, paddingBottom: 0 }} placeholder="Search fields…" value={q} onChange={e => setQ(e.target.value)} />
               </div>
             </div>
           )}
@@ -3328,6 +3365,7 @@ function SrcMapping({ s, set, groups, activeObj, nodeProps, node, sel, openCol, 
   const [q, setQ] = useState("");
   const [tab, setTab] = useState("all");
   const [filterOpen, setFilterOpen] = useState(false);
+  const [autoMapping, setAutoMapping] = useState(false);
   const mapping = s.mapping || {};
   const transforms = s.transforms || {};
   const groupList = groups || [];
@@ -3374,6 +3412,14 @@ function SrcMapping({ s, set, groups, activeObj, nodeProps, node, sel, openCol, 
   const allFields = curCols.concat(agentFields);
   const total = allFields.length;
   const mappedCount = allFields.filter(c => mapping[mk(current.name, c.col)]).length;
+  const autoMap = () => {
+    if (!current) return;
+    setAutoMapping(true);
+    const m = Object.assign({}, mapping);
+    allFields.forEach(c => { const hit = autoMatchProp(c.col, _tProps); if (hit) m[mk(current.name, c.col)] = hit.id; });
+    set({ mapping: m });
+    setTimeout(() => setAutoMapping(false), 450);
+  };
   const recordFilters = s.recordFilters || {};
   const activeFilters = current ? (recordFilters[current.name] || []) : [];
   const tfields = current ? ((s.transformedFields || {})[current.name] || []) : [];
@@ -3412,7 +3458,7 @@ function SrcMapping({ s, set, groups, activeObj, nodeProps, node, sel, openCol, 
             </span>
           </button>
           <div style={{ textAlign: "center", color: mapped ? "var(--green)" : "var(--ink-4)", fontSize: 15 }}>→</div>
-          <CustomSelect value={mapped || ""} onChange={v => updateMap(key, v)} placeholder="Select field" tabs={destTabs} searchable searchPlaceholder="Search properties & edge attributes…"
+          <CustomSelect value={mapped || ""} onChange={v => updateMap(key, v)} placeholder="Select field" options={destTabs[0].items} searchable searchPlaceholder="Search properties…"
             renderTrigger={o => o.id && o.id !== "__new__" ? <span style={{ display: "flex", alignItems: "center", gap: 9, minWidth: 0 }}><MapTypeGlyph type={o.type} size={22} /><span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 12.5, color: "var(--ink)", overflow: "hidden", textOverflow: "ellipsis" }}>{o.label}</span>{o.onEdge && <MapBadge tone="var(--gold)">{":" + o.onEdge}</MapBadge>}{o.id === "id" && <><MapBadge tone="var(--green)">PK</MapBadge><MapBadge>UK</MapBadge></>}</span> : <span style={{ color: o.id === "__new__" ? "var(--ink-2)" : "var(--ink-4)" }}>{o.label || "Select field"}</span>}
             renderOption={o => o.id && o.id !== "__new__" ? <span style={{ display: "flex", alignItems: "center", gap: 9 }}><MapTypeGlyph type={o.type} size={20} /><span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 12.5 }}>{o.label}</span></span> : <span style={{ color: o.id === "__new__" ? "var(--ink-2)" : "var(--ink-3)" }}>{o.label}</span>} />
         </div>
@@ -3452,7 +3498,7 @@ function SrcMapping({ s, set, groups, activeObj, nodeProps, node, sel, openCol, 
             {chain.length === 0 && <span style={{ fontSize: 11.5, color: "var(--ink-4)" }}>passthrough</span>}
           </button>
           <div style={{ textAlign: "center", color: mapped ? "var(--green)" : "var(--ink-4)", fontSize: 15 }}>→</div>
-          <CustomSelect value={mapped || ""} onChange={v => updateMap(key, v)} placeholder="Select field" tabs={destTabs} searchable searchPlaceholder="Search properties & edge attributes…"
+          <CustomSelect value={mapped || ""} onChange={v => updateMap(key, v)} placeholder="Select field" options={destTabs[0].items} searchable searchPlaceholder="Search properties…"
             renderTrigger={o => o.id && o.id !== "__new__" ? <span style={{ display: "flex", alignItems: "center", gap: 9, minWidth: 0 }}><MapTypeGlyph type={o.type} size={22} /><span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 12.5, color: "var(--ink)", overflow: "hidden", textOverflow: "ellipsis" }}>{o.label}</span>{o.onEdge && <MapBadge tone="var(--gold)">{":" + o.onEdge}</MapBadge>}</span> : <span style={{ color: o.id === "__new__" ? "var(--ink-2)" : "var(--ink-4)" }}>{o.label || "Select field"}</span>}
             renderOption={o => o.id && o.id !== "__new__" ? <span style={{ display: "flex", alignItems: "center", gap: 9 }}><MapTypeGlyph type={o.type} size={20} /><span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 12.5 }}>{o.label}</span></span> : <span style={{ color: o.id === "__new__" ? "var(--ink-2)" : "var(--ink-3)" }}>{o.label}</span>} />
         </div>
@@ -3489,7 +3535,7 @@ function SrcMapping({ s, set, groups, activeObj, nodeProps, node, sel, openCol, 
         {/* filter records */}
         <div style={{ position: "relative" }}>
           <button onClick={() => setFilterOpen(o => !o)}
-            style={{ display: "flex", alignItems: "center", gap: 8, padding: "0 13px", height: 40, borderRadius: 9, border: "1px solid " + (filterOpen || activeFilters.length ? "var(--ink)" : "var(--line)"), background: filterOpen ? "var(--bg-canvas)" : "var(--panel)", cursor: "pointer", fontFamily: "inherit", fontSize: 13, color: "var(--ink)", fontWeight: 500 }}>
+            style={{ display: "flex", alignItems: "center", gap: 8, padding: "0 13px", height: 34, borderRadius: 8, border: "1px solid " + (filterOpen || activeFilters.length ? "var(--ink)" : "var(--line)"), background: filterOpen ? "var(--bg-canvas)" : "var(--panel)", cursor: "pointer", fontFamily: "inherit", fontSize: 13, color: "var(--ink)", fontWeight: 500 }}>
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M3 5h18M6 12h12M10 19h4" /></svg>
             Filter records
             {activeFilters.length > 0 && <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 10.5, fontWeight: 700, minWidth: 18, textAlign: "center", padding: "1px 6px", borderRadius: 10, background: "var(--ink)", color: "var(--panel)" }}>{activeFilters.length}</span>}
@@ -3504,16 +3550,22 @@ function SrcMapping({ s, set, groups, activeObj, nodeProps, node, sel, openCol, 
 
         {/* add a derived field via the transformation panel */}
         <button onClick={() => current && setOpenCol(current.name + "::__newtf__")}
-          style={{ display: "flex", alignItems: "center", gap: 7, padding: "0 13px", height: 40, borderRadius: 9, border: "1px solid var(--line)", background: "var(--panel)", cursor: "pointer", fontFamily: "inherit", fontSize: 13, color: "var(--ink)", fontWeight: 500 }}>
+          style={{ display: "flex", alignItems: "center", gap: 7, padding: "0 13px", height: 34, borderRadius: 8, border: "1px solid var(--line)", background: "var(--panel)", cursor: "pointer", fontFamily: "inherit", fontSize: 13, color: "var(--ink)", fontWeight: 500 }}>
           <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 17, fontWeight: 400, color: "var(--ink-3)", lineHeight: 1 }}>+</span>
           Transformed field
         </button>
 
-        <div style={{ position: "relative", marginLeft: "auto", width: 240 }}>
+        <button onClick={autoMap} disabled={autoMapping} title="Auto-map fields to destination properties with AI"
+          style={{ display: "flex", alignItems: "center", gap: 7, marginLeft: "auto", padding: "0 14px", height: 34, borderRadius: 8, border: "1px solid var(--line)", background: "var(--panel)", cursor: autoMapping ? "default" : "pointer", fontFamily: "inherit", fontSize: 13, color: "var(--ink)", fontWeight: 500 }}>
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M12 2.2l1.9 6.4a2 2 0 0 0 1.3 1.3l6.4 1.9-6.4 1.9a2 2 0 0 0-1.3 1.3L12 21.8l-1.9-6.4a2 2 0 0 0-1.3-1.3L2.4 12.2l6.4-1.9a2 2 0 0 0 1.3-1.3L12 2.2z" /></svg>
+          {autoMapping ? "Mapping…" : "Auto Map"}
+        </button>
+
+        <div style={{ position: "relative", marginLeft: 10, width: 240 }}>
           <span style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", color: "var(--ink-3)", display: "flex" }}>
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7"><circle cx="11" cy="11" r="7" /><path d="M21 21l-4-4" /></svg>
           </span>
-          <input className="winput" style={{ paddingLeft: 34 }} placeholder="Search fields…" value={q} onChange={e => setQ(e.target.value)} />
+          <input className="winput" style={{ paddingLeft: 34, height: 34, paddingTop: 0, paddingBottom: 0 }} placeholder="Search fields…" value={q} onChange={e => setQ(e.target.value)} />
         </div>
       </div>
 

@@ -932,7 +932,7 @@
   .csel-menu { position: absolute; top: calc(100% + 5px); left: 0; right: 0; background: var(--panel); border: 1px solid var(--line); border-radius: 12px; box-shadow: 0 14px 40px rgba(40,32,18,0.16); z-index: 500; max-height: 360px; overflow-y: auto; padding: 5px; }
   /* content-width variant: trigger hugs its text instead of filling the container */
   .csel.csel-auto { width: auto; display: inline-block; }
-  .csel-auto .csel-trigger { width: auto; }
+  .csel-auto .csel-trigger { width: auto; padding: 6px 12px; height: 34px; box-sizing: border-box; }
   .csel-auto .csel-val { flex: 0 1 auto; }
   .csel-auto .csel-menu { right: auto; min-width: 100%; white-space: nowrap; }
   .csel-search { display: flex; align-items: center; gap: 8px; padding: 4px 9px; margin: 0 0 4px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg-canvas); color: var(--ink-3); }

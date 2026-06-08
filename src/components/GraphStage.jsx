@@ -2371,6 +2371,56 @@ var PROP_TYPE_OPTIONS = ["uuid", "string", "string[]", "decimal", "float", "bool
 // Types that can carry nested child properties (a child schema).
 var PROP_NESTABLE = { array: true, object: true, struct: true };
 
+// Reusable design-system type picker (icon glyph + full PROP_TYPE_OPTIONS list).
+function PropTypeSelect({ value, onChange }) {
+  var [open, setOpen] = React.useState(false);
+  var btnRef = React.useRef(null);
+  var meta = PROP_TYPE_META[value] || PROP_TYPE_META.string;
+  var menuPos;
+  if (open && btnRef.current) {
+    var r = btnRef.current.getBoundingClientRect();
+    var GAP = 4, FOOTER_SAFE = 96, TOP_SAFE = 16, DESIRED = 280;
+    var below = window.innerHeight - r.bottom - FOOTER_SAFE;
+    var above = r.top - TOP_SAFE;
+    var up = below < Math.min(DESIRED, 200) && above > below;
+    var mh = Math.max(160, Math.min(DESIRED, (up ? above : below) - GAP));
+    menuPos = { position:"fixed", left:r.left, minWidth:Math.max(150, r.width), top: up ? Math.max(TOP_SAFE, r.top - GAP - mh) : r.bottom + GAP, maxHeight:mh, zIndex:1000 };
+  } else {
+    menuPos = { position:"absolute", top:"calc(100% + 4px)", left:0, minWidth:150, maxHeight:280, zIndex:1000 };
+  }
+  return (
+    <div style={{ position:"relative" }}>
+      <button ref={btnRef} onClick={function(){ setOpen(function(o){ return !o; }); }}
+        style={{ display:"flex", alignItems:"center", gap:7, width:"100%", padding:"7px 10px", border:"1px solid var(--line)", borderRadius:7, background:"var(--panel)", cursor:"pointer", fontFamily:"inherit", textAlign:"left" }}>
+        <span style={{ minWidth:22, height:18, padding:"0 5px", borderRadius:4, background:meta.color, color:"#fff", display:"inline-flex", alignItems:"center", justifyContent:"center", fontFamily:"JetBrains Mono", fontSize:9.5, fontWeight:700, letterSpacing:"0.3px", flexShrink:0 }}>{meta.glyph}</span>
+        <span style={{ flex:1, fontFamily:"JetBrains Mono", fontSize:12, color:"var(--ink-2)" }}>{value}</span>
+        <span style={{ color:"var(--ink-3)", fontSize:9, fontFamily:"JetBrains Mono" }}>▾</span>
+      </button>
+      {open && (
+        <>
+          <div style={{ position:"fixed", top:0, left:0, right:0, bottom:0, zIndex:999 }} onClick={function(){ setOpen(false); }} />
+          <div style={Object.assign({ background:"var(--panel)", border:"1px solid var(--line)", borderRadius:8, boxShadow:"0 10px 28px rgba(0,0,0,0.14)", padding:4, overflowY:"auto" }, menuPos)}>
+            {PROP_TYPE_OPTIONS.map(function(t){
+              var m = PROP_TYPE_META[t] || PROP_TYPE_META.string;
+              var isSel = value === t;
+              return (
+                <button key={t} onClick={function(){ onChange(t); setOpen(false); }}
+                  style={{ display:"flex", alignItems:"center", gap:8, width:"100%", padding:"6px 8px", borderRadius:5, border:"none", background: isSel ? "var(--bg-canvas)" : "transparent", cursor:"pointer", fontFamily:"inherit", textAlign:"left" }}
+                  onMouseEnter={function(e){ if (!isSel) e.currentTarget.style.background = "var(--panel-2)"; }}
+                  onMouseLeave={function(e){ if (!isSel) e.currentTarget.style.background = "transparent"; }}>
+                  <span style={{ minWidth:24, height:18, padding:"0 5px", borderRadius:4, background:m.color, color:"#fff", display:"inline-flex", alignItems:"center", justifyContent:"center", fontFamily:"JetBrains Mono", fontSize:9.5, fontWeight:700, flexShrink:0 }}>{m.glyph}</span>
+                  <span style={{ flex:1, fontFamily:"JetBrains Mono", fontSize:12, color:"var(--ink-2)" }}>{t}</span>
+                  {isSel && <span style={{ color:"var(--green)", fontWeight:700, fontSize:11 }}>✓</span>}
+                </button>
+              );
+            })}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
 
 // — PermRow —
 function PermRow({ k, label, list, setList, tone, desc }) {
@@ -4241,27 +4291,13 @@ function NewEdgeFlow({ onClose, onCreate, fromNode, toNode, initialLabel, nodes:
                   </div>
                 ) : (
                   <div className="card" style={{ background:"var(--panel)", border:"1px solid var(--line)", borderRadius:10, overflow:"hidden" }}>
-                    <div className="card-head card-head-row" style={{ background:"var(--panel-2)" }}>
-                      <span style={{ fontSize:13.5, fontWeight:600 }}>Edge attributes</span>
-                      <span className="card-head-sub">{edgeProps.length}</span>
-                    </div>
                     <div>
                       {edgeProps.map(function(p, i){
                         return (
-                          <div key={i} style={{ display:"grid", gridTemplateColumns:"1.4fr 1fr auto auto", gap:10, padding:"10px 18px", borderBottom: i < edgeProps.length-1 ? "1px solid var(--line-2)" : "none", alignItems:"center" }}>
+                          <div key={i} style={{ display:"grid", gridTemplateColumns:"1.4fr 1fr 28px", gap:10, padding:"10px 18px", borderBottom: i < edgeProps.length-1 ? "1px solid var(--line-2)" : "none", alignItems:"center" }}>
                             <input value={p.name} onChange={function(e){ updateProp(i, { name: e.target.value }); }} placeholder="attribute name" style={Object.assign({}, inp, { fontFamily:"JetBrains Mono", fontSize:12 })} />
-                            <select value={p.type} onChange={function(e){ updateProp(i, { type: e.target.value }); }} style={inp}>
-                              <option value="string">string</option>
-                              <option value="number">number</option>
-                              <option value="boolean">boolean</option>
-                              <option value="datetime">datetime</option>
-                              <option value="json">json</option>
-                            </select>
-                            <label style={{ display:"flex", alignItems:"center", gap:6, fontFamily:"JetBrains Mono", fontSize:10.5, color:"var(--ink-2)" }}>
-                              <input type="checkbox" checked={p.required} onChange={function(){ updateProp(i, { required: !p.required }); }} style={{ accentColor:"var(--ink)", width:14, height:14 }} />
-                              REQUIRED
-                            </label>
-                            <button onClick={function(){ removeProp(i); }} style={{ background:"none", border:"none", color:"var(--ink-3)", cursor:"pointer", fontSize:16 }}>×</button>
+                            <PropTypeSelect value={p.type} onChange={function(v){ updateProp(i, { type: v }); }} />
+                            <button onClick={function(){ removeProp(i); }} title="Remove attribute" style={{ background:"none", border:"none", color:"var(--ink-3)", cursor:"pointer", fontSize:16, justifySelf:"center" }}>×</button>
                           </div>
                         );
                       })}
