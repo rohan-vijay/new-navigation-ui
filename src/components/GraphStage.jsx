@@ -227,7 +227,7 @@ const _ECG = buildECG();
 const NODES = _ECG.nodes;
 const EDGES = _ECG.edges;
 
-const SIDEBAR_NODES = [...NODES].filter(n => n.type !== "agent").sort((a, b) => a.label.localeCompare(b.label));
+const SIDEBAR_NODES = [...NODES].filter(n => n.type !== "agent" && n.type !== "source").sort((a, b) => a.label.localeCompare(b.label));
 
 // ---------- HELPERS ---------------------------------------------------------
 
@@ -1486,7 +1486,7 @@ export { SIDEBAR_NODES, EDGES as GRAPH_EDGES, ListGlyph, colorForNode, AddNodeFl
 
 export default function GraphStage() {
   // Agents aren't part of the graph here — drop them and any edges touching them.
-  const BASE_NODES = useMemo(() => NODES.filter(n => n.type !== "agent"), [])
+  const BASE_NODES = useMemo(() => NODES.filter(n => n.type !== "agent" && n.type !== "source"), [])
   const BASE_EDGES = useMemo(() => {
     const ok = {}; BASE_NODES.forEach(n => { ok[n.id] = true })
     return EDGES.filter(e => ok[e.s] && ok[e.t])
