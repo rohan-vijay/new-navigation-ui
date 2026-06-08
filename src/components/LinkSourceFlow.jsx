@@ -1828,7 +1828,7 @@ function LinkSourceFlow({ node, existingSources, onClose, editSource }) {
         <>
           {step === 2 && <SrcObject s={s} set={set} sel={sel} />}
           {step === 3 && <SrcObjectAgents s={s} set={set} groups={mapGroups} sel={sel} />}
-          {step === 4 && <SrcMapping s={s} set={set} groups={mapGroups} activeObj={activeMapObj} nodeProps={nodeProps} node={node} sel={sel} openCol={mapOpenCol} setOpenCol={setMapOpenCol} />}
+          {step === 4 && <SrcMapping s={s} set={set} groups={mapGroups} activeObj={activeMapObj} nodeProps={nodeProps} node={node} sel={sel} openCol={mapOpenCol} setOpenCol={setMapOpenCol} isEdit={!!editSource} />}
           {step === 5 && <SrcSchedule s={s} set={set} srcCols={srcCols} />}
         </>
       )}
@@ -2725,11 +2725,6 @@ function SrcEntityMap({ s, set, groups, activeObj, sel, openCol, setOpenCol }) {
 
           {destId && (
             <div style={{ border: "1px solid var(--line)", borderRadius: 11, background: "var(--panel)", overflow: "hidden" }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 11, padding: "11px 16px", borderBottom: "1px solid var(--line)", background: "var(--panel-2)" }}>
-                <code style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 13, fontWeight: 600, color: "var(--ink)" }}>{current.label}</code>
-                <span style={{ fontSize: 11.5, color: "var(--ink-4)" }}>{cols.length + " fields → " + (isNew ? "new node" : (destNode ? destNode.label : "node"))}</span>
-                {!isNew && <span style={{ marginLeft: "auto", fontFamily: "'JetBrains Mono', monospace", fontSize: 10.5, fontWeight: 600, color: mappedN ? "var(--green)" : "var(--ink-3)" }}>{mappedN + "/" + cols.length + " mapped"}</span>}
-              </div>
               <div style={{ display: "grid", gridTemplateColumns: GRID, gap: 12, padding: "10px 16px", background: "var(--panel-2)", borderBottom: "1px solid var(--line-2)", fontFamily: "'JetBrains Mono', monospace", fontSize: 10, letterSpacing: "0.5px", textTransform: "uppercase", color: "var(--ink-3)" }}>
                 <div>Entity field</div><div>Transformations</div><div></div><div>{isNew ? "New property" : "Destination property"}</div>
               </div>
@@ -3399,7 +3394,7 @@ function SrcAgentOutputDrawer({ obj, agents, onClose }) {
   );
 }
 
-function SrcMapping({ s, set, groups, activeObj, nodeProps, node, sel, openCol, setOpenCol, eyebrow, title, desc, singleGroup }) {
+function SrcMapping({ s, set, groups, activeObj, nodeProps, node, sel, openCol, setOpenCol, eyebrow, title, desc, singleGroup, isEdit }) {
   const [q, setQ] = useState("");
   const [tab, setTab] = useState("all");
   const [filterOpen, setFilterOpen] = useState(false);
@@ -3418,8 +3413,21 @@ function SrcMapping({ s, set, groups, activeObj, nodeProps, node, sel, openCol, 
   const _winNodes = (typeof window !== "undefined" && window.NODES) || [];
   const _entNodes = _winNodes.filter(n => n.type === "entity");
   const _objName = current ? (current.name || "").toLowerCase() : "";
-  // No auto-suggest — user must explicitly pick a destination node.
   const [chosenDestId, setChosenDestId] = useState("");
+  // Pre-resolve a destination node per object ONLY when editing a pre-created
+  // source (so it isn't empty). For brand-new sources, leave it unselected so
+  // the user explicitly picks the destination.
+  useEffect(() => {
+    if (!isEdit) { setChosenDestId(""); return; }
+    const obj = (current ? (current.name || "") : "").toLowerCase();
+    const match = _entNodes.find(n => n.label.toLowerCase() === obj)
+      || _entNodes.find(n => n.id === obj)
+      || (node && _entNodes.find(n => n.id === node.id))
+      || _entNodes.find(n => n.id === "contract") || _entNodes.find(n => n.id === "account")
+      || _entNodes[0];
+    setChosenDestId(match ? match.id : "");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [current ? current.name : "", isEdit]);
   const targetNode = _entNodes.find(n => n.id === chosenDestId) || null;
   const _tProps = targetNode && window.generateProps
     ? window.generateProps(targetNode).map(p => ({ id: p.name, label: p.name, type: p.type }))
@@ -3703,14 +3711,7 @@ function SrcMapping({ s, set, groups, activeObj, nodeProps, node, sel, openCol, 
         const empty = sourceVisible.length === 0 && agentVisible.length === 0 && tfields.length === 0;
         return (
           <div style={{ border: "1px solid var(--line)", borderRadius: 11, background: "var(--panel)", overflow: "hidden" }}>
-            {/* active object caption */}
-            <div style={{ display: "flex", alignItems: "center", gap: 11, padding: "11px 16px", borderBottom: "1px solid var(--line)", background: "#f0eeeb" }}>
-              {!singleGroup && sel && <SrcConnectorLogo c={sel} size={18} />}
-              <code style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 13, fontWeight: 600, color: "var(--ink)" }}>{current.name}</code>
-              <span style={{ fontSize: 11.5, color: "var(--ink-4)" }}>{(current.type || "Object") + " · " + current.cols.length + " columns" + (hasAgents ? " · " + agentFields.length + " from agents" : "")}</span>
-              <span style={{ marginLeft: "auto", fontFamily: "'JetBrains Mono', monospace", fontSize: 10.5, fontWeight: 600, color: mappedCount ? "var(--green)" : "var(--ink-3)" }}>{mappedCount + "/" + total + " mapped"}</span>
-            </div>
-            {tableHeader(false)}
+            {tableHeader(true)}
             {hasAgents ? (
               <>
                 {sourceVisible.map((col, i) => renderRow(current, col, i))}

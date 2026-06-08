@@ -4285,7 +4285,7 @@ function NewEdgeFlow({ onClose, onCreate, fromNode, toNode, initialLabel, nodes:
           <button onClick={onClose} style={{ width:32, height:32, borderRadius:"50%", border:"1px solid var(--line)", background:"none", cursor:"pointer", fontSize:15, color:"var(--ink-3)" }}>✕</button>
         </div>
 
-        <div style={{ flex:1, display:"grid", gridTemplateColumns:"220px minmax(0, 1fr) 320px", minHeight:0 }}>
+        <div style={{ flex:1, display:"grid", gridTemplateColumns:"220px minmax(0, 1fr)", minHeight:0 }}>
 
           {/* SIDEBAR */}
           <div style={{ background:"var(--panel-2)", borderRight:"1px solid var(--line)", padding:"20px 14px", display:"flex", flexDirection:"column", gap:4, overflowY:"auto" }}>
