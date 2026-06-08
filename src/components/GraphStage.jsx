@@ -4494,22 +4494,29 @@ function NewEdgeFlow({ onClose, onCreate, fromNode, toNode, initialLabel, nodes:
               <div style={{ borderLeft:"1px solid var(--line)", background:"var(--panel-2)", padding:"22px 20px", overflowY:"auto", display:"flex", flexDirection:"column", gap:16 }}>
                 <div style={{ fontFamily:"JetBrains Mono", fontSize:10, letterSpacing:"0.8px", color:"var(--ink-3)", textTransform:"uppercase" }}>Live preview</div>
 
-                <div style={{ border:"1px solid var(--line)", borderRadius:12, background:"var(--panel)", padding:"26px 18px", display:"flex", flexDirection:"column", alignItems:"center", gap:6 }}>
-                  {circle(fromN, srcCol, "Source")}
-                  <div style={{ fontFamily:"JetBrains Mono", fontSize:10.5, color:"var(--ink-3)" }}>{srcCard}</div>
+                <div style={{ border:"1px solid var(--line)", borderRadius:12, background:"var(--panel)", padding:"22px 18px", display:"flex", flexDirection:"row", alignItems:"center", justifyContent:"center", gap:10 }}>
+                  {/* Source node + cardinality */}
+                  <div style={{ display:"flex", flexDirection:"column", alignItems:"center", gap:6 }}>
+                    {circle(fromN, srcCol, "Source")}
+                    <div style={{ fontFamily:"JetBrains Mono", fontSize:10.5, color:"var(--ink-3)" }}>{srcCard}</div>
+                  </div>
 
-                  <div style={{ display:"flex", flexDirection:"column", alignItems:"center", gap:5, padding:"4px 0" }}>
-                    <span style={{ fontFamily:"JetBrains Mono", fontSize:11, fontWeight:700, letterSpacing:"0.4px", color:"var(--gold)", background:"var(--gold-fill)", border:"1px solid var(--gold-soft)", padding:"3px 10px", borderRadius:20 }}>{label ? ":" + label : ":RELATIONSHIP"}</span>
+                  {/* Edge label + arrow */}
+                  <div style={{ display:"flex", flexDirection:"column", alignItems:"center", gap:5, flex:"0 0 auto" }}>
+                    <span style={{ fontFamily:"JetBrains Mono", fontSize:11, fontWeight:700, letterSpacing:"0.4px", color:"var(--gold)", background:"var(--gold-fill)", border:"1px solid var(--gold-soft)", padding:"3px 10px", borderRadius:20, whiteSpace:"nowrap" }}>{label ? ":" + label : ":RELATIONSHIP"}</span>
                     <span style={{ color:"var(--ink-3)", display:"flex" }}>
                       {modelBothSides
                         ? <svg width="22" height="14" viewBox="0 0 24 16" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><line x1="2" y1="6" x2="20" y2="6" /><polyline points="16 2 20 6 16 10" /><line x1="22" y1="11" x2="4" y2="11" /><polyline points="8 7 4 11 8 15" /></svg>
                         : <svg width="22" height="10" viewBox="0 0 24 12" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><line x1="2" y1="6" x2="20" y2="6" /><polyline points="15 1 21 6 15 11" /></svg>}
                     </span>
-                    {attrs.length > 0 && <span style={{ fontFamily:"JetBrains Mono", fontSize:10.5, color:"var(--ink-3)" }}>{"{ " + attrs.join(", ") + " }"}</span>}
+                    {attrs.length > 0 && <span style={{ fontFamily:"JetBrains Mono", fontSize:10.5, color:"var(--ink-3)", whiteSpace:"nowrap" }}>{"{ " + attrs.join(", ") + " }"}</span>}
                   </div>
 
-                  <div style={{ fontFamily:"JetBrains Mono", fontSize:10.5, color:"var(--ink-3)" }}>{tgtCard}</div>
-                  {circle(toN, tgtCol, "Target")}
+                  {/* Target node + cardinality */}
+                  <div style={{ display:"flex", flexDirection:"column", alignItems:"center", gap:6 }}>
+                    <div style={{ fontFamily:"JetBrains Mono", fontSize:10.5, color:"var(--ink-3)" }}>{tgtCard}</div>
+                    {circle(toN, tgtCol, "Target")}
+                  </div>
                 </div>
 
                 
