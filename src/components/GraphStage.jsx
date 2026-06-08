@@ -155,7 +155,7 @@ function buildECG() {
     ["Ticket","success","incident",24],["Case","success","incident",22],["Health Score","success","signal",22],["NPS Response","success","core",18],["Renewal","success","core",24],["Churn Risk","success","risk",22],["Interaction","success","core",26],["Activity","success","core",18],
     ["Invoice","finance","core",26],["Payment","finance","core",22],["Contract","finance","core",24],["Order","finance","core",24],
   ];
-  const SRCS = ["Salesforce","HubSpot","Marketo","NetSuite","Snowflake","Segment","Zendesk","Stripe","Gong","Outreach","Intercom","Workday","Jira"];
+  const SRCS = ["HubSpot","NetSuite ERP","Monday.com","Support Portal","Product Usage DB","Apollo","DocuSign","Google Drive","Gmail","Google Calendar","Slack","Product Docs","Web / Market Intel"];
   const slug = s => s.toLowerCase().replace(/[^a-z0-9]+/g,"_").replace(/^_|_$/g,"");
   const fmtK = n => n >= 1000 ? (n/1000).toFixed(n>=10000?0:1).replace(/\.0$/,"")+"K" : String(n);
   const counts = {}; ENTS.forEach(e => { counts[e[1]] = (counts[e[1]]||0)+1; });
@@ -186,7 +186,7 @@ function buildECG() {
       x: Math.round(Math.cos(a)*820), y: Math.round(Math.sin(a)*640), size:24,
       instances:"—", instancesN:0, props: 12 + (seed%24), edges:0,
       fill: 96 + (seed%4), conf: 98 + (seed%2), fresh: ["2m","5m","12m","1h"][seed%4],
-      pii: (label==="Salesforce"||label==="Workday"||label==="Stripe")?(3+(seed%4)):0,
+      pii: (label==="Apollo"||label==="Gmail"||label==="Support Portal")?(3+(seed%4)):0,
       change:"LOW", desc: label+" connected source system",
     });
   });
@@ -204,12 +204,19 @@ function buildECG() {
     ["interaction","account","TOUCHES","inferred"],["interaction","contact","INVOLVES","direct"],["account","invoice","BILLED_BY","direct"],
     ["invoice","payment","PAID_BY","direct"],["account","contract","GOVERNED_BY","direct"],["subscription","contract","UNDER","direct"],
     ["order","subscription","FULFILLS","direct"],["activity","opportunity","ON","direct"],
-    ["salesforce","account","SOURCES","source"],["salesforce","opportunity","SOURCES","source"],["salesforce","contact","SOURCES","source"],
-    ["hubspot","lead","SOURCES","source"],["hubspot","campaign","SOURCES","source"],["marketo","email","SOURCES","source"],["marketo","form","SOURCES","source"],
-    ["netsuite","invoice","SOURCES","source"],["netsuite","order","SOURCES","source"],["snowflake","usage_event","SOURCES","source"],["snowflake","signal","SOURCES","source"],
-    ["segment","interaction","SOURCES","source"],["segment","audience","SOURCES","source"],["zendesk","ticket","SOURCES","source"],["zendesk","case","SOURCES","source"],
-    ["stripe","payment","SOURCES","source"],["stripe","subscription","SOURCES","source"],["gong","call","SOURCES","source"],["gong","meeting","SOURCES","source"],
-    ["outreach","email","SOURCES","source"],["intercom","interaction","SOURCES","source"],["workday","persona","SOURCES","source"],["jira","case","SOURCES","source"],
+    ["hubspot","account","SOURCES","source"],["hubspot","opportunity","SOURCES","source"],["hubspot","lead","SOURCES","source"],["hubspot","campaign","SOURCES","source"],
+    ["apollo","contact","SOURCES","source"],["apollo","lead","SOURCES","source"],
+    ["gmail","email","SOURCES","source"],["gmail","interaction","SOURCES","source"],
+    ["google_calendar","meeting","SOURCES","source"],["google_calendar","call","SOURCES","source"],
+    ["slack","interaction","SOURCES","source"],["slack","activity","SOURCES","source"],
+    ["monday_com","activity","SOURCES","source"],["monday_com","meeting","SOURCES","source"],
+    ["google_drive","proposal","SOURCES","source"],["google_drive","quote","SOURCES","source"],
+    ["docusign","contract","SOURCES","source"],
+    ["netsuite_erp","invoice","SOURCES","source"],["netsuite_erp","order","SOURCES","source"],["netsuite_erp","payment","SOURCES","source"],["netsuite_erp","subscription","SOURCES","source"],
+    ["support_portal","ticket","SOURCES","source"],["support_portal","case","SOURCES","source"],["support_portal","nps_response","SOURCES","source"],["support_portal","renewal","SOURCES","source"],
+    ["product_usage_db","usage_event","SOURCES","source"],["product_usage_db","signal","SOURCES","source"],["product_usage_db","feature","SOURCES","source"],["product_usage_db","entitlement","SOURCES","source"],["product_usage_db","health_score","SOURCES","source"],["product_usage_db","churn_risk","SOURCES","source"],
+    ["product_docs","feature","SOURCES","source"],
+    ["web_market_intel","competitor","SOURCES","source"],["web_market_intel","audience","SOURCES","source"],["web_market_intel","persona","SOURCES","source"],
   ];
   const ids = {}; nodes.forEach(n => { ids[n.id] = n; });
   const edges = E.filter(e => ids[e[0]] && ids[e[1]]).map(e => ({ s:e[0], t:e[1], label:e[2], kind:e[3] }));
