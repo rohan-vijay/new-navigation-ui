@@ -2393,7 +2393,7 @@ function NodePropSelect({ node, value, onChange, placeholder }) {
   return (
     <div style={{ position:"relative" }}>
       <button ref={btnRef} onClick={function(){ if (props.length) setOpen(function(o){ return !o; }); }} disabled={!node}
-        style={{ display:"flex", alignItems:"center", gap:8, width:"100%", padding:"11px 13px", border:"1px solid var(--line)", borderRadius:7, background:"var(--panel)", cursor: node ? "pointer" : "not-allowed", fontFamily:"inherit", textAlign:"left", boxSizing:"border-box" }}>
+        style={{ display:"flex", alignItems:"center", gap:8, width:"100%", height:42, padding:"0 13px", border:"1px solid var(--line)", borderRadius:7, background:"var(--panel)", cursor: node ? "pointer" : "not-allowed", fontFamily:"inherit", textAlign:"left", boxSizing:"border-box" }}>
         {sel && <span style={{ minWidth:22, height:18, padding:"0 5px", borderRadius:4, background:glyphFor(sel.type).color, color:"#fff", display:"inline-flex", alignItems:"center", justifyContent:"center", fontFamily:"JetBrains Mono", fontSize:9.5, fontWeight:700, flexShrink:0 }}>{glyphFor(sel.type).glyph}</span>}
         <span style={{ flex:1, fontFamily:"JetBrains Mono", fontSize:13, color: sel ? "var(--ink)" : "var(--ink-4)", overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{sel ? sel.name : (placeholder || "— pick a property —")}</span>
         {sel && sel.pk && <span style={{ fontFamily:"JetBrains Mono", fontSize:9, padding:"1px 5px", borderRadius:3, background:"var(--green-fill)", color:"var(--green)", fontWeight:700, flexShrink:0 }}>PK</span>}
@@ -4099,7 +4099,7 @@ function NewEdgeFlow({ onClose, onCreate, fromNode, toNode, initialLabel, nodes:
   var [permsWrite, setPermsWrite]     = useState([{ kind:"group", id:"data-platform", label:"data-platform team" }]);
   var [permsAdmin, setPermsAdmin]     = useState([{ kind:"user",  id:"morgan.lee",    label:"Morgan Lee (you)" }]);
 
-  var stepNames = ["Basics", "Attributes"];
+  var stepNames = ["Definition", "Attributes"];
 
   // Prefer the live nodes from App state — module-scope NODES wouldn't
   // include nodes the user has just added on the canvas.
@@ -4194,7 +4194,7 @@ function NewEdgeFlow({ onClose, onCreate, fromNode, toNode, initialLabel, nodes:
     return (
       <div style={{ position:"relative" }}>
         <button disabled={disabled} onClick={function(){ if (!disabled) setOpen(function(o){ return !o; }); }}
-          style={{ display:"flex", alignItems:"center", gap:10, width:"100%", padding:"11px 13px", boxSizing:"border-box", border:"1px solid var(--line)", borderRadius:7, background: disabled ? "var(--panel-2)" : "var(--panel)", cursor: disabled ? "default" : "pointer", fontFamily:"inherit", textAlign:"left", opacity: disabled ? 0.85 : 1 }}>
+          style={{ display:"flex", alignItems:"center", gap:10, width:"100%", height:42, padding:"0 13px", boxSizing:"border-box", border:"1px solid var(--line)", borderRadius:7, background: disabled ? "var(--panel-2)" : "var(--panel)", cursor: disabled ? "default" : "pointer", fontFamily:"inherit", textAlign:"left", opacity: disabled ? 0.85 : 1 }}>
           {sel ? (
             <>
               <span style={{ width:10, height:10, borderRadius:"50%", background: dot(sel), flexShrink:0 }} />
@@ -4312,7 +4312,6 @@ function NewEdgeFlow({ onClose, onCreate, fromNode, toNode, initialLabel, nodes:
           {/* CENTER */}
           <div style={{ padding:"24px 32px 28px", overflowY:"auto" }}>
             <div style={{ marginBottom:20 }}>
-              <div style={{ fontFamily:"JetBrains Mono", fontSize:10, letterSpacing:"0.8px", color:"var(--ink-3)", textTransform:"uppercase", marginBottom:5 }}>{"STEP " + step + " / 3"}</div>
               <div style={{ fontFamily:"Instrument Serif", fontSize:28, color:"var(--ink)", lineHeight:1.1, marginBottom:8 }}>{stepNames[step-1]}</div>
               <div style={{ fontSize:13, color:"var(--ink-3)", lineHeight:1.55 }}>
                 {step === 1 && "Name the relationship, pick the two node types it connects, and decide how instances are populated. The label reads like a verb — :WORKS_AT, :BILLED_AS, :OWNS."}
@@ -4325,9 +4324,9 @@ function NewEdgeFlow({ onClose, onCreate, fromNode, toNode, initialLabel, nodes:
             {step === 1 && (
               <div style={{ display:"flex", flexDirection:"column", gap:22 }}>
                 {(function(){
-                  var cardBox = { display:"flex", flexDirection:"column", gap:6 };
+                  var cardBox = { display:"flex", flexDirection:"column", gap:0 };
                   var secTitle = { fontSize:12.5, fontWeight:600, color:"var(--ink)", marginBottom:9 };
-                  var fl = { display:"block", fontSize:12.5, fontWeight:600, color:"var(--ink)", marginBottom:1, marginTop:9 };
+                  var fl = { display:"block", fontSize:12.5, fontWeight:600, color:"var(--ink)", marginBottom:8, marginTop:9 };
                   var reqMark = function(show){ return show ? <span style={{ color:"var(--coral)", marginLeft:3 }}>*</span> : <span style={{ color:"var(--ink-4)", marginLeft:3 }}>*</span>; };
                   return (
                 <div style={{ display:"flex", flexDirection:"column", gap:30 }}>
@@ -4335,9 +4334,8 @@ function NewEdgeFlow({ onClose, onCreate, fromNode, toNode, initialLabel, nodes:
                     <label style={fl}>Relationship label {reqMark(showReq && !(label.trim().length >= 3))}</label>
                     <div style={{ position:"relative" }}>
                       <span style={{ position:"absolute", left:11, top:"50%", transform:"translateY(-50%)", fontFamily:"JetBrains Mono", fontSize:13, color:"var(--ink-4)", pointerEvents:"none" }}>:</span>
-                      <input value={label} onChange={function(e){ setLabel(e.target.value.toUpperCase().replace(/[^A-Z_]/g, "")); }} placeholder="WORKS_AT" style={Object.assign({}, inp, { paddingLeft:22, fontFamily:"JetBrains Mono" })} autoFocus />
+                      <input value={label} onChange={function(e){ setLabel(e.target.value.toUpperCase().replace(/[^A-Z_]/g, "")); }} placeholder="WORKS_AT" style={Object.assign({}, inp, { paddingLeft:22, fontFamily:"JetBrains Mono", height:42 })} autoFocus />
                     </div>
-                    <div style={{ fontFamily:"JetBrains Mono", fontSize:10, color:"var(--ink-3)", marginTop:5 }}>UPPER_SNAKE_CASE · reads like a verb</div>
                   </div>
 
                   <div>
@@ -4346,7 +4344,7 @@ function NewEdgeFlow({ onClose, onCreate, fromNode, toNode, initialLabel, nodes:
                       {[{ v:"1:1", l:"One to One" }, { v:"1:N", l:"One to Many" }, { v:"N:1", l:"Many to One" }, { v:"N:M", l:"Many to Many" }].map(function(o){
                         var on = cardinality === o.v;
                         return <button key={o.v} onClick={function(){ setCardinality(o.v); }}
-                          style={{ display:"flex", alignItems:"center", justifyContent:"center", padding:"11px 8px", boxSizing:"border-box", border:"1px solid " + (on ? "var(--ink)" : "var(--line)"), borderRadius:8, background: on ? "var(--chip)" : "var(--panel)", color: on ? "var(--ink)" : "var(--ink-2)", fontSize:13, fontWeight: on ? 600 : 500, fontFamily:"inherit", cursor:"pointer" }}>{o.l}</button>;
+                          style={{ display:"flex", alignItems:"center", justifyContent:"center", height:42, padding:"0 8px", boxSizing:"border-box", border:"1px solid " + (on ? "var(--ink)" : "var(--line)"), borderRadius:8, background: on ? "var(--chip)" : "var(--panel)", color: on ? "var(--ink)" : "var(--ink-2)", fontSize:13, fontWeight: on ? 600 : 500, fontFamily:"inherit", cursor:"pointer" }}>{o.l}</button>;
                       })}
                     </div>
                   </div>

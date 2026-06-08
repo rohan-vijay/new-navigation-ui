@@ -2663,12 +2663,6 @@ function SrcEntityMap({ s, set, groups, activeObj, sel, openCol, setOpenCol }) {
             </div>
           </div>
 
-          {/* Gate: field table only when destination is chosen */}
-          {!destId && (
-            <div style={{ borderTop: "1px solid var(--line)", paddingTop: 32, paddingBottom: 32, textAlign: "center" }}>
-              <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 12.5, color: "var(--ink-3)" }}>Select a destination node to start mapping fields</div>
-            </div>
-          )}
 
           {destId && (
             <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
@@ -3295,7 +3289,7 @@ function SrcObjectAgents({ s, set, groups, sel, agentPoolFor, fileMode }) {
                 <code style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 13, fontWeight: 600, color: "var(--ink)" }}>{g.label || g.name}</code>
                 {!fileMode && <span style={{ fontSize: 11.5, color: "var(--ink-4)" }}>{(g.type || "Object") + " · " + g.cols.length + " columns"}</span>}
                 {hasAgents
-                  ? <span style={{ marginLeft: "auto", display: "inline-flex", alignItems: "center", gap: 6, fontFamily: "'JetBrains Mono', monospace", fontSize: 10, fontWeight: 700, letterSpacing: "0.4px", color: "var(--purple)", background: "color-mix(in oklab, var(--purple) 12%, transparent)", padding: "3px 8px", borderRadius: 5 }}>＋{total} FIELDS</span>
+                  ? <span style={{ marginLeft: "auto", display: "inline-flex", alignItems: "center", gap: 6, fontFamily: "'JetBrains Mono', monospace", fontSize: 10, fontWeight: 700, letterSpacing: "0.4px", color: "var(--ink-3)", background: "var(--chip)", padding: "3px 8px", borderRadius: 5 }}>＋{total} FIELDS</span>
                   : <span style={{ marginLeft: "auto", flexShrink: 0 }}>{runBtn(g, pickerOpen ? "Cancel" : ctaLabel, pickerOpen)}</span>}
               </div>
               {bodyOpen && (
@@ -3581,11 +3575,9 @@ function SrcMapping({ s, set, groups, activeObj, nodeProps, node, sel, openCol, 
           </div>
         </div>
 
-        {/* Arrow */}
-        <div style={{ flexShrink: 0, paddingTop: 18 }}>
-          {chosenDestId
-            ? <svg width="24" height="24" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="11.5" fill="#1a7a40" stroke="#1a7a40"/><path d="M8 12h8M15 9l3 3-3 3" stroke="#fff" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>
-            : <svg width="24" height="24" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="11.5" fill="var(--panel-2)" stroke="var(--line)"/><path d="M8 12h8M15 9l3 3-3 3" stroke="var(--ink-4)" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>}
+        {/* Arrow — subtle, neutral */}
+        <div style={{ flexShrink: 0, paddingTop: 18, color: "var(--ink-3)", display: "flex", alignItems: "center" }}>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><line x1="4" y1="12" x2="19" y2="12" /><polyline points="13 6 19 12 13 18" /></svg>
         </div>
 
         {/* Destination: user-driven picker */}
@@ -3612,12 +3604,6 @@ function SrcMapping({ s, set, groups, activeObj, nodeProps, node, sel, openCol, 
       </div>
 
       {/* Gate: field table only appears after destination is chosen */}
-      {!chosenDestId && (
-        <div style={{ borderTop: "1px solid var(--line)", paddingTop: 32, paddingBottom: 32, textAlign: "center" }}>
-          <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 12.5, color: "var(--ink-3)", marginBottom: 6 }}>Select a destination node to start mapping fields</div>
-        </div>
-      )}
-
       {/* toolbar + mapping table — only shown once destination is selected */}
       {chosenDestId && <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
         {/* field-view dropdown (defaults to All fields; width hugs its text) */}
