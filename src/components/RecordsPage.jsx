@@ -25,6 +25,8 @@ const REC_TAB_ICON = {
   Graph: <svg width="14" height="14" viewBox="0 0 24 24" {..._ric}><circle cx="6" cy="12" r="2.4"/><circle cx="18" cy="6" r="2.4"/><circle cx="18" cy="18" r="2.4"/><line x1="8.2" y1="11" x2="15.8" y2="7"/><line x1="8.2" y1="13" x2="15.8" y2="17"/></svg>,
   Overview: <svg width="14" height="14" viewBox="0 0 24 24" {..._ric}><rect x="4" y="5" width="16" height="14" rx="2"/><line x1="4" y1="10" x2="20" y2="10"/><line x1="9.5" y1="10" x2="9.5" y2="19"/></svg>,
   Provenance: <svg width="14" height="14" viewBox="0 0 24 24" {..._ric}><circle cx="6.5" cy="6" r="2"/><circle cx="6.5" cy="18" r="2"/><circle cx="17.5" cy="12" r="2"/><path d="M8.5 6.5c1 3.5 3 5 7 5.4M8.5 17.5c1-3.5 3-5 7-5.4"/></svg>,
+  Quality: <svg width="14" height="14" viewBox="0 0 24 24" {..._ric}><path d="M12 3l8 4v6c0 4.5-3.5 7.5-8 8-4.5-.5-8-3.5-8-8V7z"/><polyline points="9 12 11 14 15 9.5"/></svg>,
+  History: <svg width="14" height="14" viewBox="0 0 24 24" {..._ric}><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><polyline points="3 4 3 8 7 8"/><polyline points="12 8 12 12 15 14"/></svg>,
   Activity: <svg width="14" height="14" viewBox="0 0 24 24" {..._ric}><polyline points="3 12 8 12 10 6 14 18 16 12 21 12"/></svg>,
 }
 
@@ -388,7 +390,7 @@ function RecordDetailView({ record, node, onBack, onNavigate }) {
 
   const props        = generateProps(node)
   const c            = colorForNode(node)
-  const tabs         = ['Graph','Overview','Provenance','Activity']
+  const tabs         = ['Graph','Overview','Provenance','Quality','History','Activity']
   const related      = generateRelatedRecords(record, node)
   const totalRelated = related.reduce((s,r) => s + r.count, 0)
 
@@ -456,7 +458,7 @@ function RecordDetailView({ record, node, onBack, onNavigate }) {
     return <span style={{ fontFamily:'var(--mono)', fontSize:9, padding:'1px 5px', borderRadius:3, background:bg, color:col, fontWeight:700, textTransform:'uppercase', letterSpacing:'0.4px' }}>{kind}</span>
   }
 
-  const CARD     = { background:'#fff', border:'1px solid #ececea', borderRadius:12, overflow:'hidden' }
+  const CARD     = { background:'#fff', border:'1px solid #e6e0d4', borderRadius:12, overflow:'hidden', boxShadow:'0 1px 2px rgba(60,50,30,0.03)' }
   const CARD_HEAD_ROW = { display:'flex', alignItems:'center', justifyContent:'space-between', padding:'12px 18px', borderBottom:'1px solid #eaecea', fontFamily:'var(--sans)', fontSize:13, fontWeight:600, color:'#1a1a1a', background:'#F7F5F3' }
   const ghostBtn = (label, onClick) => (
     <button onClick={onClick} style={{ background:'#fff', border:'1px solid #e3ddd1', borderRadius:8, padding:'5px 11px', fontSize:12, color:C.ink2, cursor:'pointer', fontFamily:'var(--sans)' }}
@@ -632,7 +634,7 @@ function RecordDetailView({ record, node, onBack, onNavigate }) {
   // ─────────────────────────────────────────────────────────────────────────
   //  RENDER
   // ─────────────────────────────────────────────────────────────────────────
-  const tabBadge = { Graph:totalRelated, Overview:props.length, Provenance:conflictCount||null, Activity:activity.length }
+  const tabBadge = { Graph:totalRelated, Overview:props.length, Provenance:conflictCount||null, Quality:null, History:null, Activity:activity.length }
 
   return (
     <div style={{ flex:1, display:'flex', flexDirection:'column', height:'100%', overflowY:'auto', backgroundColor:'#fcfbf7' }} className="dark-scroll">
@@ -680,11 +682,11 @@ function RecordDetailView({ record, node, onBack, onNavigate }) {
       </div>
 
       {/* ── Tab body ── */}
-      <div style={{ flex:1, padding:'20px 26px 40px', overflowY:'auto' }}>
+      <div style={{ flex:1, padding:'18px 26px 20px', overflowY:'auto', minHeight:0 }}>
 
         {/* ── GRAPH ── */}
         {tab==='Graph' && (
-          <div style={{ display:'grid', gridTemplateColumns:'minmax(0,2fr) minmax(340px,.7fr)', gap:18, height:'calc(100vh - 360px)', minHeight:520 }}>
+          <div style={{ display:'grid', gridTemplateColumns:'minmax(0,2fr) minmax(340px,.7fr)', gap:18, height:'100%', minHeight:460 }}>
             <div style={{ ...CARD, padding:0, display:'flex', flexDirection:'column' }}>
               <div style={CARD_HEAD_ROW}>
                 <span>Relationship graph</span>
@@ -701,7 +703,7 @@ function RecordDetailView({ record, node, onBack, onNavigate }) {
                 onMouseUp={e=>{ graphDrag.current=null; e.currentTarget.style.cursor='grab' }}
                 onMouseLeave={e=>{ graphDrag.current=null; e.currentTarget.style.cursor='grab' }}
                 onDoubleClick={()=>setGraphPan({x:0,y:0})}
-                style={{ flex:1, minHeight:0, background:'#faf8f4', overflow:'hidden', cursor:'grab', userSelect:'none', position:'relative' }}>
+                style={{ flex:1, minHeight:0, background:'#fbf9f3', backgroundImage:'radial-gradient(#ece7db 0.8px, transparent 0.8px)', backgroundSize:'18px 18px', overflow:'hidden', cursor:'grab', userSelect:'none', position:'relative' }}>
                 <GraphSVG fullscreen={false}/>
               </div>
             </div>
@@ -840,6 +842,18 @@ function RecordDetailView({ record, node, onBack, onNavigate }) {
         )}
 
         {/* ── ACTIVITY ── */}
+        {(tab==='Quality' || tab==='History') && (
+          <div style={{ ...CARD, display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', textAlign:'center', padding:'80px 24px', minHeight:380 }}>
+            <span style={{ width:46, height:46, borderRadius:11, background:'#f4f1ea', border:'1px solid #e6e0d4', color:C.ink3, display:'flex', alignItems:'center', justifyContent:'center', marginBottom:14 }}>
+              <span style={{ transform:'scale(1.6)', display:'inline-flex' }}>{REC_TAB_ICON[tab]}</span>
+            </span>
+            <div style={{ fontFamily:'var(--serif)', fontSize:18, color:'#1a1a1a', marginBottom:6 }}>{tab==='Quality'?'Data quality':'Version history'}</div>
+            <div style={{ fontSize:13, color:C.ink3, maxWidth:380, lineHeight:1.5 }}>{tab==='Quality'
+              ? 'Quality checks, validation rules and violations for this record will appear here.'
+              : 'A full timeline of changes, who made them, and prior values will appear here.'}</div>
+          </div>
+        )}
+
         {tab==='Activity' && (
           <div style={CARD}>
             <div style={CARD_HEAD_ROW}>Change history <span style={{ fontWeight:400, fontSize:12, color:C.ink3 }}>last 30 days</span></div>
