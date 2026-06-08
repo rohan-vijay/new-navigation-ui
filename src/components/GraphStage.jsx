@@ -840,17 +840,6 @@ function Canvas({ nodes, setNodes, edges, setEdges, selected, setSelected, hover
                 >
                   {n.label}
                 </text>
-                <text
-                  textAnchor="middle"
-                  y={n.size + 28}
-                  fontSize="8.5"
-                  letterSpacing="0.6"
-                  fill="var(--ink-3)"
-                  fontFamily="JetBrains Mono, monospace"
-                  style={{ pointerEvents: "none" }}
-                >
-                  {TYPE_META[n.type].tag}
-                </text>
                 {showCounts && n.instances !== "—" && (
                   <text
                     textAnchor="middle"

@@ -1239,3 +1239,10 @@ main > .canvas-wrap { flex: 1 1 auto; min-height: 0; height: 100%; }
 /* Property pane search: white background like the Edges/Survivorship search */
 .props-pane .sample-search { background: #fff !important; border-color: #e3e6e3 !important; }
 .props-pane .sample-search:focus { border-color: #9298a0 !important; }
+
+/* CustomSelect tabs (destination dropdown: Properties / Edges) */
+.csel-tabs { display: flex; gap: 4px; padding: 6px 8px 0; }
+.csel-tab { flex: 1; border: none; background: transparent; cursor: pointer; font-family: var(--sans); font-size: 12.5px; font-weight: 500; color: var(--ink-3); padding: 7px 8px 9px; border-bottom: 2px solid transparent; display: inline-flex; align-items: center; justify-content: center; gap: 6px; transition: color .12s; }
+.csel-tab:hover { color: var(--ink-2); }
+.csel-tab.on { color: var(--ink); border-bottom-color: var(--ink); font-weight: 600; }
+.csel-tab-n { font-family: "JetBrains Mono", monospace; font-size: 10px; color: var(--ink-3); background: var(--chip); border-radius: 5px; padding: 1px 5px; }

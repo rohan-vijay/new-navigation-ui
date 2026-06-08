@@ -614,16 +614,33 @@ function FormRow({ label, required, optional, children, hint, last }) {
 }
 
 // Grouped dropdown (types, PII, masking, etc.)
-function CustomSelect({ value, onChange, options, placeholder = "—", renderTrigger, renderOption, grouped, className, searchable, searchPlaceholder }) {
+function CustomSelect({ value, onChange, options, placeholder = "—", renderTrigger, renderOption, grouped, tabs, className, searchable, searchPlaceholder }) {
   const [open, setOpen] = useState(false);
   const [q, setQ] = useState("");
+  const [activeTab, setActiveTab] = useState(0);
   const ref = useRef(null);
   useOutsideClick(ref, open, () => { setOpen(false); setQ(""); });
 
-  const allOptions = grouped ? options.flatMap(g => g.items) : options;
+  const tabItems = t => t.groups ? t.groups.flatMap(g => g.items) : (t.items || []);
+  const allOptions = tabs ? tabs.flatMap(tabItems) : grouped ? options.flatMap(g => g.items) : options;
   const sel = allOptions.find(o => (o.id || o) === value);
   const matches = o => !q || String(o.label || o.name || o).toLowerCase().indexOf(q.toLowerCase()) >= 0;
   const choose = id => { onChange(id); setOpen(false); setQ(""); };
+
+  const optBtn = o => {
+    const id = o.id || o;
+    return (
+      <button key={id} className={"csel-opt" + (value === id ? " on" : "")} onClick={() => choose(id)}>
+        {renderOption ? renderOption(o) : <><span className="csel-opt-label">{o.label || o.name || o}</span>{o.desc && <span className="csel-opt-sub">{o.desc}</span>}</>}
+        {value === id && <svg width="13" height="13" viewBox="0 0 24 24" fill="none" className="csel-tick"><path d="M5 12l5 5L20 7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>}
+      </button>
+    );
+  };
+  const groupBlock = g => {
+    const items = g.items.filter(matches);
+    if (!items.length) return null;
+    return <div key={g.label}>{g.label ? <div className="csel-group">{g.label}</div> : null}{items.map(optBtn)}</div>;
+  };
 
   return (
     <div className={"csel" + (className ? " " + className : "")} ref={ref}>
@@ -637,38 +654,26 @@ function CustomSelect({ value, onChange, options, placeholder = "—", renderTri
       </button>
       {open && (
         <div className="csel-menu">
+          {tabs && (
+            <div className="csel-tabs">
+              {tabs.map((t, ti) => (
+                <button key={t.label} className={"csel-tab" + (ti === activeTab ? " on" : "")} onClick={() => setActiveTab(ti)}>
+                  {t.label}{typeof t.count === "number" && <span className="csel-tab-n">{t.count}</span>}
+                </button>
+              ))}
+            </div>
+          )}
           {searchable && (
             <div className="csel-search">
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><circle cx="11" cy="11" r="7" /><path d="M21 21l-4-4" /></svg>
               <input autoFocus placeholder={searchPlaceholder || "Search…"} value={q} onChange={e => setQ(e.target.value)} onKeyDown={e => { if (e.key === "Escape") { setOpen(false); setQ(""); } }} />
             </div>
           )}
-          {grouped ? options.map(g => {
-            const items = g.items.filter(matches);
-            if (!items.length) return null;
-            return (
-              <div key={g.label}>
-                <div className="csel-group">{g.label}</div>
-                {items.map(o => (
-                  <button key={o.id} className={"csel-opt" + (value === o.id ? " on" : "")} onClick={() => choose(o.id)}>
-                    {renderOption ? renderOption(o) : <><span className="csel-opt-label">{o.label}</span>{o.desc && <span className="csel-opt-sub">{o.desc}</span>}</>}
-                    {value === o.id && <svg width="13" height="13" viewBox="0 0 24 24" fill="none" className="csel-tick"><path d="M5 12l5 5L20 7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>}
-                  </button>
-                ))}
-              </div>
-            );
-          }) : options.filter(matches).map(o => {
-            const id = o.id || o;
-            const label = o.label || o.name || o;
-            return (
-              <button key={id} className={"csel-opt" + (value === id ? " on" : "")} onClick={() => choose(id)}>
-                {renderOption ? renderOption(o) : <><span className="csel-opt-label">{label}</span>{o.desc && <span className="csel-opt-sub">{o.desc}</span>}</>}
-                {value === id && <svg width="13" height="13" viewBox="0 0 24 24" fill="none" className="csel-tick"><path d="M5 12l5 5L20 7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>}
-              </button>
-            );
-          })}
-          {searchable && q && !allOptions.filter(matches).length && (
-            <div style={{ padding: "14px 12px", textAlign: "center", color: "var(--ink-4)", fontSize: 12.5 }}>No agents match “{q}”.</div>
+          {tabs
+            ? (tabs[activeTab].groups ? tabs[activeTab].groups.map(groupBlock) : tabs[activeTab].items.filter(matches).map(optBtn))
+            : grouped ? options.map(groupBlock) : options.filter(matches).map(optBtn)}
+          {((tabs ? tabItems(tabs[activeTab]).filter(matches) : allOptions.filter(matches)).length === 0) && (
+            <div style={{ padding: "16px 12px", textAlign: "center", color: "var(--ink-4)", fontSize: 12.5 }}>{q ? "No matches for “" + q + "”." : "Nothing here yet."}</div>
           )}
         </div>
       )}
@@ -2481,19 +2486,19 @@ function SrcEntityMap({ s, set, groups, activeObj, sel, openCol, setOpenCol }) {
     { name: "source_system", type: "string" },
   ];
   const destEdges = destNode ? allEdges.filter(e => e.s === destNode.id || e.t === destNode.id) : [];
-  // Grouped destination options: node properties, then each edge's attributes, then "new".
-  const destGroups = destNode ? [
-    { label: destNode.label + " · properties", items: props },
-    ...destEdges.map(e => {
-      const out = e.s === destNode.id;
-      const other = nodes.find(n => n.id === (out ? e.t : e.s)) || (((typeof window !== "undefined" && window.NODES) || []).find(n => n.id === (out ? e.t : e.s)));
-      return {
-        label: ":" + e.label + "  " + (out ? "→" : "←") + "  " + (other ? other.label : "?"),
-        items: edgeAttrsFor(e).map(a => ({ id: "edge:" + e.label + ":" + a.name, label: a.name, type: a.type, onEdge: e.label })),
-      };
-    }),
-    { label: "Create new", items: [{ id: "__new__", label: "+ New property" }] },
-  ] : [{ label: "", items: [{ id: "__new__", label: "+ New property" }] }];
+  // Two-tab destination picker: node Properties · Edge attributes (grouped per edge).
+  const _edgeGroups = destEdges.map(e => {
+    const out = e.s === destNode.id;
+    const other = nodes.find(n => n.id === (out ? e.t : e.s)) || (((typeof window !== "undefined" && window.NODES) || []).find(n => n.id === (out ? e.t : e.s)));
+    return {
+      label: ":" + e.label + "  " + (out ? "→" : "←") + "  " + (other ? other.label : "?"),
+      items: edgeAttrsFor(e).map(a => ({ id: "edge:" + e.label + ":" + a.name, label: a.name, type: a.type, onEdge: e.label })),
+    };
+  });
+  const destTabs = [
+    { label: "Properties", count: props.length, items: props.concat([{ id: "__new__", label: "+ New property" }]) },
+    { label: "Edges", count: _edgeGroups.reduce((s, g) => s + g.items.length, 0), groups: _edgeGroups },
+  ];
   const mk = col => eid + "::" + col;
   const baseCols = current ? current.cols : [];
   const agentCols = current ? agentFieldsFor(s, eid) : [];
@@ -2544,8 +2549,7 @@ function SrcEntityMap({ s, set, groups, activeObj, sel, openCol, setOpenCol }) {
         <div style={{ textAlign: "center", color: (isNew || mapped) ? "var(--green)" : "var(--ink-4)", fontSize: 15 }}>→</div>
         {isNew
           ? <span style={{ display: "flex", alignItems: "center", gap: 9, padding: "7px 2px" }}><MapTypeGlyph type={c.type} size={22} /><code style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 12.5, color: "var(--ink)" }}>{nm}</code><MapBadge tone="var(--purple)">NEW</MapBadge></span>
-          : <CustomSelect value={mapped || ""} onChange={v => updateMap(c.col, v)} placeholder="Select property" grouped searchable searchPlaceholder="Search node properties & edge attributes…"
-              options={destGroups}
+          : <CustomSelect value={mapped || ""} onChange={v => updateMap(c.col, v)} placeholder="Select property" tabs={destTabs} searchable searchPlaceholder="Search properties & edge attributes…"
               renderTrigger={o => o.id && o.id !== "__new__"
                 ? <span style={{ display: "flex", alignItems: "center", gap: 9, minWidth: 0 }}><MapTypeGlyph type={o.type} size={22} /><span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 12.5, color: "var(--ink)", overflow: "hidden", textOverflow: "ellipsis" }}>{o.label}</span>{o.onEdge && <MapBadge tone="var(--gold)">{":" + o.onEdge}</MapBadge>}</span>
                 : <span style={{ color: o.id === "__new__" ? "var(--ink-2)" : "var(--ink-4)" }}>{o.label || "Select property"}</span>}
@@ -3273,18 +3277,18 @@ function SrcMapping({ s, set, groups, activeObj, nodeProps, node, sel, openCol, 
     { name: "since", type: "datetime" }, { name: "weight", type: "decimal" },
     { name: "confidence", type: "decimal" }, { name: "source_system", type: "string" },
   ];
-  const destGroups = targetNode ? [
-    { label: targetNode.label + " · properties", items: _tProps },
-    ..._tEdges.map(e => {
-      const out = e.s === targetNode.id;
-      const other = _winNodes.find(n => n.id === (out ? e.t : e.s));
-      return {
-        label: ":" + e.label + "  " + (out ? "→" : "←") + "  " + (other ? other.label : "?"),
-        items: _edgeAttrs(e).map(a => ({ id: "edge:" + e.label + ":" + a.name, label: a.name, type: a.type, onEdge: e.label })),
-      };
-    }),
-    { label: "Create new", items: [{ id: "__new__", label: "+ New property" }] },
-  ] : [{ label: "", items: [{ id: "__new__", label: "+ New property" }] }];
+  const _mEdgeGroups = (targetNode ? _tEdges : []).map(e => {
+    const out = e.s === targetNode.id;
+    const other = _winNodes.find(n => n.id === (out ? e.t : e.s));
+    return {
+      label: ":" + e.label + "  " + (out ? "→" : "←") + "  " + (other ? other.label : "?"),
+      items: _edgeAttrs(e).map(a => ({ id: "edge:" + e.label + ":" + a.name, label: a.name, type: a.type, onEdge: e.label })),
+    };
+  });
+  const destTabs = [
+    { label: "Properties", count: _tProps.length, items: _tProps.concat([{ id: "__new__", label: "+ New property" }]) },
+    { label: "Edges", count: _mEdgeGroups.reduce((s, g) => s + g.items.length, 0), groups: _mEdgeGroups },
+  ];
   const curCols = current ? current.cols : [];
   // Fields the assigned agents add — mappable alongside the source columns.
   const agentFields = current ? agentFieldsFor(s, current.name) : [];
@@ -3329,8 +3333,7 @@ function SrcMapping({ s, set, groups, activeObj, nodeProps, node, sel, openCol, 
             </span>
           </button>
           <div style={{ textAlign: "center", color: mapped ? "var(--green)" : "var(--ink-4)", fontSize: 15 }}>→</div>
-          <CustomSelect value={mapped || ""} onChange={v => updateMap(key, v)} placeholder="Select field" grouped searchable searchPlaceholder="Search properties & edge attributes…"
-            options={destGroups}
+          <CustomSelect value={mapped || ""} onChange={v => updateMap(key, v)} placeholder="Select field" tabs={destTabs} searchable searchPlaceholder="Search properties & edge attributes…"
             renderTrigger={o => o.id && o.id !== "__new__" ? <span style={{ display: "flex", alignItems: "center", gap: 9, minWidth: 0 }}><MapTypeGlyph type={o.type} size={22} /><span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 12.5, color: "var(--ink)", overflow: "hidden", textOverflow: "ellipsis" }}>{o.label}</span>{o.onEdge && <MapBadge tone="var(--gold)">{":" + o.onEdge}</MapBadge>}{o.id === "id" && <><MapBadge tone="var(--green)">PK</MapBadge><MapBadge>UK</MapBadge></>}</span> : <span style={{ color: o.id === "__new__" ? "var(--ink-2)" : "var(--ink-4)" }}>{o.label || "Select field"}</span>}
             renderOption={o => o.id && o.id !== "__new__" ? <span style={{ display: "flex", alignItems: "center", gap: 9 }}><MapTypeGlyph type={o.type} size={20} /><span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 12.5 }}>{o.label}</span>{o.onEdge && <MapBadge tone="var(--gold)">edge</MapBadge>}</span> : <span style={{ color: o.id === "__new__" ? "var(--ink-2)" : "var(--ink-3)" }}>{o.label}</span>} />
         </div>
@@ -3370,8 +3373,7 @@ function SrcMapping({ s, set, groups, activeObj, nodeProps, node, sel, openCol, 
             {chain.length === 0 && <span style={{ fontSize: 11.5, color: "var(--ink-4)" }}>passthrough</span>}
           </button>
           <div style={{ textAlign: "center", color: mapped ? "var(--green)" : "var(--ink-4)", fontSize: 15 }}>→</div>
-          <CustomSelect value={mapped || ""} onChange={v => updateMap(key, v)} placeholder="Select field" grouped searchable searchPlaceholder="Search properties & edge attributes…"
-            options={destGroups}
+          <CustomSelect value={mapped || ""} onChange={v => updateMap(key, v)} placeholder="Select field" tabs={destTabs} searchable searchPlaceholder="Search properties & edge attributes…"
             renderTrigger={o => o.id && o.id !== "__new__" ? <span style={{ display: "flex", alignItems: "center", gap: 9, minWidth: 0 }}><MapTypeGlyph type={o.type} size={22} /><span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 12.5, color: "var(--ink)", overflow: "hidden", textOverflow: "ellipsis" }}>{o.label}</span>{o.onEdge && <MapBadge tone="var(--gold)">{":" + o.onEdge}</MapBadge>}</span> : <span style={{ color: o.id === "__new__" ? "var(--ink-2)" : "var(--ink-4)" }}>{o.label || "Select field"}</span>}
             renderOption={o => o.id && o.id !== "__new__" ? <span style={{ display: "flex", alignItems: "center", gap: 9 }}><MapTypeGlyph type={o.type} size={20} /><span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 12.5 }}>{o.label}</span>{o.onEdge && <MapBadge tone="var(--gold)">edge</MapBadge>}</span> : <span style={{ color: o.id === "__new__" ? "var(--ink-2)" : "var(--ink-3)" }}>{o.label}</span>} />
         </div>
