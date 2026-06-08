@@ -4166,7 +4166,7 @@ function NewEdgeFlow({ onClose, onCreate, fromNode, toNode, initialLabel, nodes:
                 {edgeProps.length === 0 ? (
                   <div style={{ padding:"20px 22px", border:"1px dashed var(--line)", borderRadius:10, background:"var(--panel-2)" }}>
                     <div style={{ fontSize:13.5, color:"var(--ink-2)", lineHeight:1.55, marginBottom:6 }}>No properties yet — that's fine for most edges.</div>
-                    <div style={{ fontFamily:"JetBrains Mono", fontSize:10.5, color:"var(--ink-3)", lineHeight:1.55 }}>Add a property only if every instance can carry a different value for it.</div>
+                    <div style={{ fontFamily:"JetBrains Mono", fontSize:10.5, color:"var(--ink-3)", lineHeight:1.55 }}>Declare a property only if every instance carries its own value. The values themselves aren't entered here — they're filled per instance by whatever populates the edge (the source, rule, or agent you choose next).</div>
                   </div>
                 ) : (
                   <div className="card" style={{ background:"var(--panel)", border:"1px solid var(--line)", borderRadius:10, overflow:"hidden" }}>
@@ -4198,26 +4198,7 @@ function NewEdgeFlow({ onClose, onCreate, fromNode, toNode, initialLabel, nodes:
                   </div>
                 )}
 
-                <div>
-                  <div style={{ fontFamily:"JetBrains Mono", fontSize:9.5, color:"var(--ink-3)", letterSpacing:"0.6px", textTransform:"uppercase", marginBottom:10 }}>Quick add — common edge properties</div>
-                  <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:8 }}>
-                    {EDGE_PROPERTY_TEMPLATES.map(function(t){
-                      var already = edgeProps.find(function(p){ return p.name === t.name; });
-                      return (
-                        <button key={t.name} onClick={function(){ if (!already) addProp(t); }} disabled={!!already}
-                          style={{ textAlign:"left", padding:"10px 12px", border:"1px solid var(--line)", borderRadius:7, background: already ? "var(--panel-2)" : "var(--panel)", cursor: already ? "default" : "pointer", fontFamily:"inherit", opacity: already ? 0.5 : 1 }}>
-                          <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between" }}>
-                            <span style={{ fontFamily:"JetBrains Mono", fontSize:11.5, fontWeight:600, color:"var(--ink)" }}>{t.name}</span>
-                            <span style={{ fontFamily:"JetBrains Mono", fontSize:9, color:"var(--ink-3)" }}>{t.type}</span>
-                          </div>
-                          <div style={{ fontFamily:"JetBrains Mono", fontSize:10, color:"var(--ink-3)", marginTop:4, lineHeight:1.4 }}>{t.hint}</div>
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-
-                <button onClick={function(){ addProp({ name:"", type:"string" }); }} className="btn-ghost" style={{ alignSelf:"flex-start", padding:"8px 14px" }}>+ Add custom property</button>
+                <button onClick={function(){ addProp({ name:"", type:"string" }); }} className="btn-ghost" style={{ alignSelf:"flex-start", padding:"8px 14px" }}>+ Add property</button>
               </div>
             )}
 
