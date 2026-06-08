@@ -3380,10 +3380,13 @@ function SrcMapping({ s, set, groups, activeObj, nodeProps, node, sel, openCol, 
   const _winNodes = (typeof window !== "undefined" && window.NODES) || [];
   const _entNodes = _winNodes.filter(n => n.type === "entity");
   const _objName = current ? (current.name || "").toLowerCase() : "";
-  const targetNode = node
+  // Auto-suggest a destination node based on the source object name, but let the user override.
+  const autoSuggest = node
     || _entNodes.find(n => n.label.toLowerCase() === _objName)
     || _entNodes.find(n => n.id === "contract") || _entNodes.find(n => n.id === "account")
     || _entNodes[0] || null;
+  const [chosenDestId, setChosenDestId] = useState(autoSuggest ? autoSuggest.id : "");
+  const targetNode = _entNodes.find(n => n.id === chosenDestId) || (chosenDestId ? autoSuggest : null);
   const _tProps = targetNode && window.generateProps
     ? window.generateProps(targetNode).map(p => ({ id: p.name, label: p.name, type: p.type }))
     : (nodeProps || []).map(p => ({ id: p.id, label: p.id, type: p.type }));
@@ -3509,13 +3512,77 @@ function SrcMapping({ s, set, groups, activeObj, nodeProps, node, sel, openCol, 
   const multiObj = groupList.length > 1;
   const objName = current ? current.name : "";
   const stepTitle = title || (multiObj && objName
-    ? `Map ${objName} fields to ${node?.label || "the node"}`
-    : `Map ${sel ? sel.name : "source"} fields to ${node?.label || "the node"}`);
+    ? `Map ${objName} fields to ${targetNode?.label || "the node"}`
+    : `Map ${sel ? sel.name : "source"} fields to ${targetNode?.label || "the node"}`);
+
+  // Node picker options
+  const nodePickerOpts = _entNodes.map(n => ({ id: n.id, label: n.label }));
 
   return (
     <StepWrap wide title={stepTitle}>
-      {/* toolbar */}
-      <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
+
+      {/* ── Source → Destination node selector ───────────────────────────── */}
+      <div style={{ display: "flex", alignItems: "center", gap: 14, padding: "14px 20px", background: "var(--panel)", border: "1px solid var(--line)", borderRadius: 11, marginBottom: 18 }}>
+        {/* Source side */}
+        <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0, flex: "0 0 auto", maxWidth: 260 }}>
+          {sel && <SrcConnectorLogo c={sel} size={26} />}
+          <div style={{ minWidth: 0 }}>
+            <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 9.5, letterSpacing: "0.5px", textTransform: "uppercase", color: "var(--ink-4)", marginBottom: 2 }}>Source Object</div>
+            <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 13.5, fontWeight: 600, color: "var(--ink)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+              {current ? current.name : (sel ? sel.name : "—")}
+            </div>
+          </div>
+        </div>
+
+        {/* Arrow */}
+        <div style={{ flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", width: 36, height: 36 }}>
+          {chosenDestId
+            ? <svg width="22" height="22" viewBox="0 0 22 22" fill="none"><circle cx="11" cy="11" r="10.5" fill="var(--green)" stroke="var(--green)"/><path d="M7 11h8M12 8l3 3-3 3" stroke="#fff" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>
+            : <svg width="22" height="22" viewBox="0 0 22 22" fill="none"><circle cx="11" cy="11" r="10.5" fill="var(--panel-2)" stroke="var(--line)"/><path d="M7 11h8M12 8l3 3-3 3" stroke="var(--ink-4)" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>}
+        </div>
+
+        {/* Destination side */}
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 9.5, letterSpacing: "0.5px", textTransform: "uppercase", color: "var(--ink-4)", marginBottom: 6 }}>Destination Node</div>
+          <CustomSelect
+            value={chosenDestId}
+            onChange={v => setChosenDestId(v)}
+            placeholder="Select destination node…"
+            searchable
+            searchPlaceholder="Search nodes…"
+            options={nodePickerOpts}
+            renderTrigger={o => o
+              ? <span style={{ display: "flex", alignItems: "center", gap: 9 }}>
+                  <span style={{ width: 22, height: 22, borderRadius: 6, background: "var(--bg-canvas)", border: "1px solid var(--line)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                    <svg width="10" height="10" viewBox="0 0 10 10"><circle cx="5" cy="5" r="4.5" fill="none" stroke="var(--ink-3)" strokeWidth="1"/></svg>
+                  </span>
+                  <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 13, fontWeight: 600, color: "var(--ink)" }}>{o.label}</span>
+                </span>
+              : <span style={{ color: "var(--ink-4)", fontSize: 13 }}>Select destination node…</span>}
+            renderOption={o => <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 12.5 }}>{o.label}</span>}
+          />
+        </div>
+
+        {chosenDestId && (
+          <div style={{ flexShrink: 0 }}>
+            <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 10, padding: "3px 9px", borderRadius: 6, background: "var(--green-fill)", color: "var(--green)", border: "1px solid var(--green-line)", fontWeight: 700, letterSpacing: "0.3px" }}>
+              {_tProps.length} properties
+            </span>
+          </div>
+        )}
+      </div>
+
+      {/* Gate: require destination before showing mapping table */}
+      {!chosenDestId && (
+        <div style={{ border: "1px dashed var(--line)", borderRadius: 11, padding: "48px 24px", textAlign: "center", color: "var(--ink-3)", background: "var(--panel-2)" }}>
+          <svg width="36" height="36" viewBox="0 0 36 36" fill="none" style={{ marginBottom: 12, opacity: 0.35 }}><circle cx="18" cy="18" r="17" stroke="currentColor" strokeWidth="1.5"/><path d="M11 18h14M18 11v14" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg>
+          <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 13, fontWeight: 600, color: "var(--ink-2)", marginBottom: 6 }}>Select a destination node above</div>
+          <div style={{ fontSize: 12.5, color: "var(--ink-4)", maxWidth: 360, margin: "0 auto" }}>Choose which node type the source fields should map to. Field matching will appear once a node is selected.</div>
+        </div>
+      )}
+
+      {/* toolbar + mapping table — only shown once destination is selected */}
+      {chosenDestId && <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
         {/* field-view dropdown (defaults to All fields; width hugs its text) */}
         <CustomSelect className="csel-auto" value={tab} onChange={setTab}
           options={[
@@ -3567,8 +3634,9 @@ function SrcMapping({ s, set, groups, activeObj, nodeProps, node, sel, openCol, 
           </span>
           <input className="winput" style={{ paddingLeft: 34, height: 34, paddingTop: 0, paddingBottom: 0 }} placeholder="Search fields…" value={q} onChange={e => setQ(e.target.value)} />
         </div>
-      </div>
+      </div>}
 
+      {chosenDestId && <>
       {/* active record-filter summary */}
       {activeFilters.length > 0 && (
         <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", marginBottom: 12, padding: "9px 12px", border: "1px solid var(--line)", borderRadius: 9, background: "var(--bg-canvas)" }}>
@@ -3632,6 +3700,7 @@ function SrcMapping({ s, set, groups, activeObj, nodeProps, node, sel, openCol, 
           </div>
         );
       })()}
+      </>}
     </StepWrap>
   );
 }
