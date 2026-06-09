@@ -980,21 +980,19 @@ function NodeDetailPage({ node, onBack, onCanvas }) {
           empty="No recent activity." />
       )}
 
-      {edgeFlowOpen && <NewEdgeFlow nodes={SIDEBAR_NODES} fromNode={node} onClose={() => setEdgeFlowOpen(false)} onCreate={() => setEdgeFlowOpen(false)} />}
+      {edgeFlowOpen && <NewEdgeFlow simple nodes={SIDEBAR_NODES} fromNode={node} onClose={() => setEdgeFlowOpen(false)} onCreate={() => setEdgeFlowOpen(false)} />}
     </div>
   )
 }
 
 /* ── Nodes table ───────────────────────────────────────── */
 const NODE_COLS = [
-  { key: 'name', label: 'Node Type', w: '17%' },
-  { key: 'cat', label: 'Category', w: '10%' },
-  { key: 'records', label: 'Records', w: '10%' },
-  { key: 'props', label: 'Properties', w: '9%' },
-  { key: 'edges', label: 'Edges', w: '8%' },
-  { key: 'fill', label: 'Fill Rate', w: '12%' },
-  { key: 'owner', label: 'Owner', w: '18%' },
-  { key: 'modified', label: 'Modified On', w: '13%' },
+  { key: 'name', label: 'Node Type', w: '19%' },
+  { key: 'cat', label: 'Category', w: '11%' },
+  { key: 'props', label: 'Properties', w: '10%' },
+  { key: 'edges', label: 'Edges', w: '10%' },
+  { key: 'owner', label: 'Owner', w: '26%' },
+  { key: 'modified', label: 'Modified On', w: '17%' },
 ]
 const OwnerCell = ({ owner }) => (
   <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8, fontSize: 13, color: '#374151', whiteSpace: 'nowrap' }}>
@@ -1012,10 +1010,8 @@ const fillColor = (v) => v >= 92 ? '#2f9e5a' : v >= 80 ? '#a98c54' : '#c0492f'
 
 const NODE_SORTERS = {
   'Name (A–Z)': (a, b) => a.label.localeCompare(b.label),
-  'Records': (a, b) => (b.instancesN || 0) - (a.instancesN || 0),
   'Properties': (a, b) => b.props - a.props,
   'Edges': (a, b) => b.edges - a.edges,
-  'Fill Rate': (a, b) => b.fill - a.fill,
 }
 const NODE_FILTERS = { 'All categories': null, Core: 'core', Support: 'support', Derived: 'derived' }
 
@@ -1079,17 +1075,8 @@ function NodesList({ onOpen }) {
                   <td style={cell}>
                     <span style={{ fontFamily: 'var(--mono)', fontSize: 11.5, color: cat.color, border: `1px solid ${cat.border}`, background: cat.bg, padding: '2px 8px', borderRadius: 6 }}>{cat.label}</span>
                   </td>
-                  <td style={{ ...cell, fontSize: 13.5, fontWeight: 600, color: '#1a1a1a' }}>{n.instancesN ? n.instancesN.toLocaleString() : '—'}</td>
                   <td style={{ ...cell, fontSize: 13, color: '#374151' }}>{n.props}</td>
                   <td style={{ ...cell, fontSize: 13, color: '#374151' }}>{n.edges}</td>
-                  <td style={cell}>
-                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8, whiteSpace: 'nowrap' }}>
-                      <span style={{ width: 54, height: 5, borderRadius: 3, background: '#ecebe6', overflow: 'hidden', flexShrink: 0 }}>
-                        <span style={{ display: 'block', height: '100%', width: `${n.fill}%`, background: fillColor(n.fill) }} />
-                      </span>
-                      <span style={{ fontFamily: 'var(--mono)', fontSize: 12, fontWeight: 600, color: fillColor(n.fill) }}>{n.fill}%</span>
-                    </span>
-                  </td>
                   <td style={cell}><OwnerCell owner={m.owner} /></td>
                   <td style={{ ...cell, color: '#9097a0', fontSize: 13, whiteSpace: 'nowrap' }}>{m.modified}</td>
                   <td style={{ ...cell, textAlign: 'right', paddingRight: 14 }}>
@@ -1111,13 +1098,12 @@ function NodesList({ onOpen }) {
 
 /* ── Edges table ───────────────────────────────────────── */
 const EDGE_COLS = [
-  { key: 'label', label: 'Relationship', w: '18%' },
-  { key: 'from', label: 'From', w: '17%' },
+  { key: 'label', label: 'Relationship', w: '20%' },
+  { key: 'from', label: 'From', w: '19%' },
   { key: 'arrow', label: '', w: '4%' },
-  { key: 'to', label: 'To', w: '17%' },
-  { key: 'inst', label: 'Instances', w: '12%' },
-  { key: 'owner', label: 'Owner', w: '18%' },
-  { key: 'modified', label: 'Modified On', w: '14%' },
+  { key: 'to', label: 'To', w: '19%' },
+  { key: 'owner', label: 'Owner', w: '22%' },
+  { key: 'modified', label: 'Modified On', w: '16%' },
 ]
 const EDGE_KIND_TAG = {
   direct:   { label: 'Direct',   color: '#2f6f43', bg: '#eef4ee', border: '#d6e6d8' },
@@ -1213,6 +1199,7 @@ function EdgesList() {
   const [search, setSearch] = useState('')
   const [addOpen, setAddOpen] = useState(false)
   const [addV2Open, setAddV2Open] = useState(false)
+  const [addV3Open, setAddV3Open] = useState(false)
   const [newMenuOpen, setNewMenuOpen] = useState(false)
   const [editEdge, setEditEdge] = useState(null)
   // Logically derive edge attributes per edge so the edit modal pre-fills plausibly.
@@ -1263,27 +1250,11 @@ function EdgesList() {
           <span style={{ fontFamily: 'var(--sans)', fontSize: 14, color: '#a89e88' }}>{rows.length}</span>
         </div>
         <div style={{ position: 'relative' }}>
-          <button onClick={() => setNewMenuOpen(o => !o)} style={{ ...gBtnGhost, height: 32, padding: '0 13px', display: 'inline-flex', alignItems: 'center', gap: 7 }}
+          <button onClick={() => setAddV3Open(true)} style={{ ...gBtnGhost, height: 32, padding: '0 13px', display: 'inline-flex', alignItems: 'center', gap: 7 }}
             onMouseOver={e => e.currentTarget.style.background = '#faf8f3'} onMouseOut={e => e.currentTarget.style.background = '#fff'}>
             <svg width="13" height="13" viewBox="0 0 13 13" fill="none"><path d="M6.5 1.5v10M1.5 6.5h10" stroke="#3a3a36" strokeWidth="1.6" strokeLinecap="round" /></svg>
             New Edge
-            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#9a948a" strokeWidth="2" style={{ transform: newMenuOpen ? 'rotate(180deg)' : 'none', transition: 'transform .12s' }}><path d="M6 9l6 6 6-6" /></svg>
           </button>
-          {newMenuOpen && (
-            <>
-              <div style={{ position: 'fixed', inset: 0, zIndex: 90 }} onClick={() => setNewMenuOpen(false)} />
-              <div style={{ position: 'absolute', top: 'calc(100% + 6px)', right: 0, zIndex: 91, minWidth: 220, background: '#fff', border: '1px solid #e3ddd1', borderRadius: 10, boxShadow: '0 12px 32px rgba(60,50,30,0.14)', padding: 5 }}>
-                {[{ v: 'v1', t: 'New Edge — v1', d: 'Full wizard (current)', on: () => { setNewMenuOpen(false); setAddOpen(true) } },
-                  { v: 'v2', t: 'New Edge — v2', d: 'Quick: name, ends & keys', on: () => { setNewMenuOpen(false); setAddV2Open(true) } }].map(it => (
-                  <button key={it.v} onClick={it.on} style={{ display: 'flex', flexDirection: 'column', gap: 2, width: '100%', padding: '8px 10px', borderRadius: 7, border: 'none', background: 'transparent', cursor: 'pointer', fontFamily: 'var(--sans)', textAlign: 'left' }}
-                    onMouseOver={e => e.currentTarget.style.background = '#f7f5f0'} onMouseOut={e => e.currentTarget.style.background = 'transparent'}>
-                    <span style={{ fontSize: 13.5, fontWeight: 600, color: '#1a1a1a' }}>{it.t}</span>
-                    <span style={{ fontSize: 11.5, color: '#9a948a' }}>{it.d}</span>
-                  </button>
-                ))}
-              </div>
-            </>
-          )}
         </div>
       </div>
 
@@ -1316,7 +1287,6 @@ function EdgesList() {
                   <td style={cell}>{endpoint(e.from)}</td>
                   <td style={{ ...cell, textAlign: 'center', color: '#9a948a', fontSize: 14 }}>{e.directional ? '→' : '↔'}</td>
                   <td style={cell}>{endpoint(e.to)}</td>
-                  <td style={{ ...cell, fontSize: 13.5, fontWeight: 600, color: '#1a1a1a' }}>{e.instances.toLocaleString()}</td>
                   <td style={cell}><OwnerCell owner={m.owner} /></td>
                   <td style={{ ...cell, color: '#9097a0', fontSize: 13, whiteSpace: 'nowrap' }}>{m.modified}</td>
                   <td style={{ ...cell, textAlign: 'right', paddingRight: 14 }}>
@@ -1333,7 +1303,8 @@ function EdgesList() {
 
       {addOpen && <NewEdgeFlow nodes={SIDEBAR_NODES} onClose={() => setAddOpen(false)} onCreate={() => setAddOpen(false)} />}
       {addV2Open && <NewEdgeV2Modal onClose={() => setAddV2Open(false)} onCreate={() => setAddV2Open(false)} />}
-      {editEdge && <NewEdgeFlow nodes={SIDEBAR_NODES} editMode fromNode={editEdge.from} toNode={editEdge.to} initialLabel={editEdge.label} initialCardinality={editEdge.cardinality} initialAttributes={attrsForEdge(editEdge)} initialBothSides={!editEdge.directional} initialUndirected={!editEdge.directional} onClose={() => setEditEdge(null)} onCreate={() => setEditEdge(null)} />}
+      {addV3Open && <NewEdgeFlow simple nodes={SIDEBAR_NODES} onClose={() => setAddV3Open(false)} onCreate={() => setAddV3Open(false)} />}
+      {editEdge && <NewEdgeFlow simple editMode nodes={SIDEBAR_NODES} fromNode={editEdge.from} toNode={editEdge.to} initialLabel={editEdge.label} initialCardinality={editEdge.cardinality} initialAttributes={attrsForEdge(editEdge)} initialBothSides={!editEdge.directional} initialUndirected={!editEdge.directional} onClose={() => setEditEdge(null)} onCreate={() => setEditEdge(null)} />}
     </div>
   )
 }

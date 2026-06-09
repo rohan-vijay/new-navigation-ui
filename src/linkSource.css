@@ -937,6 +937,12 @@
   .csel-ghost .csel-trigger { border-color: transparent; background: transparent; }
   .csel-ghost .csel-trigger:hover, .csel-ghost .csel-trigger.open { border-color: var(--line); background: var(--panel); }
   .csel-ghost .csel-chevron { display: none; }
+  .csel-ghost .csel-ph { font-size: 12px; }
+  /* key-field select inside the edge-header endpoint pill — no nested border on hover */
+  .csel-keyhdr .csel-trigger { border-color: transparent; background: transparent; padding: 6px 8px; border-radius: 7px; height: 34px; box-sizing: border-box; }
+  .csel-keyhdr .csel-trigger:hover, .csel-keyhdr .csel-trigger.open { border-color: transparent; background: var(--panel-2); }
+  .csel-keyhdr .csel-chevron { display: none; }
+  .csel-keyhdr .csel-menu { right: auto; min-width: 280px; }
   .csel-auto .csel-val { flex: 0 1 auto; }
   .csel-auto .csel-menu { right: auto; min-width: 100%; white-space: nowrap; }
   .csel-search { display: flex; align-items: center; gap: 8px; padding: 4px 9px; margin: 0 0 4px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg-canvas); color: var(--ink-3); }

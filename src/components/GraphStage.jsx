@@ -4066,7 +4066,7 @@ function AddNodeFlow({ onClose, onCreate }) {
 
 
 // — NewEdgeFlow —
-function NewEdgeFlow({ onClose, onCreate, fromNode, toNode, initialLabel, initialCardinality, initialAttributes, initialBothSides, initialUndirected, editMode, nodes: liveNodes }) {
+function NewEdgeFlow({ onClose, onCreate, fromNode, toNode, initialLabel, initialCardinality, initialAttributes, initialBothSides, initialUndirected, editMode, simple, nodes: liveNodes }) {
   var [step, setStep]                 = useWizardStep("estep", 1);
   var [label, setLabel]               = useState(initialLabel || "");
   var [desc, setDesc]                 = useState("");
@@ -4167,7 +4167,7 @@ function NewEdgeFlow({ onClose, onCreate, fromNode, toNode, initialLabel, initia
   var miniSel ={ border:"1px solid var(--line)", borderRadius:6, padding:"6px 8px", fontSize:12, fontFamily:"JetBrains Mono", color:"var(--ink)", background:"var(--panel)", outline:"none", boxSizing:"border-box", width:"100%" };
 
   function canContinue() {
-    if (step === 1) return label.trim().length >= 3 && /^[A-Z_]+$/.test(label.trim()) && !!fromId && !!toId && !!cardinality;
+    if (step === 1) return label.trim().length >= 3 && /^[A-Z_]+$/.test(label.trim()) && !!fromId && !!toId && (simple || !!cardinality);
     return true;
   }
 
@@ -4268,7 +4268,9 @@ function NewEdgeFlow({ onClose, onCreate, fromNode, toNode, initialLabel, initia
   return (
     <div style={{ position:"fixed", top:0, left:0, right:0, bottom:0, background:"rgba(0,0,0,0.42)", zIndex:200, display:"flex", alignItems:"center", justifyContent:"center" }}
       onClick={function(e){ if (e.target === e.currentTarget) onClose(); }}>
-      <div style={{ width:"92vw", maxWidth:1180, height:"94vh", background:"var(--bg-canvas)", borderRadius:12, border:"1px solid var(--line)", display:"flex", flexDirection:"column", overflow:"hidden", boxShadow:"0 32px 80px rgba(0,0,0,0.32)" }}>
+      <div style={simple
+        ? { width:"92vw", maxWidth:620, maxHeight:"90vh", background:"var(--bg-canvas)", borderRadius:12, border:"1px solid var(--line)", display:"flex", flexDirection:"column", overflow:"hidden", boxShadow:"0 32px 80px rgba(0,0,0,0.32)" }
+        : { width:"92vw", maxWidth:1180, height:"94vh", background:"var(--bg-canvas)", borderRadius:12, border:"1px solid var(--line)", display:"flex", flexDirection:"column", overflow:"hidden", boxShadow:"0 32px 80px rgba(0,0,0,0.32)" }}>
 
         {/* HEADER */}
         <div style={{ flexShrink:0, height:56, borderBottom:"1px solid var(--line)", display:"flex", alignItems:"center", justifyContent:"space-between", padding:"0 22px", background:"var(--panel)" }}>
@@ -4285,10 +4287,10 @@ function NewEdgeFlow({ onClose, onCreate, fromNode, toNode, initialLabel, initia
           <button onClick={onClose} style={{ width:32, height:32, borderRadius:"50%", border:"1px solid var(--line)", background:"none", cursor:"pointer", fontSize:15, color:"var(--ink-3)" }}>✕</button>
         </div>
 
-        <div style={{ flex:1, display:"grid", gridTemplateColumns:"220px minmax(0, 1fr)", minHeight:0 }}>
+        <div style={{ flex:1, display:"grid", gridTemplateColumns: simple ? "minmax(0, 1fr)" : "220px minmax(0, 1fr)", minHeight:0 }}>
 
           {/* SIDEBAR */}
-          <div style={{ background:"var(--panel-2)", borderRight:"1px solid var(--line)", padding:"20px 14px", display:"flex", flexDirection:"column", gap:4, overflowY:"auto" }}>
+          {!simple && <div style={{ background:"var(--panel-2)", borderRight:"1px solid var(--line)", padding:"20px 14px", display:"flex", flexDirection:"column", gap:4, overflowY:"auto" }}>
             {stepNames.map(function(nm, i){
               var n = i + 1;
               var isOn = step === n;
@@ -4307,21 +4309,21 @@ function NewEdgeFlow({ onClose, onCreate, fromNode, toNode, initialLabel, initia
                 </button>
               );
             })}
-          </div>
+          </div>}
 
           {/* CENTER */}
           <div style={{ padding:"24px 32px 28px", overflowY:"auto" }}>
-            <div style={{ marginBottom:20 }}>
+            {!simple && <div style={{ marginBottom:20 }}>
               <div style={{ fontFamily:"Instrument Serif", fontSize:28, color:"var(--ink)", lineHeight:1.1, marginBottom:8 }}>{stepNames[step-1]}</div>
               <div style={{ fontSize:13, color:"var(--ink-3)", lineHeight:1.55 }}>
                 {step === 1 && "Name the relationship and pick the two entities it connects."}
                 {step === 2 && "Optional. Add properties that vary per edge — like a weight, a confidence score, or when the relationship started. Skip if every instance is identical."}
                 {step === 3 && "Last look before this edge type becomes available to agents, queries and the schema."}
               </div>
-            </div>
+            </div>}
 
             {/* STEP 1 — Basics */}
-            {step === 1 && (
+            {(simple || step === 1) && (
               <div style={{ display:"flex", flexDirection:"column", gap:22 }}>
                 {(function(){
                   var cardBox = { display:"flex", flexDirection:"column", gap:0 };
@@ -4338,7 +4340,7 @@ function NewEdgeFlow({ onClose, onCreate, fromNode, toNode, initialLabel, initia
                     </div>
                   </div>
 
-                  <div>
+                  {!simple && <div>
                     <label style={Object.assign({}, fl, { marginTop:0 })}>Cardinality {reqMark(showReq && !cardinality)}</label>
                     <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr 1fr", gap:8 }}>
                       {[{ v:"1:1", l:"One to One" }, { v:"1:N", l:"One to Many" }, { v:"N:1", l:"Many to One" }, { v:"N:M", l:"Many to Many" }].map(function(o){
@@ -4347,7 +4349,7 @@ function NewEdgeFlow({ onClose, onCreate, fromNode, toNode, initialLabel, initia
                           style={{ display:"flex", alignItems:"center", justifyContent:"center", height:42, padding:"0 8px", boxSizing:"border-box", border:"1px solid " + (on ? "var(--ink-4)" : "var(--line)"), borderRadius:8, background: on ? "var(--chip)" : "var(--panel)", color: on ? "var(--ink)" : "var(--ink-2)", fontSize:13, fontWeight: on ? 600 : 500, fontFamily:"inherit", cursor:"pointer" }}>{o.l}</button>;
                       })}
                     </div>
-                  </div>
+                  </div>}
 
                   {(function(){
                     var rowArrow = (
@@ -4392,34 +4394,38 @@ function NewEdgeFlow({ onClose, onCreate, fromNode, toNode, initialLabel, initia
                     {/* SOURCE NODE */}
                     <div style={cardBox}>
                       <label style={Object.assign({}, fl, { marginTop:0 })}>Source Node {reqMark(showReq && !fromId)}</label>
-                      <NodePicker value={fromId} onChange={setFromId} placeholder="Select source entity" disabled={lockFrom} />
+                      <NodePicker value={fromId} onChange={setFromId} placeholder="Select source node" disabled={lockFrom} />
+                      {!simple && <>
                       <label style={Object.assign({}, fl, { marginTop:18 })}>{srcKeyLabel} {reqMark(showReq && !linkProp)}</label>
                       <NodePropSelect node={fromN} value={linkProp} onChange={setLinkProp} placeholder={fromN ? "Select source field" : "Select source node first"} />
                       {srcKeyHint && <div style={{ fontSize:11, color:"var(--ink-4)", marginTop:4, lineHeight:1.45 }}>{srcKeyHint}</div>}
+                      </>}
                     </div>
 
                     {/* PER-ROW ARROWS */}
                     <div style={Object.assign({}, cardBox, { alignItems:"center" })}>
                       {hideLbl(0)}
                       {rowArrow}
-                      {hideLbl(18)}
-                      {rowArrow}
+                      {!simple && hideLbl(18)}
+                      {!simple && rowArrow}
                     </div>
 
                     {/* TARGET NODE */}
                     <div style={cardBox}>
                       <label style={Object.assign({}, fl, { marginTop:0 })}>Target Node {reqMark(showReq && !toId)}</label>
-                      <NodePicker value={toId} onChange={setToId} placeholder="Select target entity" />
+                      <NodePicker value={toId} onChange={setToId} placeholder="Select target node" />
+                      {!simple && <>
                       <label style={Object.assign({}, fl, { marginTop:18 })}>{tgtKeyLabel} {reqMark(showReq && !linkTargetProp)}</label>
                       <NodePropSelect node={toN} value={linkTargetProp} onChange={setLinkTargetProp} placeholder={toN ? "Select target field" : "Select target node first"} />
                       {tgtKeyHint && <div style={{ fontSize:11, color:"var(--ink-4)", marginTop:4, lineHeight:1.45 }}>{tgtKeyHint}</div>}
+                      </>}
                     </div>
                   </div>
                   </div>
                     );
                   })()}
 
-                  {(function(){
+                  {!simple && (function(){
                     var toggleRow = function(key, title, icon, desc, on, onToggle){
                       return (
                         <div key={key} onClick={onToggle} role="switch" aria-checked={on} style={{ display:"flex", alignItems:"flex-start", gap:14, padding:"13px 15px", border:"1px solid " + (on ? "var(--ink-4)" : "var(--line-2)"), borderRadius:10, background:"var(--panel-2)", cursor:"pointer" }}>
@@ -4450,19 +4456,24 @@ function NewEdgeFlow({ onClose, onCreate, fromNode, toNode, initialLabel, initia
 
 
             {/* STEP 2 — Attributes */}
-            {step === 2 && (
+            {simple && (
+              <div style={{ marginTop:28, marginBottom:14 }}>
+                <div style={{ fontSize:13.5, fontWeight:600, color:"var(--ink)" }}>Attributes <span style={{ color:"var(--ink-4)", fontWeight:400 }}>· optional</span></div>
+              </div>
+            )}
+            {(simple || step === 2) && (
               <div style={{ display:"flex", flexDirection:"column", gap:18 }}>
-                {edgeProps.length === 0 ? (
+                {edgeProps.length === 0 ? (simple ? null : (
                   <div style={{ padding:"20px 22px", border:"1px dashed var(--line)", borderRadius:10, background:"var(--panel-2)" }}>
                     <div style={{ fontSize:13.5, color:"var(--ink-2)", lineHeight:1.55, marginBottom:6 }}>No attributes yet — that's fine for most edges.</div>
                     <div style={{ fontFamily:"JetBrains Mono", fontSize:10.5, color:"var(--ink-3)", lineHeight:1.55 }}>Add an attribute only if every instance can carry a different value for it.</div>
                   </div>
-                ) : (
-                  <div className="card" style={{ background:"var(--panel)", border:"1px solid var(--line)", borderRadius:10, overflow:"hidden" }}>
+                )) : (
+                  <div className={simple ? "" : "card"} style={simple ? {} : { background:"var(--panel)", border:"1px solid var(--line)", borderRadius:10, overflow:"hidden" }}>
                     <div>
                       {edgeProps.map(function(p, i){
                         return (
-                          <div key={i} style={{ display:"grid", gridTemplateColumns:"1.4fr 1fr 28px", gap:10, padding:"10px 18px", borderBottom: i < edgeProps.length-1 ? "1px solid var(--line-2)" : "none", alignItems:"center" }}>
+                          <div key={i} style={{ display:"grid", gridTemplateColumns:"1.4fr 1fr 28px", gap:10, padding: simple ? "8px 0" : "10px 18px", borderBottom: (!simple && i < edgeProps.length-1) ? "1px solid var(--line-2)" : "none", alignItems:"center" }}>
                             <input value={p.name} onChange={function(e){ updateProp(i, { name: e.target.value }); }} placeholder="attribute name" style={Object.assign({}, inp, { fontFamily:"JetBrains Mono", fontSize:12 })} />
                             <PropTypeSelect value={p.type} onChange={function(v){ updateProp(i, { type: v }); }} />
                             <button onClick={function(){ removeProp(i); }} title="Remove attribute" style={{ background:"none", border:"none", color:"var(--ink-3)", cursor:"pointer", fontSize:16, justifySelf:"center" }}>×</button>
@@ -4512,11 +4523,13 @@ function NewEdgeFlow({ onClose, onCreate, fromNode, toNode, initialLabel, initia
         </div>
 
         {/* FOOTER */}
-        <div style={{ flexShrink:0, padding:"14px 22px", borderTop:"1px solid var(--line)", display:"flex", alignItems:"center", justifyContent:"space-between", background:"var(--panel)" }}>
-          <button className="btn-ghost" onClick={function(){ if (step > 1) setStep(function(s){ return s - 1; }); }} disabled={step === 1} style={{ opacity: step === 1 ? 0.4 : 1 }}>← Back</button>
+        <div style={{ flexShrink:0, padding:"14px 22px", borderTop:"1px solid var(--line)", display:"flex", alignItems:"center", justifyContent: simple ? "flex-end" : "space-between", background:"var(--panel)" }}>
+          {!simple && <button className="btn-ghost" onClick={function(){ if (step > 1) setStep(function(s){ return s - 1; }); }} disabled={step === 1} style={{ opacity: step === 1 ? 0.4 : 1 }}>← Back</button>}
           <div style={{ display:"flex", gap:8 }}>
             <button className="btn-ghost" onClick={onClose}>Cancel</button>
-            {step < 2
+            {simple
+              ? <button className="btn-dark" disabled={!canContinue()} onClick={function(){ if (onCreate) onCreate({ label: label, from: fromN, to: toN }); onClose(); }} style={{ opacity: canContinue() ? 1 : 0.45 }}>{editMode ? "Save changes ↵" : "Create edge ↵"}</button>
+              : step < 2
               ? <button className="btn-dark" onClick={function(){ if (canContinue()) { setShowReq(false); setStep(function(s){ return s + 1; }); } else { setShowReq(true); } }}>Continue →</button>
               : <button className="btn-dark" disabled={!canContinue()} onClick={function(){ if (onCreate) onCreate({ label: label, from: fromN, to: toN }); onClose(); }} style={{ opacity: canContinue() ? 1 : 0.45 }}>{editMode ? "Save changes ↵" : "Create edge type ↵"}</button>
             }

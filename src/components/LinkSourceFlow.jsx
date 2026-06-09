@@ -895,7 +895,7 @@ function BackfillBanner({ backfill, onChange, estimate }) {
 
 // ─── FLOW SHELL (shared wrapper) ──────────────────────────────────────────────
 
-function WizardShell({ eyebrow, plainTitle, titleFrom, titleTo, titleLabel, titleType, stage, steps, step, setStep, onClose, rightPane, children, canNext, onNext, onPublish, hideKeymap, hideFootHelp, hideStage, overlay, fullScreen }) {
+function WizardShell({ eyebrow, plainTitle, titleFrom, titleTo, titleLabel, titleType, stage, steps, step, setStep, onClose, rightPane, children, canNext, onNext, onPublish, hideKeymap, hideFootHelp, hideStage, overlay, fullScreen, footExtra }) {
   return (
     <div className={"flow-overlay" + (fullScreen ? " flow-overlay-full" : "")} onClick={onClose}>
       <div className="flow-shell" onClick={e => e.stopPropagation()}>
@@ -1000,6 +1000,7 @@ function WizardShell({ eyebrow, plainTitle, titleFrom, titleTo, titleLabel, titl
         <div className="flow-foot">
           <div className="flow-foot-left">
             <button className="btn-ghost" onClick={() => setStep(s => Math.max(0, s - 1))} disabled={step === 0}>← Back</button>
+            {footExtra}
             {!hideFootHelp && <span className="flow-foot-help">Step {step + 1} of {steps.length} · <b>{steps[step].label}</b></span>}
           </div>
           <div className="flow-foot-right">
@@ -1020,14 +1021,14 @@ function WizardShell({ eyebrow, plainTitle, titleFrom, titleTo, titleLabel, titl
 function StepWrap({ eyebrow, title, desc, children, wide, titleRight }) {
   return (
     <div className={"wstep" + (wide ? " wstep-wide" : "")}>
-      <div className="wstep-head">
+      {(title || eyebrow || desc || titleRight) && <div className="wstep-head">
         {eyebrow && <div className="step-eyebrow">{eyebrow}</div>}
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16 }}>
           <div className="wstep-title">{title}</div>
           {titleRight}
         </div>
         {desc && <div className="wstep-desc">{desc}</div>}
-      </div>
+      </div>}
       <div className="wstep-body">{children}</div>
     </div>
   );
@@ -1654,7 +1655,13 @@ function LinkSourceFlow({ node, existingSources, onClose, editSource }) {
   // Independent state for the second "Map columns v2" step.
   const [mapOpenCol2, setMapOpenCol2] = useState("");
   const [mapActiveObj2, setMapActiveObj2] = useState("");
-  const [mapVer, setMapVer] = useState("v2"); // which mapping experience the single "Map columns" step shows
+  const [mapOpenCol3, setMapOpenCol3] = useState("");
+  const [mapActiveObj3, setMapActiveObj3] = useState("");
+  const [mapOpenCol4, setMapOpenCol4] = useState("");
+  const [mapActiveObj4, setMapActiveObj4] = useState("");
+  const [mapOpenCol5, setMapOpenCol5] = useState("");
+  const [mapActiveObj5, setMapActiveObj5] = useState("");
+  const [mapVer, setMapVer] = useState("v5"); // v5 is the shipped mapping experience
   const [s, setS] = useState(() => {
     const base = {
       system: "", customName: "", connection: "", newConnName: "", newConnHost: "", newConnAuth: "OAuth2",
@@ -1737,6 +1744,51 @@ function LinkSourceFlow({ node, existingSources, onClose, editSource }) {
     const gm = cols.filter(c => _v2Mapped(g.name, c.col)).length;
     return { id: g.name, label: g.label || g.name, mapped: gm, total: cols.length, type: g.type, done: gm > 0 };
   }) : null;
+  // ── v3 (create-edge-at-runtime) — independent state slice, mirrors v2 ──
+  const V3_KEYS = { mapping: "mapping3", transforms: "transforms3", recordFilters: "recordFilters3", transformedFields: "transformedFields3", entityNode: "entityNode3" };
+  const s3 = Object.assign({}, s, { mapping: s.mapping3 || {}, transforms: s.transforms3 || {}, recordFilters: s.recordFilters3 || {}, transformedFields: s.transformedFields3 || {}, entityNode: s.entityNode3 || {} });
+  const set3 = patch => { const out = {}; for (const k in patch) { out[V3_KEYS[k] || k] = patch[k]; } set(out); };
+  const _m3 = s.mapping3 || {};
+  const _m3keys = Object.keys(_m3);
+  const _v3Mapped = (g, c) => _m3[g + "::" + c] != null || _m3keys.some(k => k.endsWith("::" + g + "::" + c) && _m3[k] != null);
+  const mappedCount3 = mapGroups.reduce((acc, g) => acc + mapColsOf(g).filter(c => _v3Mapped(g.name, c.col)).length, 0);
+  const colMapHint3 = totalMapCols ? `${mappedCount3}/${totalMapCols} fields mapped` : "Map nodes · build edges";
+  const activeMapObj3 = (mapActiveObj3 && mapGroups.some(g => g.name === mapActiveObj3)) ? mapActiveObj3 : (mapGroups[0] ? mapGroups[0].name : "");
+  const mapSubItems3 = mapGroups.length > 1 ? mapGroups.map(g => {
+    const cols = mapColsOf(g);
+    const gm = cols.filter(c => _v3Mapped(g.name, c.col)).length;
+    return { id: g.name, label: g.label || g.name, mapped: gm, total: cols.length, type: g.type, done: gm > 0 };
+  }) : null;
+  // ── v4 (create edge + build attributes via a form) — independent state slice ──
+  const V4_KEYS = { mapping: "mapping4", transforms: "transforms4", recordFilters: "recordFilters4", transformedFields: "transformedFields4", entityNode: "entityNode4" };
+  const s4 = Object.assign({}, s, { mapping: s.mapping4 || {}, transforms: s.transforms4 || {}, recordFilters: s.recordFilters4 || {}, transformedFields: s.transformedFields4 || {}, entityNode: s.entityNode4 || {} });
+  const set4 = patch => { const out = {}; for (const k in patch) { out[V4_KEYS[k] || k] = patch[k]; } set(out); };
+  const _m4 = s.mapping4 || {};
+  const _m4keys = Object.keys(_m4);
+  const _v4Mapped = (g, c) => _m4[g + "::" + c] != null || _m4keys.some(k => k.endsWith("::" + g + "::" + c) && _m4[k] != null);
+  const mappedCount4 = mapGroups.reduce((acc, g) => acc + mapColsOf(g).filter(c => _v4Mapped(g.name, c.col)).length, 0);
+  const colMapHint4 = totalMapCols ? `${mappedCount4}/${totalMapCols} fields mapped` : "Map nodes · author edges";
+  const activeMapObj4 = (mapActiveObj4 && mapGroups.some(g => g.name === mapActiveObj4)) ? mapActiveObj4 : (mapGroups[0] ? mapGroups[0].name : "");
+  const mapSubItems4 = mapGroups.length > 1 ? mapGroups.map(g => {
+    const cols = mapColsOf(g);
+    const gm = cols.filter(c => _v4Mapped(g.name, c.col)).length;
+    return { id: g.name, label: g.label || g.name, mapped: gm, total: cols.length, type: g.type, done: gm > 0 };
+  }) : null;
+  // ── v5 (node-only mapping; edge entry point lives on the tab strip) ──
+  const V5_KEYS = { mapping: "mapping5", transforms: "transforms5", recordFilters: "recordFilters5", transformedFields: "transformedFields5", entityNode: "entityNode5" };
+  const s5 = Object.assign({}, s, { mapping: s.mapping5 || {}, transforms: s.transforms5 || {}, recordFilters: s.recordFilters5 || {}, transformedFields: s.transformedFields5 || {}, entityNode: s.entityNode5 || {} });
+  const set5 = patch => { const out = {}; for (const k in patch) { out[V5_KEYS[k] || k] = patch[k]; } set(out); };
+  const _m5 = s.mapping5 || {};
+  const _m5keys = Object.keys(_m5);
+  const _v5Mapped = (g, c) => _m5[g + "::" + c] != null || _m5keys.some(k => k.endsWith("::" + g + "::" + c) && _m5[k] != null);
+  const mappedCount5 = mapGroups.reduce((acc, g) => acc + mapColsOf(g).filter(c => _v5Mapped(g.name, c.col)).length, 0);
+  const colMapHint5 = totalMapCols ? `${mappedCount5}/${totalMapCols} fields mapped` : "Map source → nodes";
+  const activeMapObj5 = (mapActiveObj5 && mapGroups.some(g => g.name === mapActiveObj5)) ? mapActiveObj5 : (mapGroups[0] ? mapGroups[0].name : "");
+  const mapSubItems5 = mapGroups.length > 1 ? mapGroups.map(g => {
+    const cols = mapColsOf(g);
+    const gm = cols.filter(c => _v5Mapped(g.name, c.col)).length;
+    return { id: g.name, label: g.label || g.name, mapped: gm, total: cols.length, type: g.type, done: gm > 0 };
+  }) : null;
   const settingsHint = (s.pipelineType === "scheduled" ? "Scheduled" : "Real Time") + " · " + (s.resourceTier || "Small");
   const uCfg = s.uSettings || {};
   const uToggles = U_SETTINGS.filter(o => o.control !== "add");
@@ -1783,14 +1835,20 @@ function LinkSourceFlow({ node, existingSources, onClose, editSource }) {
     { label: "Discover Files", hint: objectsHint },
   ]).concat([
     { label: "Extract fields", hint: uExtractHint },
-    { label: "Map",           hint: mapHint, subItems: mapSubItems, activeSub: activeMapObj, onSub: setMapActiveObj },
+    { label: "Map",           hint: colMapHint5, subItems: mapSubItems5, activeSub: activeMapObj5, onSub: setMapActiveObj5 },
     { label: "Settings",      hint: uSettingsHint },
   ]) : [
     { label: "Source system",  hint: sel ? sel.name : "Pick connector from catalog" },
     { label: "Connection",     hint: connLabel },
     { label: "Objects",        hint: objectHint },
     { label: "Enrich",         hint: agentsHint },
-    (mapVer === "v2"
+    (mapVer === "v5"
+      ? { label: "Map", hint: colMapHint5, subItems: mapSubItems5, activeSub: activeMapObj5, onSub: setMapActiveObj5 }
+      : mapVer === "v4"
+      ? { label: "Map", hint: colMapHint4, subItems: mapSubItems4, activeSub: activeMapObj4, onSub: setMapActiveObj4 }
+      : mapVer === "v3"
+      ? { label: "Map", hint: colMapHint3, subItems: mapSubItems3, activeSub: activeMapObj3, onSub: setMapActiveObj3 }
+      : mapVer === "v2"
       ? { label: "Map", hint: colMapHint2, subItems: mapSubItems2, activeSub: activeMapObj2, onSub: setMapActiveObj2 }
       : { label: "Map", hint: colMapHint, subItems: mapSubItems, activeSub: activeMapObj, onSub: setMapActiveObj }),
     { label: "Settings", hint: settingsHint },
@@ -1846,16 +1904,22 @@ function LinkSourceFlow({ node, existingSources, onClose, editSource }) {
           {step === idxDiscover && <SrcDiscover s={s} set={set} sel={sel} />}
           {step === idxExtract && <SrcObjectAgents s={s} set={set} groups={mapGroups} sel={sel} fileMode
             agentPoolFor={g => ({ agents: [extractionAgentFor(g.name)].filter(Boolean).concat(DOC_ENRICH_AGENTS), automations: RUN_AUTOMATIONS })} />}
-          {step === idxMap && <SrcEntityMap s={s} set={set} groups={mapGroups} activeObj={activeMapObj} sel={sel} openCol={mapOpenCol} setOpenCol={setMapOpenCol} />}
+          {step === idxMap && <SrcMapping key="v5u" v2 v5 s={s5} set={set5} groups={mapGroups} activeObj={activeMapObj5} nodeProps={nodeProps} node={node} sel={sel} openCol={mapOpenCol5} setOpenCol={setMapOpenCol5} isEdit={!!editSource} />}
           {step === idxSettings && <SrcUnstructuredSettings s={s} set={set} />}
         </>
       ) : (
         <>
           {step === 2 && <SrcObject s={s} set={set} sel={sel} />}
           {step === 3 && <SrcObjectAgents s={s} set={set} groups={mapGroups} sel={sel} />}
-          {step === 4 && (mapVer === "v2"
-            ? <SrcMapping v2 verToggle={{ value: mapVer, onChange: setMapVer }} s={s2} set={set2} groups={mapGroups} activeObj={activeMapObj2} nodeProps={nodeProps} node={node} sel={sel} openCol={mapOpenCol2} setOpenCol={setMapOpenCol2} isEdit={!!editSource} />
-            : <SrcMapping verToggle={{ value: mapVer, onChange: setMapVer }} s={s} set={set} groups={mapGroups} activeObj={activeMapObj} nodeProps={nodeProps} node={node} sel={sel} openCol={mapOpenCol} setOpenCol={setMapOpenCol} isEdit={!!editSource} />)}
+          {step === 4 && (mapVer === "v5"
+            ? <SrcMapping key="v5" v2 v5 s={s5} set={set5} groups={mapGroups} activeObj={activeMapObj5} nodeProps={nodeProps} node={node} sel={sel} openCol={mapOpenCol5} setOpenCol={setMapOpenCol5} isEdit={!!editSource} />
+            : mapVer === "v4"
+            ? <SrcMapping key="v4" v2 v3 v4 s={s4} set={set4} groups={mapGroups} activeObj={activeMapObj4} nodeProps={nodeProps} node={node} sel={sel} openCol={mapOpenCol4} setOpenCol={setMapOpenCol4} isEdit={!!editSource} />
+            : mapVer === "v3"
+            ? <SrcMapping key="v3" v2 v3 s={s3} set={set3} groups={mapGroups} activeObj={activeMapObj3} nodeProps={nodeProps} node={node} sel={sel} openCol={mapOpenCol3} setOpenCol={setMapOpenCol3} isEdit={!!editSource} />
+            : mapVer === "v2"
+            ? <SrcMapping key="v2" v2 s={s2} set={set2} groups={mapGroups} activeObj={activeMapObj2} nodeProps={nodeProps} node={node} sel={sel} openCol={mapOpenCol2} setOpenCol={setMapOpenCol2} isEdit={!!editSource} />
+            : <SrcMapping key="v1" s={s} set={set} groups={mapGroups} activeObj={activeMapObj} nodeProps={nodeProps} node={node} sel={sel} openCol={mapOpenCol} setOpenCol={setMapOpenCol} isEdit={!!editSource} />)}
           {step === 5 && <SrcSchedule s={s} set={set} srcCols={srcCols} />}
         </>
       )}
@@ -1992,7 +2056,6 @@ function SrcSystem({ s, set, onAdvance }) {
                   <span style={{ fontSize: 13.5, fontWeight: 600, color: "var(--ink)" }}>{c.name}</span>
                   {c.status === "degraded" && <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 9, color: "var(--gold)" }}>● degraded</span>}
                 </div>
-                <div style={{ fontSize: 12, color: "var(--ink-3)", marginTop: 2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{c.desc}</div>
               </div>
               {on
                 ? <span style={{ flexShrink: 0, width: 22, height: 22, borderRadius: "50%", background: "var(--ink)", color: "var(--bg-canvas)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 700 }}>✓</span>
@@ -2044,7 +2107,6 @@ function SrcConnection({ s, set, sel, onAdvance }) {
                     </div>
                     <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 11, color: "var(--ink-3)", marginTop: 3, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{cn.detail}</div>
                   </div>
-                  <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 10.5, color: "var(--ink-4)", flexShrink: 0, textAlign: "right" }}>{cn.auth}<br />used {cn.lastUsed}</span>
                   {on
                     ? <span style={{ flexShrink: 0, width: 22, height: 22, borderRadius: "50%", background: "var(--ink)", color: "var(--bg-canvas)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 700 }}>✓</span>
                     : <span style={{ flexShrink: 0, fontSize: 12, fontWeight: 600, color: "var(--ink-3)", padding: "5px 12px", borderRadius: 7, border: "1px solid var(--line)" }}>Use</span>}
@@ -2076,7 +2138,6 @@ function SrcConnection({ s, set, sel, onAdvance }) {
               {sel && <SrcConnectorLogo c={sel} size={26} />}
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ fontFamily: "'Instrument Serif', serif", fontSize: 21, color: "var(--ink)", lineHeight: 1.1 }}>New connection</div>
-                <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 11, color: "var(--ink-3)", marginTop: 3 }}>{sel ? "to " + sel.name : ""}</div>
               </div>
               <button onClick={() => setNewOpen(false)} style={{ width: 30, height: 30, borderRadius: "50%", border: "1px solid var(--line)", background: "none", cursor: "pointer", color: "var(--ink-3)", flexShrink: 0, fontSize: 13 }}>✕</button>
             </div>
@@ -2135,15 +2196,13 @@ function SrcObject({ s, set, sel }) {
               style={{ display: "flex", alignItems: "center", gap: 14, width: "100%", padding: "14px 16px", border: "none", borderTop: i ? "1px solid #f0ece6" : "none", background: on ? "#f7f5f1" : "transparent", cursor: "pointer", textAlign: "left", fontFamily: "inherit" }}
               onMouseEnter={e => { if (!on) e.currentTarget.style.background = "#faf8f4"; }}
               onMouseLeave={e => { if (!on) e.currentTarget.style.background = "transparent"; }}>
-              <span style={{ width: 20, height: 20, borderRadius: 5, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", borderWidth: 1.5, borderStyle: "solid", borderColor: on ? "#16341f" : "var(--line)", background: on ? "#16341f" : "transparent", color: "#fff" }}>
-                {on && <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><polyline points="3.5,8.5 6.5,11.5 12.5,5" /></svg>}
-              </span>
               {sel ? <SrcConnectorLogo c={sel} size={20} /> : <span style={{ width: 32, height: 32, borderRadius: 8, background: "var(--chip)", border: "1px solid var(--line)", flexShrink: 0 }} />}
               <div style={{ flex: 1, minWidth: 0 }}>
                 <code style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 13.5, fontWeight: 600, color: "var(--ink)" }}>{o.name}</code>
-                <div style={{ fontSize: 11.5, color: "var(--ink-4)", marginTop: 3 }}>{o.type} · {o.cols} columns</div>
               </div>
-              <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 11.5, color: "var(--ink-3)", flexShrink: 0 }}>{o.rows} rows</span>
+              <span style={{ width: 20, height: 20, borderRadius: 5, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", borderWidth: 1.5, borderStyle: "solid", borderColor: on ? "#16341f" : "var(--line)", background: on ? "#16341f" : "transparent", color: "#fff" }}>
+                {on && <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><polyline points="3.5,8.5 6.5,11.5 12.5,5" /></svg>}
+              </span>
             </button>
           );
         })}
@@ -2632,13 +2691,13 @@ function SrcEntityMap({ s, set, groups, activeObj, sel, openCol, setOpenCol }) {
     const tlist = transforms[ck] || [];
     const isOpen = openCol === ck;
     return (
-      <div key={key} style={{ display: "grid", gridTemplateColumns: GRID, gap: 12, padding: "12px 16px", alignItems: "center", borderTop: i ? "1px solid var(--line-2)" : "none" }}>
+      <div key={key} style={{ display: "grid", gridTemplateColumns: GRID, gap: 12, padding: "5px 16px", alignItems: "center", borderTop: i ? "1px solid var(--line-2)" : "none" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}>
           <MapTypeGlyph type={c.type} />
           <code style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 13, color: "var(--ink)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{nm}</code>
         </div>
         <button onClick={() => setOpenCol && setOpenCol(ck)}
-          style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap", width: "100%", padding: "7px 10px", borderRadius: 8, borderWidth: 1, borderStyle: tlist.length || isOpen ? "solid" : "dashed", borderColor: isOpen ? "var(--ink)" : "transparent", background: isOpen ? "var(--bg-canvas)" : "transparent", cursor: "pointer", fontFamily: "inherit", textAlign: "left", minHeight: 34 }}
+          style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap", width: "100%", padding: "7px 10px", borderRadius: 8, borderWidth: 1, borderStyle: tlist.length || isOpen ? "solid" : "dashed", borderColor: isOpen ? "var(--ink)" : "transparent", background: isOpen ? "var(--bg-canvas)" : "transparent", cursor: "pointer", fontFamily: "inherit", textAlign: "left", minHeight: 28 }}
           onMouseEnter={e => { e.currentTarget.style.background = "var(--panel-2)"; if (!isOpen) e.currentTarget.style.borderColor = "var(--line)"; }}
           onMouseLeave={e => { if (!isOpen) e.currentTarget.style.background = "transparent"; if (!isOpen) e.currentTarget.style.borderColor = "transparent"; }}>
           {tlist.length === 0
@@ -3358,7 +3417,7 @@ function SrcObjectAgents({ s, set, groups, sel, agentPoolFor, fileMode }) {
                       <button onClick={() => setPreviewFor(g.name)} style={{ display: "inline-flex", alignItems: "center", gap: 5, background: "none", border: "none", cursor: "pointer", fontFamily: "inherit", fontSize: 12, color: "var(--ink-2)", padding: 0 }}>
                         Preview output <span style={{ fontSize: 13 }}>→</span>
                       </button>
-                      {hasAvail && !pickerOpen && <button onClick={() => setOpenPicker(g.name)} style={{ marginLeft: "auto", background: "none", border: "none", cursor: "pointer", fontFamily: "inherit", fontSize: 12, color: "var(--ink-2)", padding: 0 }}>+ Run another</button>}
+                      {hasAvail && !pickerOpen && <button onClick={() => setOpenPicker(g.name)} style={{ marginLeft: "auto", background: "none", border: "none", cursor: "pointer", fontFamily: "inherit", fontSize: 12, color: "var(--ink-2)", padding: 0 }}>+ Add another enrichment</button>}
                     </div>
                   )}
                 </div>
@@ -3425,7 +3484,7 @@ function SrcAgentOutputDrawer({ obj, agents, onClose }) {
   );
 }
 
-function SrcMapping({ s, set, groups, activeObj, nodeProps, node, sel, openCol, setOpenCol, eyebrow, title, desc, singleGroup, isEdit, v2, verToggle }) {
+function SrcMapping({ s, set, groups, activeObj, nodeProps, node, sel, openCol, setOpenCol, eyebrow, title, desc, singleGroup, isEdit, v2, v3, v4, v5, verToggle }) {
   const [q, setQ] = useState("");
   const [tab, setTab] = useState("all");
   const [filterOpen, setFilterOpen] = useState(false);
@@ -3471,11 +3530,22 @@ function SrcMapping({ s, set, groups, activeObj, nodeProps, node, sel, openCol, 
   // Active destination (v2 = active tab; non-v2 = the single picker value).
   const active = dests.find(d => d.key === activeKey) || null;
   const destNodeId = v2 ? (active && active.kind === "node" ? active.id : "") : chosenDestId;
-  const addDest = (kind, id, label) => {
+  const addDest = (kind, id, label, extra) => {
     const key = kind + ":" + id;
-    setDests(ds => ds.some(d => d.key === key) ? ds : ds.concat([{ key, kind, id, label }]));
+    setDests(ds => ds.some(d => d.key === key) ? ds : ds.concat([Object.assign({ key, kind, id, label }, extra || {})]));
     setActiveKey(key);
   };
+  const [createEdgeOpen, setCreateEdgeOpen] = useState(false);
+  const [ceLabel, setCeLabel] = useState("");
+  const [ceFromId, setCeFromId] = useState("");
+  const [ceToId, setCeToId] = useState("");
+  // v4 attribute-builder form state (name + source property + foreign property)
+  const [v4aName, setV4aName] = useState("");
+  const [v4aSrc, setV4aSrc] = useState("");
+  const [v4aFk, setV4aFk] = useState("");
+  // v5 edge attribute inline-name editing
+  const [eaEdit, setEaEdit] = useState(-1);
+  const [eaVal, setEaVal] = useState("");
   const removeDest = key => { setDests(ds => { const next = ds.filter(d => d.key !== key); setActiveKey(a => a === key ? (next[0] ? next[0].key : "") : a); return next; }); };
   // For pre-created (edit) structured sources, seed Map columns v2 with the
   // resolved destination node + the relevant edges leaving that node, so the
@@ -3489,7 +3559,7 @@ function SrcMapping({ s, set, groups, activeObj, nodeProps, node, sel, openCol, 
     const node = resolveNode(current);
     if (!node) { setDests([]); setActiveKey(""); return; }
     const seeded = [{ key: "node:" + node.id, kind: "node", id: node.id, label: node.label }];
-    edgesFor(node.id).forEach(e => { const k = e.label + ":" + e.s + ":" + e.t; seeded.push({ key: "edge:" + k, kind: "edge", id: k, label: e.label }); });
+    if (!v3) edgesFor(node.id).forEach(e => { const k = e.label + ":" + e.s + ":" + e.t; seeded.push({ key: "edge:" + k, kind: "edge", id: k, label: e.label }); });
     setDests(seeded);
     setActiveKey(seeded[0].key);
     // ── Pre-fill realistic mappings for EVERY object so the step looks complete ──
@@ -3517,7 +3587,7 @@ function SrcMapping({ s, set, groups, activeObj, nodeProps, node, sel, openCol, 
         if (hit && (hashStr(g.name + c.col) % 5 === 0)) { const fn = tfForType(c.type); if (fn) nt[nodeKey + "::" + g.name + "::" + c.col] = [{ fn }]; }
       });
       // edge tabs — FK key + a VARIED, edge-specific set of attributes
-      edgesFor(n.id).forEach(e => {
+      if (!v3) edgesFor(n.id).forEach(e => {
         const ek = "edge:" + (e.label + ":" + e.s + ":" + e.t);
         const fk = cols.find(c => /_id$/.test(c.col)) || cols[0];
         if (fk) nm[ek + "::" + g.name + "::__to__"] = fk.col;
@@ -3614,14 +3684,14 @@ function SrcMapping({ s, set, groups, activeObj, nodeProps, node, sel, openCol, 
     const isOpen = openCol === key;
     return (
       <div key={key} style={{ borderTop: i ? "1px solid var(--line-2)" : "none" }}>
-        <div style={{ display: "grid", gridTemplateColumns: GRID, gap: 12, padding: "12px 16px", alignItems: "center" }}>
+        <div style={{ display: "grid", gridTemplateColumns: GRID, gap: 12, padding: "5px 16px", alignItems: "center" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}>
             <MapTypeGlyph type={col.type} />
             <code style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 13, color: "var(--ink)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{col.label || col.col}</code>
             {col.col === "id" && !col.agent && <MapBadge tone="var(--green)">PK</MapBadge>}
           </div>
           <button onClick={() => setOpenCol(key)}
-            style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap", width: "100%", padding: "7px 10px", borderRadius: 8, borderWidth: 1, borderStyle: tlist.length || isOpen ? "solid" : "dashed", borderColor: isOpen ? "var(--ink)" : "transparent", background: isOpen ? "var(--bg-canvas)" : "transparent", cursor: "pointer", fontFamily: "inherit", textAlign: "left", minHeight: 34 }}
+            style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap", width: "100%", padding: "7px 10px", borderRadius: 8, borderWidth: 1, borderStyle: tlist.length || isOpen ? "solid" : "dashed", borderColor: isOpen ? "var(--ink)" : "transparent", background: isOpen ? "var(--bg-canvas)" : "transparent", cursor: "pointer", fontFamily: "inherit", textAlign: "left", minHeight: 28 }}
             onMouseEnter={e => { e.currentTarget.style.background = "var(--panel-2)"; if (!isOpen) e.currentTarget.style.borderColor = "var(--line)"; }}
             onMouseLeave={e => { if (!isOpen) e.currentTarget.style.background = "transparent"; if (!isOpen) e.currentTarget.style.borderColor = "transparent"; }}>
             {tlist.length === 0
@@ -3654,7 +3724,7 @@ function SrcMapping({ s, set, groups, activeObj, nodeProps, node, sel, openCol, 
     const chain = (tf.chain || []).filter(t => t.fn);
     return (
       <div key={tf.id} style={{ borderTop: "1px solid var(--line-2)", background: "color-mix(in oklab, var(--purple) 4%, transparent)" }}>
-        <div style={{ display: "grid", gridTemplateColumns: GRID, gap: 12, padding: "12px 16px", alignItems: "center" }}>
+        <div style={{ display: "grid", gridTemplateColumns: GRID, gap: 12, padding: "5px 16px", alignItems: "center" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}>
             <MapTypeGlyph type={tfType} />
             <code style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 13, color: "var(--ink)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{tf.name}</code>
@@ -3663,7 +3733,7 @@ function SrcMapping({ s, set, groups, activeObj, nodeProps, node, sel, openCol, 
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round"><path d="M6 6l12 12M18 6L6 18" /></svg>
             </button>
           </div>
-          <button onClick={() => setOpenCol(current.name + "::__newtf__")} title="Transformed via" style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap", width: "100%", padding: "7px 10px", borderRadius: 8, border: "1px solid var(--line)", background: "transparent", cursor: "pointer", fontFamily: "inherit", textAlign: "left", minHeight: 34 }}>
+          <button onClick={() => setOpenCol(current.name + "::__newtf__")} title="Transformed via" style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap", width: "100%", padding: "7px 10px", borderRadius: 8, border: "1px solid var(--line)", background: "transparent", cursor: "pointer", fontFamily: "inherit", textAlign: "left", minHeight: 28 }}>
             <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 10.5, color: "var(--ink-4)" }}>from {tf.source}</span>
             {chain.map((t, j) => <span key={j} style={{ display: "inline-flex", alignItems: "center", gap: 4, fontFamily: "'JetBrains Mono', monospace", fontSize: 10.5, padding: "2px 7px", borderRadius: 5, background: "var(--chip)", border: "1px solid var(--line)", color: "var(--ink-2)" }}>{tfLabel(t.fn)}</span>)}
             {chain.length === 0 && <span style={{ fontSize: 11.5, color: "var(--ink-4)" }}>passthrough</span>}
@@ -3698,9 +3768,9 @@ function SrcMapping({ s, set, groups, activeObj, nodeProps, node, sel, openCol, 
   })();
 
   return (
-    <StepWrap wide title={stepTitle} titleRight={verToggle ? (
+    <StepWrap wide title={v5 ? null : stepTitle} titleRight={verToggle ? (
       <div style={{ display: "inline-flex", border: "1px solid var(--line)", borderRadius: 8, background: "var(--panel)", padding: 2, flexShrink: 0 }}>
-        {["v1", "v2"].map(vv => { const on = verToggle.value === vv; return (
+        {["v1", "v2", "v3", "v4", "v5"].map(vv => { const on = verToggle.value === vv; return (
           <button key={vv} onClick={() => verToggle.onChange(vv)}
             style={{ padding: "4px 12px", border: "none", borderRadius: 6, background: on ? "var(--chip)" : "transparent", color: on ? "var(--ink)" : "var(--ink-3)", fontWeight: on ? 600 : 500, fontSize: 12, fontFamily: "inherit", cursor: "pointer" }}>{vv}</button>
         ); })}
@@ -3709,15 +3779,17 @@ function SrcMapping({ s, set, groups, activeObj, nodeProps, node, sel, openCol, 
 
       {/* ── v2: source object card with Add Node / Add Edge CTAs ──────────── */}
       {v2 && (
-        <div style={{ display: "flex", alignItems: "center", gap: 14, padding: "14px 18px", border: "1px solid var(--line)", borderRadius: 12, background: "var(--panel)", marginBottom: 20 }}>
-          <span style={{ width: 30, height: 30, borderRadius: 7, background: "var(--bg-canvas)", border: "1px solid var(--line)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, overflow: "hidden" }}>
-            {sel && <SrcConnectorLogo c={sel} size={17} />}
-          </span>
+        <div style={{ display: "flex", alignItems: "center", gap: v5 ? 12 : 14, padding: v5 ? "2px 2px 18px" : "14px 18px", border: v5 ? "none" : "1px solid var(--line)", borderRadius: 12, background: v5 ? "transparent" : "var(--panel)", marginBottom: v5 ? 10 : 20 }}>
+          {v5
+            ? (sel && <SrcConnectorLogo c={sel} size={30} />)
+            : <span style={{ width: 30, height: 30, borderRadius: 7, background: "var(--bg-canvas)", border: "1px solid var(--line)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, overflow: "hidden" }}>
+                {sel && <SrcConnectorLogo c={sel} size={17} />}
+              </span>}
           <div style={{ minWidth: 0, flex: 1 }}>
-            <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 14, fontWeight: 600, color: "var(--ink)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{current ? current.name : (sel ? sel.name : "—")}</div>
-            <div style={{ fontSize: 12, color: "var(--ink-3)", marginTop: 2 }}>{(current && current.type ? current.type : "Object") + " · " + (current ? current.cols.length : 0) + " columns"}</div>
+            <div style={{ fontFamily: v5 ? "var(--serif)" : "'JetBrains Mono', monospace", fontSize: v5 ? 26 : 14, fontWeight: 600, color: "var(--ink)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", lineHeight: v5 ? 1.35 : 1.1, paddingBottom: v5 ? 2 : 0 }}>{current ? current.name : (sel ? sel.name : "—")}</div>
+            {!v5 && <div style={{ fontSize: 12, color: "var(--ink-3)", marginTop: 2 }}>{(current && current.type ? current.type : "Object") + " · " + (current ? current.cols.length : 0) + " columns"}</div>}
           </div>
-          <div style={{ display: "flex", alignItems: "center", gap: 10, flexShrink: 0 }}>
+          {!(v5 && dests.length === 0) && <div style={{ display: "flex", alignItems: "center", gap: 10, flexShrink: 0, flexDirection: v5 ? "row-reverse" : "row" }}>
             <div style={{ position: "relative" }}>
               <button onClick={() => setMapNodeOpen(o => !o)}
                 style={{ display: "inline-flex", alignItems: "center", gap: 7, height: 36, padding: "0 14px", borderRadius: 9, border: "1px solid " + (mapNodeOpen ? "var(--ink)" : "var(--line)"), background: mapNodeOpen ? "var(--bg-canvas)" : "var(--panel)", cursor: "pointer", fontFamily: "inherit", fontSize: 13, fontWeight: 500, color: "var(--ink)" }}>
@@ -3753,13 +3825,45 @@ function SrcMapping({ s, set, groups, activeObj, nodeProps, node, sel, openCol, 
               )}
             </div>
             <div style={{ position: "relative" }}>
-              <button onClick={() => setMapEdgeOpen(o => !o)}
-                style={{ display: "inline-flex", alignItems: "center", gap: 7, height: 36, padding: "0 14px", borderRadius: 9, border: "1px solid " + (mapEdgeOpen ? "var(--ink)" : "var(--line)"), background: mapEdgeOpen ? "var(--bg-canvas)" : "var(--panel)", cursor: "pointer", fontFamily: "inherit", fontSize: 13, fontWeight: 500, color: "var(--ink)" }}>
+              <button onClick={() => v3 ? setCreateEdgeOpen(o => !o) : setMapEdgeOpen(o => !o)}
+                style={{ display: "inline-flex", alignItems: "center", gap: 7, height: 36, padding: "0 14px", borderRadius: 9, border: "1px solid " + ((v3 ? createEdgeOpen : mapEdgeOpen) ? "var(--ink)" : "var(--line)"), background: (v3 ? createEdgeOpen : mapEdgeOpen) ? "var(--bg-canvas)" : "var(--panel)", cursor: "pointer", fontFamily: "inherit", fontSize: 13, fontWeight: 500, color: "var(--ink)" }}>
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><circle cx="6" cy="12" r="2.4" /><circle cx="18" cy="12" r="2.4" /><line x1="8.4" y1="12" x2="15.6" y2="12" /></svg>
-                Map Edge
-                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ marginLeft: 1, color: "var(--ink-3)", transform: mapEdgeOpen ? "rotate(180deg)" : "none", transition: "transform 120ms" }}><path d="M6 9l6 6 6-6" /></svg>
+                {v3 ? "Create Edge" : "Map Edge"}
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ marginLeft: 1, color: "var(--ink-3)", transform: (v3 ? createEdgeOpen : mapEdgeOpen) ? "rotate(180deg)" : "none", transition: "transform 120ms" }}><path d="M6 9l6 6 6-6" /></svg>
               </button>
-              {mapEdgeOpen && (
+              {/* v3: create an edge at runtime — name, source, destination, then map attributes */}
+              {v3 && createEdgeOpen && (() => {
+                const nodeOpts = nodePickerOpts;
+                const lbl2 = { display: "block", fontFamily: "'JetBrains Mono', monospace", fontSize: 9, letterSpacing: "0.5px", textTransform: "uppercase", color: "var(--ink-4)", marginBottom: 5, marginTop: 12 };
+                const nameOk = ceLabel.trim().length >= 2;
+                const valid = nameOk && ceFromId && ceToId;
+                const nodeT = o => o ? <span style={{ display: "flex", alignItems: "center", gap: 8 }}>{o.node && window.ListGlyph ? <window.ListGlyph node={o.node} size={16} /> : null}<span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 12.5, color: "var(--ink)" }}>{o.label}</span></span> : <span style={{ color: "var(--ink-4)", fontSize: 13 }}>Select…</span>;
+                const create = () => {
+                  if (!valid) return;
+                  const fromN = nodeOpts.find(o => o.id === ceFromId), toN2 = nodeOpts.find(o => o.id === ceToId);
+                  addDest("edge", "new:" + ceLabel + ":" + ceFromId + ":" + ceToId, ceLabel.toUpperCase(), { fromId: ceFromId, toId: ceToId, fromLabel: fromN ? fromN.label : ceFromId, toLabel: toN2 ? toN2.label : ceToId });
+                  setCreateEdgeOpen(false); setCeLabel(""); setCeFromId(""); setCeToId("");
+                };
+                return (
+                  <>
+                    <div style={{ position: "fixed", inset: 0, zIndex: 400 }} onClick={() => setCreateEdgeOpen(false)} />
+                    <div style={{ position: "absolute", top: "calc(100% + 6px)", right: 0, zIndex: 401, width: 320, background: "var(--panel)", border: "1px solid var(--line)", borderRadius: 12, boxShadow: "0 16px 44px rgba(40,32,18,0.18)", padding: 16 }}>
+                      <div style={{ fontSize: 13.5, fontWeight: 600, color: "var(--ink)", marginBottom: 4 }}>Create edge</div>
+                      <label style={Object.assign({}, lbl2, { marginTop: 8 })}>Edge name</label>
+                      <div style={{ position: "relative" }}>
+                        <span style={{ position: "absolute", left: 11, top: "50%", transform: "translateY(-50%)", fontFamily: "'JetBrains Mono', monospace", fontSize: 13, color: "var(--ink-4)", pointerEvents: "none" }}>:</span>
+                        <input autoFocus className="winput" style={{ paddingLeft: 22, height: 38, fontFamily: "'JetBrains Mono', monospace" }} placeholder="WORKS_AT" value={ceLabel} onChange={e => setCeLabel(e.target.value.toUpperCase().replace(/[^A-Z_]/g, ""))} />
+                      </div>
+                      <label style={lbl2}>Source</label>
+                      <CustomSelect value={ceFromId} onChange={setCeFromId} options={nodeOpts} searchable searchPlaceholder="Search nodes…" placeholder="Select source…" renderTrigger={nodeT} renderOption={o => nodeT(o)} />
+                      <label style={lbl2}>Destination</label>
+                      <CustomSelect value={ceToId} onChange={setCeToId} options={nodeOpts} searchable searchPlaceholder="Search nodes…" placeholder="Select destination…" renderTrigger={nodeT} renderOption={o => nodeT(o)} />
+                      <button onClick={create} disabled={!valid} style={{ marginTop: 16, width: "100%", height: 38, borderRadius: 8, border: "none", background: "var(--green-btn)", color: "#fff", fontFamily: "inherit", fontSize: 13, fontWeight: 500, cursor: valid ? "pointer" : "default", opacity: valid ? 1 : 0.45 }}>Create edge</button>
+                    </div>
+                  </>
+                );
+              })()}
+              {!v3 && mapEdgeOpen && (
                 <>
                   <div style={{ position: "fixed", inset: 0, zIndex: 400 }} onClick={() => { setMapEdgeOpen(false); setMapEdgeQ(""); }} />
                   <div style={{ position: "absolute", top: "calc(100% + 6px)", right: 0, zIndex: 401, width: 340, maxHeight: 420, display: "flex", flexDirection: "column", background: "var(--panel)", border: "1px solid var(--line)", borderRadius: 12, boxShadow: "0 16px 44px rgba(40,32,18,0.18)", padding: 6 }}>
@@ -3770,7 +3874,12 @@ function SrcMapping({ s, set, groups, activeObj, nodeProps, node, sel, openCol, 
                       <input autoFocus className="winput" style={{ paddingLeft: 34, height: 38 }} placeholder="Search edges…" value={mapEdgeQ} onChange={e => setMapEdgeQ(e.target.value)} />
                     </div>
                     <div style={{ overflowY: "auto" }}>
-                      {edgePickerOpts.filter(o => !mapEdgeQ || (o.label + " " + o.from + " " + o.to).toLowerCase().includes(mapEdgeQ.toLowerCase())).map(o => {
+                      {(function () {
+                        const nodeIds = v5 ? dests.filter(d => d.kind === "node").map(d => d.id) : [];
+                        let list = edgePickerOpts.filter(o => !nodeIds.length || nodeIds.includes(o.fromId));
+                        if (nodeIds.length && !list.length) list = edgePickerOpts; // never show an empty list
+                        return list.filter(o => !mapEdgeQ || (o.label + " " + o.from + " " + o.to).toLowerCase().includes(mapEdgeQ.toLowerCase()));
+                      })().map(o => {
                         const sel = dests.some(d => d.kind === "edge" && d.id === o.id); return (
                         <button key={o.id} onClick={() => { addDest("edge", o.id, o.label); setMapEdgeOpen(false); setMapEdgeQ(""); }}
                           style={{ display: "flex", alignItems: "center", gap: 10, width: "100%", padding: "9px 11px", borderRadius: 8, border: "none", background: sel ? "var(--chip)" : "transparent", cursor: "pointer", fontFamily: "inherit", textAlign: "left" }}
@@ -3788,6 +3897,82 @@ function SrcMapping({ s, set, groups, activeObj, nodeProps, node, sel, openCol, 
                 </>
               )}
             </div>
+          </div>}
+        </div>
+      )}
+
+      {/* ── v5 empty state: guide the user to map a node or edge ───────────── */}
+      {v5 && dests.length === 0 && (
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", textAlign: "center", padding: "72px 24px", border: "1px dashed var(--line)", borderRadius: 14, background: "var(--panel-2)", marginTop: 8 }}>
+          <div style={{ fontFamily: "var(--serif)", fontSize: 22, color: "var(--ink)", marginBottom: 8, display: "inline-flex", alignItems: "center", gap: 10, flexWrap: "wrap", justifyContent: "center" }}>
+            Create a new node or edge from
+            <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
+              {sel && <SrcConnectorLogo c={sel} size={20} />}
+              {current ? current.name : "this object"}
+            </span>
+          </div>
+          <div style={{ fontSize: 13.5, color: "var(--ink-3)", lineHeight: 1.6, maxWidth: 620, marginBottom: 22 }}>
+            Add a node, an edge, or both. Pick one or more destinations to bring this object into the graph.
+          </div>
+          <div style={{ display: "flex", alignItems: "flex-start", gap: 10 }}>
+            <div style={{ position: "relative" }}>
+              <button onClick={() => setMapNodeOpen(o => !o)}
+                style={{ display: "inline-flex", alignItems: "center", gap: 7, height: 38, padding: "0 16px", borderRadius: 9, border: "1px solid " + (mapNodeOpen ? "var(--ink)" : "var(--line)"), background: mapNodeOpen ? "var(--bg-canvas)" : "var(--panel)", cursor: "pointer", fontFamily: "inherit", fontSize: 13, fontWeight: 500, color: "var(--ink)" }}>
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><circle cx="12" cy="12" r="8" /><path d="M12 9v6M9 12h6" /></svg>
+                Map Node
+              </button>
+              {mapNodeOpen && (
+                <>
+                  <div style={{ position: "fixed", inset: 0, zIndex: 400 }} onClick={() => { setMapNodeOpen(false); setMapNodeQ(""); }} />
+                  <div style={{ position: "absolute", top: "calc(100% + 6px)", left: 0, zIndex: 401, width: 320, maxHeight: 360, display: "flex", flexDirection: "column", background: "var(--panel)", border: "1px solid var(--line)", borderRadius: 12, boxShadow: "0 16px 44px rgba(40,32,18,0.18)", padding: 6, textAlign: "left" }}>
+                    <div style={{ position: "relative", marginBottom: 4 }}>
+                      <span style={{ position: "absolute", left: 11, top: "50%", transform: "translateY(-50%)", color: "var(--ink-3)", display: "flex" }}><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7"><circle cx="11" cy="11" r="7" /><path d="M21 21l-4-4" /></svg></span>
+                      <input autoFocus className="winput" style={{ paddingLeft: 34, height: 38 }} placeholder="Search nodes…" value={mapNodeQ} onChange={e => setMapNodeQ(e.target.value)} />
+                    </div>
+                    <div style={{ overflowY: "auto" }}>
+                      {nodePickerOpts.filter(o => !mapNodeQ || o.label.toLowerCase().includes(mapNodeQ.toLowerCase())).map(o => (
+                        <button key={o.id} onClick={() => { addDest("node", o.id, o.label); setMapNodeOpen(false); setMapNodeQ(""); }}
+                          style={{ display: "flex", alignItems: "center", gap: 9, width: "100%", padding: "8px 10px", borderRadius: 7, border: "none", background: "transparent", cursor: "pointer", fontFamily: "inherit", textAlign: "left" }}
+                          onMouseEnter={e => e.currentTarget.style.background = "var(--panel-2)"} onMouseLeave={e => e.currentTarget.style.background = "transparent"}>
+                          <span style={{ flexShrink: 0, display: "flex" }}>{(typeof window !== "undefined" && window.ListGlyph) ? <window.ListGlyph node={o.node} size={18} /> : null}</span>
+                          <span style={{ flex: 1, fontFamily: "'JetBrains Mono', monospace", fontSize: 12.5, color: "var(--ink)" }}>{o.label}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
+            <div style={{ position: "relative" }}>
+              <button onClick={() => setMapEdgeOpen(o => !o)}
+                style={{ display: "inline-flex", alignItems: "center", gap: 7, height: 38, padding: "0 16px", borderRadius: 9, border: "1px solid " + (mapEdgeOpen ? "var(--ink)" : "var(--line)"), background: mapEdgeOpen ? "var(--bg-canvas)" : "var(--panel)", cursor: "pointer", fontFamily: "inherit", fontSize: 13, fontWeight: 500, color: "var(--ink)" }}>
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><circle cx="6" cy="12" r="2.4" /><circle cx="18" cy="12" r="2.4" /><line x1="8.4" y1="12" x2="15.6" y2="12" /></svg>
+                Map Edge
+              </button>
+              {mapEdgeOpen && (
+                <>
+                  <div style={{ position: "fixed", inset: 0, zIndex: 400 }} onClick={() => { setMapEdgeOpen(false); setMapEdgeQ(""); }} />
+                  <div style={{ position: "absolute", top: "calc(100% + 6px)", left: 0, zIndex: 401, width: 340, maxHeight: 360, display: "flex", flexDirection: "column", background: "var(--panel)", border: "1px solid var(--line)", borderRadius: 12, boxShadow: "0 16px 44px rgba(40,32,18,0.18)", padding: 6, textAlign: "left" }}>
+                    <div style={{ position: "relative", marginBottom: 4 }}>
+                      <span style={{ position: "absolute", left: 11, top: "50%", transform: "translateY(-50%)", color: "var(--ink-3)", display: "flex" }}><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7"><circle cx="11" cy="11" r="7" /><path d="M21 21l-4-4" /></svg></span>
+                      <input autoFocus className="winput" style={{ paddingLeft: 34, height: 38 }} placeholder="Search edges…" value={mapEdgeQ} onChange={e => setMapEdgeQ(e.target.value)} />
+                    </div>
+                    <div style={{ overflowY: "auto" }}>
+                      {edgePickerOpts.filter(o => !mapEdgeQ || (o.label + " " + o.from + " " + o.to).toLowerCase().includes(mapEdgeQ.toLowerCase())).map(o => (
+                        <button key={o.id} onClick={() => { addDest("edge", o.id, o.label); setMapEdgeOpen(false); setMapEdgeQ(""); }}
+                          style={{ display: "flex", alignItems: "center", gap: 10, width: "100%", padding: "9px 11px", borderRadius: 8, border: "none", background: "transparent", cursor: "pointer", fontFamily: "inherit", textAlign: "left" }}
+                          onMouseEnter={e => e.currentTarget.style.background = "var(--panel-2)"} onMouseLeave={e => e.currentTarget.style.background = "transparent"}>
+                          <span style={{ flex: 1, minWidth: 0 }}>
+                            <span style={{ display: "block", fontFamily: "'JetBrains Mono', monospace", fontSize: 13, fontWeight: 600, color: "var(--ink)" }}>:{o.label}</span>
+                            <span style={{ display: "block", fontFamily: "'JetBrains Mono', monospace", fontSize: 10.5, color: "var(--ink-4)", marginTop: 2 }}>{o.from} → {o.to}</span>
+                          </span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
           </div>
         </div>
       )}
@@ -3795,10 +3980,10 @@ function SrcMapping({ s, set, groups, activeObj, nodeProps, node, sel, openCol, 
       {/* ── v2: wrap mapping content in a tabbed card (tab = selected node) ── */}
       <div style={(v2 && dests.length) ? { border: "1px solid var(--line)", borderRadius: 12, background: "var(--panel)", overflow: "visible", marginTop: 4 } : undefined}>
         {(v2 && dests.length > 0) && (
-          <div style={{ display: "flex", gap: 2, padding: "0 12px", borderBottom: "1px solid var(--line)", background: "var(--panel)", borderRadius: "12px 12px 0 0", overflowX: "auto" }}>
-            {dests.map(d => { const on = d.key === activeKey; return (
-              <div key={d.key} onClick={() => setActiveKey(d.key)}
-                style={{ display: "flex", alignItems: "center", gap: 6, padding: "14px 14px", borderBottom: "2px solid " + (on ? "var(--ink)" : "transparent"), cursor: "pointer", fontFamily: "var(--sans)", whiteSpace: "nowrap" }}>
+          <div style={{ display: "flex", gap: 2, padding: "0 12px", borderBottom: "1px solid var(--line)", background: "var(--panel)", borderRadius: "12px 12px 0 0", overflowX: v5 ? "visible" : "auto" }}>
+            {dests.map(d => { const on = d.key === activeKey; const multi = dests.length > 1; return (
+              <div key={d.key} onClick={() => multi && setActiveKey(d.key)}
+                style={{ display: "flex", alignItems: "center", gap: 6, padding: "14px 14px", borderBottom: "2px solid " + (on && multi ? "var(--ink)" : "transparent"), cursor: multi ? "pointer" : "default", fontFamily: "var(--sans)", whiteSpace: "nowrap" }}>
                 {d.kind === "node"
                   ? <span style={{ display: "flex", flexShrink: 0 }}>{(typeof window !== "undefined" && window.ListGlyph) ? <window.ListGlyph node={_entNodes.find(n => n.id === d.id) || { id: d.id, label: d.label, type: "entity" }} size={19} /> : null}</span>
                   : <span style={{ display: "flex", flexShrink: 0, color: on ? "var(--ink-2)" : "var(--ink-4)" }}><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><circle cx="6" cy="12" r="2.4" /><circle cx="18" cy="12" r="2.4" /><line x1="8.4" y1="12" x2="15.6" y2="12" /></svg></span>}
@@ -3857,7 +4042,10 @@ function SrcMapping({ s, set, groups, activeObj, nodeProps, node, sel, openCol, 
 
       {/* ── v2 edge tab: foreign key linking to the destination node ───────── */}
       {v2 && active && active.kind === "edge" && (() => {
-        const ae = edgePickerOpts.find(o => o.id === active.id) || {};
+        // v3 created edges carry their endpoints on the dest; existing edges resolve from the catalog.
+        const ae = (active.fromId || active.toId)
+          ? { label: active.label, from: active.fromLabel, to: active.toLabel, fromId: active.fromId, toId: active.toId }
+          : (edgePickerOpts.find(o => o.id === active.id) || {});
         const destNode = _entNodes.find(n => n.id === ae.toId) || _winNodes.find(n => n.id === ae.toId) || null;
         const destProps = (destNode && window.generateProps) ? window.generateProps(destNode) : [];
         const destPk = (destProps.find(p => p.pk) || destProps[0] || {}).name || "id";
@@ -3865,6 +4053,40 @@ function SrcMapping({ s, set, groups, activeObj, nodeProps, node, sel, openCol, 
         const toSuggest = (allFields.find(c => norm(c.col) === norm(ae.to) + "id") || {}).col || "";
         const toKey = mapping[mk(current.name, "__to__")] || toSuggest;
         const fromNode = _entNodes.find(n => n.id === ae.fromId) || _winNodes.find(n => n.id === ae.fromId) || null;
+        // v5 folds the PK/FK pickers into the header itself (no separate card below).
+        if (v5) {
+          const srcOpts = allFields.map(c => ({ id: c.col, label: c.label || c.col, type: c.type }));
+          const fkProps = (destNode && window.generateProps) ? window.generateProps(destNode).map(p => ({ id: p.name, label: p.name, type: p.type })) : [];
+          const fromKeyN = ((fromNode && fromNode.label) || ae.from || "").toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_|_$/g, "");
+          if (fromKeyN) { const fk = fromKeyN + "_id"; if (!fkProps.some(p => p.id === fk)) fkProps.unshift({ id: fk, label: fk, type: "string" }); }
+          const pkKey = mk(current.name, "__pk__"), fkKey = mk(current.name, "__fk__");
+          const pkVal = mapping[pkKey] || ((srcOpts.find(o => o.id === "id") || srcOpts[0] || {}).id || "");
+          const fkVal = mapping[fkKey] || ((fkProps[0] || {}).id || "");
+          const keyTrigger = o => o
+            ? <span style={{ display: "flex", alignItems: "center", gap: 7, minWidth: 0 }}><MapTypeGlyph type={o.type} size={18} /><span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 12.5, color: "var(--ink)", overflow: "hidden", textOverflow: "ellipsis" }}>{o.label}</span></span>
+            : <span style={{ fontSize: 12, color: "var(--ink-4)" }}>Select key</span>;
+          const keyOption = o => <span style={{ display: "flex", alignItems: "center", gap: 8 }}><MapTypeGlyph type={o.type} size={18} /><span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 12.5 }}>{o.label}</span></span>;
+          const endpoint = (name, badge, val, set, opts, ph) => (
+            <span style={{ display: "inline-flex", alignItems: "center", gap: 9, height: 40, padding: "0 6px 0 12px", border: "1px solid var(--line)", borderRadius: 10, background: "var(--panel)", minWidth: 0 }}>
+              <span style={{ fontSize: 14.5, fontWeight: 600, color: "var(--ink)", whiteSpace: "nowrap" }}>{name}</span>
+              <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 8.5, fontWeight: 700, letterSpacing: "0.4px", color: "var(--ink-3)", background: "var(--chip)", border: "1px solid var(--line)", padding: "1px 5px", borderRadius: 4 }}>{badge}</span>
+              <span style={{ width: 1, height: 22, background: "var(--line)" }} />
+              <span style={{ display: "inline-flex", width: 140 }}>
+                <CustomSelect className="csel-keyhdr" value={val} onChange={set} options={opts} searchable searchPlaceholder={ph} placeholder="Select key" renderTrigger={keyTrigger} renderOption={keyOption} />
+              </span>
+            </span>
+          );
+          return (
+            <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap", padding: "2px", marginBottom: 18 }}>
+              {endpoint(ae.from, "PK", pkVal, v => updateMap(pkKey, v), srcOpts, "Search fields…")}
+              <span style={{ display: "inline-flex", alignItems: "center", gap: 8, color: "var(--ink-3)" }}>
+                <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 10.5, fontWeight: 700, letterSpacing: "0.3px", color: "var(--ink-3)", background: "var(--panel)", border: "1px solid var(--line)", padding: "3px 9px", borderRadius: 20 }}>:{ae.label}</span>
+              </span>
+              {endpoint(ae.to, "FK", fkVal, v => updateMap(fkKey, v), fkProps, "Search properties…")}
+              {headerMenuEl}
+            </div>
+          );
+        }
         return (
           <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", padding: "2px", marginBottom: 16 }}>
             <span style={{ fontSize: 16, fontWeight: 600, color: "var(--ink)" }}>{ae.from}</span>
@@ -3875,17 +4097,10 @@ function SrcMapping({ s, set, groups, activeObj, nodeProps, node, sel, openCol, 
         );
       })()}
 
-      {/* ── v2 node tab: destination node summary (consistent with edge) ───── */}
-      {v2 && active && active.kind === "node" && destNodeId && (
-        <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "2px", marginBottom: 16 }}>
-          <span style={{ fontSize: 16, fontWeight: 600, color: "var(--ink)" }}>Map Properties</span>
-          {headerMenuEl}
-        </div>
-      )}
 
       {/* Gate: field table only appears after destination is chosen */}
       {/* toolbar + mapping table — only shown once destination is selected */}
-      {(destNodeId || (v2 && active && active.kind === "edge")) && <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
+      {(destNodeId || (v2 && !v4 && !(v5 && active && active.kind === "edge") && active && active.kind === "edge")) && <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
 
         {/* filter records */}
         <div style={{ position: "relative" }}>
@@ -3922,6 +4137,7 @@ function SrcMapping({ s, set, groups, activeObj, nodeProps, node, sel, openCol, 
           </span>
           <input className="winput" style={{ paddingLeft: 34, height: 34, paddingTop: 0, paddingBottom: 0 }} placeholder="Search fields…" value={q} onChange={e => setQ(e.target.value)} />
         </div>
+        {v2 && active && active.kind === "node" && <span style={{ display: "flex" }}>{headerMenuEl}</span>}
       </div>}
 
       {destNodeId && <>
@@ -3984,7 +4200,7 @@ function SrcMapping({ s, set, groups, activeObj, nodeProps, node, sel, openCol, 
       </>}
 
       {/* ── v2 edge tab: source fields → editable Attributes ──────────────── */}
-      {v2 && active && active.kind === "edge" && (
+      {v2 && !v4 && !v5 && active && active.kind === "edge" && (
         <div style={{ border: "1px solid var(--line)", borderRadius: 11, background: "var(--panel)", overflow: "visible" }}>
           <div style={{ display: "grid", gridTemplateColumns: GRID, gap: 12, padding: "10px 16px", background: "var(--panel-2)", borderBottom: "1px solid var(--line-2)", borderRadius: "11px 11px 0 0", fontFamily: "'JetBrains Mono', monospace", fontSize: 10, letterSpacing: "0.5px", textTransform: "uppercase", color: "var(--ink-3)" }}>
             <div>Source fields</div><div>Transformations</div><div></div><div>Attributes</div>
@@ -3994,13 +4210,13 @@ function SrcMapping({ s, set, groups, activeObj, nodeProps, node, sel, openCol, 
             const val = mapping[key];
             const editing = editAttrKey === key;
             return (
-              <div key={key} style={{ display: "grid", gridTemplateColumns: GRID, gap: 12, padding: "12px 16px", alignItems: "center", borderTop: i ? "1px solid var(--line-2)" : "none" }}>
+              <div key={key} style={{ display: "grid", gridTemplateColumns: GRID, gap: 12, padding: "5px 16px", alignItems: "center", borderTop: i ? "1px solid var(--line-2)" : "none" }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}>
                   <MapTypeGlyph type={col.type} />
                   <code style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 13, color: "var(--ink)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{col.label || col.col}</code>
                 </div>
                 {(() => { const tlist = transforms[key] || []; return (
-                <button onClick={() => setOpenCol(current.name + "::" + col.col)} style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap", width: "100%", padding: "7px 10px", borderRadius: 8, borderWidth: 1, borderStyle: tlist.length ? "solid" : "dashed", borderColor: tlist.length ? "var(--line)" : "transparent", background: "transparent", cursor: "pointer", fontFamily: "inherit", textAlign: "left", minHeight: 34, fontSize: 12, color: "var(--ink-4)" }}
+                <button onClick={() => setOpenCol(current.name + "::" + col.col)} style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap", width: "100%", padding: "7px 10px", borderRadius: 8, borderWidth: 1, borderStyle: tlist.length ? "solid" : "dashed", borderColor: tlist.length ? "var(--line)" : "transparent", background: "transparent", cursor: "pointer", fontFamily: "inherit", textAlign: "left", minHeight: 28, fontSize: 12, color: "var(--ink-4)" }}
                   onMouseEnter={e => { e.currentTarget.style.background = "var(--panel-2)"; if (!tlist.length) e.currentTarget.style.borderColor = "var(--line)"; }}
                   onMouseLeave={e => { e.currentTarget.style.background = "transparent"; if (!tlist.length) e.currentTarget.style.borderColor = "transparent"; }}>
                   {tlist.length === 0 ? "+ Add transformation" : tlist.map((t, j) => <span key={j} style={{ display: "inline-flex", alignItems: "center", gap: 4, fontFamily: "'JetBrains Mono', monospace", fontSize: 10.5, padding: "2px 7px", borderRadius: 5, background: "var(--chip)", border: "1px solid var(--line)", color: "var(--ink-2)" }}>{t.fn ? tfLabel(t.fn) : "function…"}</span>)}
@@ -4055,6 +4271,164 @@ function SrcMapping({ s, set, groups, activeObj, nodeProps, node, sel, openCol, 
           })}
         </div>
       )}
+
+      {/* ── v4 edge tab: author attributes one by one via a small form ──────── */}
+      {v4 && active && active.kind === "edge" && current && (() => {
+        const ae = (active.fromId || active.toId)
+          ? { label: active.label, from: active.fromLabel, to: active.toLabel, fromId: active.fromId, toId: active.toId }
+          : (edgePickerOpts.find(o => o.id === active.id) || {});
+        const destNode = _entNodes.find(n => n.id === ae.toId) || _winNodes.find(n => n.id === ae.toId) || null;
+        const fkProps = (destNode && window.generateProps) ? window.generateProps(destNode).map(p => ({ id: p.name, label: p.name, type: p.type })) : [];
+        // surface the FK that points back to the source node (e.g. account_id on Opportunity)
+        const fromNode = _entNodes.find(n => n.id === ae.fromId) || _winNodes.find(n => n.id === ae.fromId) || null;
+        const fromKey = ((fromNode && fromNode.label) || ae.from || "").toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_|_$/g, "");
+        if (fromKey) { const fk = fromKey + "_id"; if (!fkProps.some(p => p.id === fk)) fkProps.unshift({ id: fk, label: fk, type: "string" }); }
+        const srcOpts = allFields.map(c => ({ id: c.col, label: c.label || c.col, type: c.type }));
+        const listKey = mk(current.name, "__attrs__");
+        const attrs = Array.isArray(mapping[listKey]) ? mapping[listKey] : [];
+        const valid = v4aName.trim() && v4aSrc && v4aFk;
+        const addAttr = () => {
+          if (!valid) return;
+          updateMap(listKey, attrs.concat([{ name: v4aName.trim().replace(/[^a-zA-Z0-9_]/g, "").toLowerCase(), src: v4aSrc, fk: v4aFk }]));
+          setV4aName(""); setV4aSrc(""); setV4aFk("");
+        };
+        const removeAttr = i => updateMap(listKey, attrs.filter((_, j) => j !== i));
+        const labelCss = { fontFamily: "'JetBrains Mono', monospace", fontSize: 9.5, letterSpacing: "0.5px", textTransform: "uppercase", color: "var(--ink-3)", fontWeight: 600, marginBottom: 6, display: "block" };
+        const srcLabel = id => (srcOpts.find(o => o.id === id) || {}).label || id;
+        const fkLabel = id => (fkProps.find(o => o.id === id) || {}).label || id;
+        return (
+          <div>
+            {/* the create-attribute form */}
+            <div style={{ border: "1px solid var(--line)", borderRadius: 11, background: "var(--panel)", padding: 16, marginBottom: 16, overflow: "visible" }}>
+              <div style={{ display: "grid", gridTemplateColumns: "1.1fr 1fr 1fr auto", gap: 12, alignItems: "end" }}>
+                <div>
+                  <span style={labelCss}>Attribute name</span>
+                  <input value={v4aName} onChange={e => setV4aName(e.target.value.replace(/[^a-zA-Z0-9_ ]/g, ""))}
+                    onKeyDown={e => { if (e.key === "Enter") addAttr(); }} placeholder="attribute_name"
+                    style={{ width: "100%", boxSizing: "border-box", height: 38, padding: "0 11px", border: "1px solid var(--line)", borderRadius: 8, fontFamily: "'JetBrains Mono', monospace", fontSize: 12.5, color: "var(--ink)", background: "var(--bg-canvas)", outline: "none" }} />
+                </div>
+                <div>
+                  <span style={labelCss}>Source property</span>
+                  <CustomSelect value={v4aSrc} onChange={setV4aSrc} options={srcOpts} placeholder="Select source…" searchable searchPlaceholder="Search fields…"
+                    renderTrigger={o => o ? <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 12.5, color: "var(--ink)" }}>{o.label}</span> : <span style={{ color: "var(--ink-4)", fontSize: 12.5 }}>Select source…</span>}
+                    renderOption={o => <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 12.5 }}>{o.label}</span>} />
+                </div>
+                <div>
+                  <span style={labelCss}>Foreign property {ae.to ? "· " + ae.to : ""}</span>
+                  <CustomSelect value={v4aFk} onChange={setV4aFk} options={fkProps} placeholder="Select property…" searchable searchPlaceholder="Search properties…"
+                    renderTrigger={o => o ? <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 12.5, color: "var(--ink)" }}>{o.label}</span> : <span style={{ color: "var(--ink-4)", fontSize: 12.5 }}>Select property…</span>}
+                    renderOption={o => <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 12.5 }}>{o.label}</span>} />
+                </div>
+                <button onClick={addAttr} disabled={!valid}
+                  style={{ height: 38, padding: "0 16px", borderRadius: 8, border: "none", background: "var(--green-btn)", color: "#fff", fontFamily: "inherit", fontSize: 13, fontWeight: 500, cursor: valid ? "pointer" : "default", opacity: valid ? 1 : 0.45, whiteSpace: "nowrap" }}>+ Add</button>
+              </div>
+            </div>
+
+            {/* the attributes added so far */}
+            {attrs.length === 0 ? (
+              <div style={{ border: "1px dashed var(--line)", borderRadius: 11, background: "var(--panel)", padding: "32px", textAlign: "center", color: "var(--ink-3)", fontSize: 12.5 }}>
+                No attributes yet — name one above, pick a source field and the property it matches on, then add it.
+              </div>
+            ) : (
+              <div style={{ border: "1px solid var(--line)", borderRadius: 11, background: "var(--panel)", overflow: "hidden" }}>
+                <div style={{ display: "grid", gridTemplateColumns: "1.1fr 1fr 1fr 36px", gap: 12, padding: "10px 16px", background: "var(--panel-2)", borderBottom: "1px solid var(--line-2)", fontFamily: "'JetBrains Mono', monospace", fontSize: 10, letterSpacing: "0.5px", textTransform: "uppercase", color: "var(--ink-3)" }}>
+                  <div>Attribute</div><div>Source property</div><div>Matches on</div><div></div>
+                </div>
+                {attrs.map((a, i) => (
+                  <div key={i} style={{ display: "grid", gridTemplateColumns: "1.1fr 1fr 1fr 36px", gap: 12, padding: "12px 16px", alignItems: "center", borderTop: i ? "1px solid var(--line-2)" : "none" }}>
+                    <code style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 12.5, fontWeight: 600, color: "var(--ink)" }}>{a.name}</code>
+                    <span style={{ display: "flex", alignItems: "center", gap: 7, minWidth: 0 }}>
+                      <code style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 12, color: "var(--ink-2)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{srcLabel(a.src)}</code>
+                    </span>
+                    <span style={{ display: "flex", alignItems: "center", gap: 7, minWidth: 0 }}>
+                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--ink-4)" strokeWidth="1.8"><path d="M5 12h14M13 6l6 6-6 6" /></svg>
+                      <code style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 12, color: "var(--ink-2)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{fkLabel(a.fk)}</code>
+                    </span>
+                    <button onClick={() => removeAttr(i)} title="Remove attribute"
+                      style={{ width: 28, height: 28, display: "flex", alignItems: "center", justifyContent: "center", border: "none", background: "transparent", borderRadius: 7, cursor: "pointer", color: "var(--ink-4)" }}
+                      onMouseEnter={e => { e.currentTarget.style.background = "var(--panel-2)"; e.currentTarget.style.color = "var(--coral)"; }}
+                      onMouseLeave={e => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = "var(--ink-4)"; }}>
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><path d="M18 6L6 18M6 6l12 12" /></svg>
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        );
+      })()}
+
+      {/* ── v5 edge tab: PK/FK key mapping + attribute-driven table ─────────── */}
+      {v5 && active && active.kind === "edge" && current && (() => {
+        const ae = (active.fromId || active.toId)
+          ? { label: active.label, from: active.fromLabel, to: active.toLabel, fromId: active.fromId, toId: active.toId }
+          : (edgePickerOpts.find(o => o.id === active.id) || {});
+        const destNode = _entNodes.find(n => n.id === ae.toId) || _winNodes.find(n => n.id === ae.toId) || null;
+        const fkProps = (destNode && window.generateProps) ? window.generateProps(destNode).map(p => ({ id: p.name, label: p.name, type: p.type })) : [];
+        const fromNode = _entNodes.find(n => n.id === ae.fromId) || _winNodes.find(n => n.id === ae.fromId) || null;
+        const fromKey = ((fromNode && fromNode.label) || ae.from || "").toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_|_$/g, "");
+        if (fromKey) { const fk = fromKey + "_id"; if (!fkProps.some(p => p.id === fk)) fkProps.unshift({ id: fk, label: fk, type: "string" }); }
+        const srcOpts = allFields.map(c => ({ id: c.col, label: c.label || c.col, type: c.type }));
+        const pkKey = mk(current.name, "__pk__");
+        const fkKey = mk(current.name, "__fk__");
+        const pkVal = mapping[pkKey] || ((srcOpts.find(o => o.id === "id") || srcOpts[0] || {}).id || "");
+        const fkVal = mapping[fkKey] || ((fkProps[0] || {}).id || "");
+        // Attributes are already defined on the edge type itself — render them all
+        // (deterministically derived per edge), names read-only; the user just maps source fields.
+        const _hash = x => { let h = 0; for (let i = 0; i < (x || "").length; i++) h = (h * 31 + x.charCodeAt(i)) >>> 0; return h; };
+        const ATTR_POOL = [
+          { name: "since", type: "datetime" }, { name: "until", type: "datetime" },
+          { name: "weight", type: "decimal" }, { name: "confidence", type: "decimal" },
+          { name: "source_system", type: "string" }, { name: "is_primary", type: "bool" },
+          { name: "role", type: "string" }, { name: "created_at", type: "datetime" },
+        ];
+        const _eh = _hash((ae.label || "") + ":" + (ae.from || ""));
+        const edgeAttrs = (function () {
+          const out = [{ name: "since", type: "datetime" }];
+          const cnt = 2 + (_eh % 3);
+          for (let i = 0; i < cnt; i++) { const it = ATTR_POOL[(_eh + i * 3) % ATTR_POOL.length]; if (!out.some(x => x.name === it.name)) out.push(it); }
+          return out;
+        })();
+        const GRID5 = "1.1fr 1fr 28px 1.1fr";
+        const lblCss = { fontFamily: "'JetBrains Mono', monospace", fontSize: 9.5, letterSpacing: "0.5px", textTransform: "uppercase", color: "var(--ink-3)", fontWeight: 600, display: "block", marginBottom: 7 };
+        const srcTrigger = o => o ? <span style={{ display: "flex", alignItems: "center", gap: 9, minWidth: 0 }}><MapTypeGlyph type={o.type} size={22} /><span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 12.5, color: "var(--ink)", overflow: "hidden", textOverflow: "ellipsis" }}>{o.label}</span></span> : <span style={{ fontSize: 12, color: "var(--ink-4)" }}>Select source field</span>;
+        const srcOption = o => <span style={{ display: "flex", alignItems: "center", gap: 9 }}><MapTypeGlyph type={o.type} size={20} /><span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 12.5 }}>{o.label}</span></span>;
+        return (
+          <div>
+            {/* Attributes table — attribute · transformation · source field */}
+            <div style={{ border: "1px solid var(--line)", borderRadius: 11, background: "var(--panel)", overflow: "visible" }}>
+              <div style={{ display: "grid", gridTemplateColumns: GRID5, gap: 12, padding: "10px 16px", background: "var(--panel-2)", borderBottom: "1px solid var(--line-2)", borderRadius: "11px 11px 0 0", fontFamily: "'JetBrains Mono', monospace", fontSize: 10, letterSpacing: "0.5px", textTransform: "uppercase", color: "var(--ink-3)" }}>
+                <div>Source field</div><div>Transformations</div><div></div><div>Attribute</div>
+              </div>
+              {edgeAttrs.map((a, i) => {
+                const tfKey = mk(current.name, "__eat__" + a.name);
+                const srcKey = mk(current.name, "__eav__" + a.name);
+                const tlist = transforms[tfKey] || [];
+                const mapped = mapping[srcKey];
+                return (
+                  <div key={a.name} style={{ display: "grid", gridTemplateColumns: GRID5, gap: 12, padding: "5px 16px", alignItems: "center", borderTop: "1px solid var(--line-2)" }}>
+                    {/* source field selector — the starting point, can be empty */}
+                    <CustomSelect className="csel-ghost" value={mapped || ""} onChange={v => updateMap(srcKey, v)} options={srcOpts} searchable searchPlaceholder="Search fields…" placeholder="Select source field" renderTrigger={srcTrigger} renderOption={srcOption} />
+                    {/* transformation */}
+                    <button onClick={() => setOpenCol(current.name + "::__eat__" + a.name)} style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap", width: "100%", padding: "7px 10px", borderRadius: 8, borderWidth: 1, borderStyle: tlist.length ? "solid" : "dashed", borderColor: tlist.length ? "var(--line)" : "transparent", background: "transparent", cursor: "pointer", fontFamily: "inherit", textAlign: "left", minHeight: 28, fontSize: 12, color: "var(--ink-4)" }}
+                      onMouseEnter={e => { e.currentTarget.style.background = "var(--panel-2)"; if (!tlist.length) e.currentTarget.style.borderColor = "var(--line)"; }}
+                      onMouseLeave={e => { e.currentTarget.style.background = "transparent"; if (!tlist.length) e.currentTarget.style.borderColor = "transparent"; }}>
+                      {tlist.length === 0 ? "+ Add transformation" : tlist.map((t, j) => <span key={j} style={{ display: "inline-flex", alignItems: "center", gap: 4, fontFamily: "'JetBrains Mono', monospace", fontSize: 10.5, padding: "2px 7px", borderRadius: 5, background: "var(--chip)", border: "1px solid var(--line)", color: "var(--ink-2)" }}>{t.fn ? tfLabel(t.fn) : "function…"}</span>)}
+                    </button>
+                    {/* flow arrow */}
+                    <div style={{ textAlign: "center", color: mapped ? "var(--green)" : "var(--ink-4)", fontSize: 15 }}>→</div>
+                    {/* attribute name (defined on the edge — read-only target) */}
+                    <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}>
+                      <MapTypeGlyph type={a.type} />
+                      <code style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 13, fontWeight: 600, color: "var(--ink)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{a.name}</code>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        );
+      })()}
         </div>
       </div>
     </StepWrap>
