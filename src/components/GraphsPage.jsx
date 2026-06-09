@@ -2,7 +2,7 @@ import { useState } from 'react'
 import MiniGraph from './MiniGraph'
 
 export const GRAPHS = [
-  { id:'enterprise', label:'GLOBAL',   labelColor:'#9a6b1f', tint:'#f6ecd8', accent:'#b0832f', name:'Enterprise Context Graph' },
+  { id:'enterprise', label:'GLOBAL',   labelColor:'#9a6b1f', tint:'#f6ecd8', accent:'#b0832f', name:'Unified Context Graph' },
   { id:'customer',   label:'CUSTOMER', labelColor:'#6d28d9', tint:'#efe8fb', accent:'#8b5cf6', name:'Customer 360 Graph' },
   { id:'finance',    label:'FINANCE',  labelColor:'#1f7a40', tint:'#e3f4e7', accent:'#46a05c', name:'Finance graph' },
   { id:'sale',       label:'REVENUE',  labelColor:'#5b6066', tint:'#eef0f1', accent:'#9298a0', name:'Sales Graph' },
@@ -29,7 +29,7 @@ export default function GraphsPage({ onOpenGraph }) {
         <div style={{ padding:'18px 26px 0', flexShrink:0 }}>
           <div style={{ display:'flex', alignItems:'center', marginBottom:18 }}>
             <h1 style={{ fontFamily:'var(--serif)', fontSize:27, fontWeight:500, color:'#1a1a1a', letterSpacing:-0.3, flex:1 }}>
-              Enterprise Context Graph
+              Unified Context Graph
             </h1>
             <div style={{ display:'flex', gap:34, marginRight:22 }}>
               {[['GRAPHS','9'],['NODES','183,202'],['SOURCES','12']].map(([l,v]) => (

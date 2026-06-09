@@ -2586,7 +2586,7 @@ function SrcDiscover({ s, set, sel }) {
           </div>
           <div style={{ opacity: kind ? 1 : 0.45, pointerEvents: kind ? "auto" : "none", transition: "opacity 120ms" }}>
             <div className="wfr-label">{isAuto ? "Automation" : "Discovery agent"}</div>
-            <SrcRichSelect value={agent} onChange={chooseAgent} options={kind ? agentOpts : []} emptyLabel={kind ? (isAuto ? "Select an automation…" : "Select an agent…") : "Pick a method first"} noDesc />
+            <SrcRichSelect value={agent} onChange={chooseAgent} options={kind ? agentOpts : []} emptyLabel={kind ? (isAuto ? "Select an automation…" : "Select an agent…") : "Pick a method first"} noDesc noIcon />
           </div>
         </div>
       </div>
@@ -2598,6 +2598,7 @@ function SrcDiscover({ s, set, sel }) {
               const on = isIncluded(e);
               return (
                 <label key={e.id} style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 15px", borderRadius: 10, cursor: "pointer", border: "1px solid var(--line-2)", background: on ? "#fff" : "transparent", opacity: on ? 1 : 0.62, transition: "opacity 120ms, background 120ms" }}>
+                  {sel && <SrcConnectorLogo c={sel} size={18} />}
                   <span style={{ flex: 1, minWidth: 0, fontSize: 14, fontWeight: 600, color: "var(--ink)" }}>{e.name}</span>
                   <input type="checkbox" checked={on} onChange={() => toggle(e.id)} style={{ accentColor: "#1a1a1a", width: 16, height: 16, flexShrink: 0 }} />
                 </label>

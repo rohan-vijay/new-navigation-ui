@@ -69,7 +69,7 @@ export default function GraphDetailPage({ graph, onBack }) {
         </button>
         <div style={{ marginRight:24 }}>
           <div style={{ fontFamily:'var(--serif)', fontSize:20, fontWeight:500, color:'#1a1a1a', lineHeight:1.1 }}>
-            {graph?.name || 'Enterprise Context Graph'}
+            {graph?.name || 'Unified Context Graph'}
           </div>
           <div style={{ display:'flex', alignItems:'center', gap:5, fontFamily:'var(--mono)', fontSize:10.5, color:'#9ca3af', marginTop:2 }}>
             <span style={{ width:6, height:6, borderRadius:'50%', background:'#3fb863' }}/>LIVE · V2.14.0

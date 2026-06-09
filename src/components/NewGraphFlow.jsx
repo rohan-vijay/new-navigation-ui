@@ -252,7 +252,7 @@ function cdmLink(module) {
 var GRAPH_STARTING_POINTS = [
   // ── Enterprise-wide / cross-functional ─────────────────────────────────
   { id:"enterprise-core", industry:["any","saas","fintech","retail","manufacturing","professional","media","public","logistics","healthcare"], fn:["enterprise","data-platform"],
-    name:"Enterprise Context Graph",
+    name:"Unified Context Graph",
     desc:"The cross-functional spine every team queries — the union of CRM, HR, finance, service, marketing, procurement and governance entities in one model. Built to be the parent context graph that every other graph in this workspace draws from.",
     entities:[
       // People & org

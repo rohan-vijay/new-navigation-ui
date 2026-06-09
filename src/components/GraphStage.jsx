@@ -139,7 +139,7 @@ const PS_EDGES = [
 ];
 
 const IS_PS_GRAPH = false;
-// ── Enterprise Context Graph: realistic customer-engagement dataset ──────────
+// ── Unified Context Graph: realistic customer-engagement dataset ──────────
 // 34 entities + 13 sources = 47 nodes, ~64 edges. Positioned in lifecycle
 // clusters (marketing / sales / product / success / finance) with sources on an
 // outer ring. Synthetic but stable stats per node.
@@ -6417,13 +6417,13 @@ function PropertiesPane({ node, properties }) {
           {/* Columns: Name | Key | Type | Fill | Conformance | Flags | chevron.
               All headers are left-aligned (including the numeric Fill / Conformance),
               so the column label sits flush with where the data starts reading. */}
-          <div className="props-head" style={{ gridTemplateColumns:"1.6fr 1.2fr 1.2fr 1fr 1fr 0.8fr 30px" }}>
+          <div className="props-head" style={{ gridTemplateColumns:"1.6fr 1.2fr 1.2fr 0.9fr 1.1fr 1fr 30px" }}>
             <button className="props-th" onClick={() => onSort("name")}>Name{sortIcon("name")}</button>
             <button className="props-th" onClick={() => onSort("name")}>Key{sortIcon("name")}</button>
             <button className="props-th" onClick={() => onSort("type")}>Type{sortIcon("type")}</button>
-            <button className="props-th" onClick={() => onSort("fill")} style={{ textAlign:"left" }}>Fill{sortIcon("fill")}</button>
-            <button className="props-th" onClick={() => onSort("conf")} style={{ textAlign:"left" }}>Conformance{sortIcon("conf")}</button>
             <div className="props-th">Flags</div>
+            <div className="props-th">Owner</div>
+            <div className="props-th">Modified On</div>
             <div className="props-th props-th-action"></div>
           </div>
 
@@ -6443,6 +6443,9 @@ function PropertiesPane({ node, properties }) {
                 <span title={title} style={{ display:"inline-flex", alignItems:"center", justifyContent:"center", height:18, padding:"0 6px", borderRadius:4, background:tone.bg, color:tone.fg, fontFamily:"JetBrains Mono", fontSize:9.5, fontWeight:700, letterSpacing:"0.4px", flexShrink:0 }}>{label}</span>
               );
             }
+            var PROP_OWNERS = ["James Carter", "Emily Rodriguez", "Olivia Bennett", "Michael Brooks", "David Sullivan"];
+            var PROP_MODIFIED = ["2 hours ago", "Yesterday", "3 days ago", "5 days ago", "1 week ago", "2 weeks ago"];
+            function _phash(str){ var h = 0; for (var i = 0; i < str.length; i++) h = (h * 31 + str.charCodeAt(i)) >>> 0; return h; }
             function renderRow(p, depth, parentKey) {
               var keyId = (parentKey ? parentKey + "." : "") + p.name;
               var hasChildren = !!(p.children && p.children.length);
@@ -6486,7 +6489,7 @@ function PropertiesPane({ node, properties }) {
               var nestable = p.type === "struct" || p.type === "array" || p.type === "object";
               var rowHovered = hoverRowKey === keyId;
               return (
-                <div key={keyId} className="props-row" style={{ gridTemplateColumns:"1.6fr 1.2fr 1.2fr 1fr 1fr 0.8fr 30px", position:"relative" }}
+                <div key={keyId} className="props-row" style={{ gridTemplateColumns:"1.6fr 1.2fr 1.2fr 0.9fr 1.1fr 1fr 30px", position:"relative" }}
                   onMouseEnter={function(){ setHoverRowKey(keyId); }}
                   onMouseLeave={function(){ setHoverRowKey(function(k){ return k === keyId ? null : k; }); }}
                   onClick={function(){ setPropEditRow(p); setPropFlowParent(""); setPropFlowMode("manual"); setPropFlowOpen(true); }}>
@@ -6520,24 +6523,21 @@ function PropertiesPane({ node, properties }) {
                       <span style={{ fontFamily:"JetBrains Mono", fontSize:12, color:"var(--ink-2)" }}>{p.type}</span>
                     </span>
                   </div>
-                  <div className="props-cell">
-                    <div style={{ display:"flex", alignItems:"center", gap:8 }}>
-                      <div style={{ position:"relative", flex:"1 1 70px", maxWidth:80, height:6, background:"var(--line)", borderRadius:3, overflow:"hidden" }}><div style={{ position:"absolute", left:0, top:0, bottom:0, width: p.fill + "%", background: fillC, borderRadius:3 }} /></div>
-                      <span style={{ fontFamily:"JetBrains Mono", fontSize:12, color: fillC, fontWeight:600, minWidth:36 }}>{p.fill}%</span>
-                    </div>
-                  </div>
-                  <div className="props-cell">
-                    <div style={{ display:"flex", alignItems:"center", gap:8 }}>
-                      <div style={{ position:"relative", flex:"1 1 70px", maxWidth:80, height:6, background:"var(--line)", borderRadius:3, overflow:"hidden" }}><div style={{ position:"absolute", left:0, top:0, bottom:0, width: p.conf + "%", background: confC, borderRadius:3 }} /></div>
-                      <span style={{ fontFamily:"JetBrains Mono", fontSize:12, color: confC, fontWeight:600, minWidth:36 }}>{p.conf}%</span>
-                    </div>
-                  </div>
                   <div className="props-cell" style={{ display:"flex", alignItems:"center", gap:5 }}>
                     {p.required && <FlagPill title="Required"   tone={{ bg:"var(--coral-fill)", fg:"var(--coral)" }} label="REQ" />}
                     {p.indexed  && <FlagPill title="Indexed"    tone={{ bg:"var(--blue-fill)",  fg:"var(--blue)" }}  label="IDX" />}
                     {p.unique   && <FlagPill title="Unique"     tone={{ bg:"var(--chip)",       fg:"#8a7340" }}      label="UNQ" />}
                     {p.pii      && <FlagPill title="PII"        tone={{ bg:"var(--chip)",       fg:"var(--ink-2)" }} label="PII" />}
                     {!p.required && !p.indexed && !p.unique && !p.pii && <span style={{ fontFamily:"JetBrains Mono", fontSize:10.5, color:"var(--ink-4)" }}>—</span>}
+                  </div>
+                  <div className="props-cell">
+                    <span style={{ display:"inline-flex", alignItems:"center", gap:8, fontSize:13, color:"var(--ink-2)", whiteSpace:"nowrap" }}>
+                      <span style={{ width:22, height:22, borderRadius:"50%", background:"#ede4d2", color:"#8a7648", fontSize:10.5, fontWeight:700, border:"1px solid #e3d8c0", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>{PROP_OWNERS[_phash(keyId) % PROP_OWNERS.length].charAt(0)}</span>
+                      {PROP_OWNERS[_phash(keyId) % PROP_OWNERS.length]}
+                    </span>
+                  </div>
+                  <div className="props-cell">
+                    <span style={{ fontSize:13, color:"var(--ink-3)", whiteSpace:"nowrap" }}>{PROP_MODIFIED[_phash(keyId) % PROP_MODIFIED.length]}</span>
                   </div>
                   <div className="props-cell props-chevron">›</div>
                 </div>
@@ -7775,7 +7775,10 @@ function AddPropertyFlowModal({ node, mode, initialProperty, seedComputed, seedP
               <label style={{ display:"flex", alignItems:"flex-start", gap:11, padding:"13px 14px", border:"1px solid var(--line)", borderRadius:9, background:"var(--panel)", cursor:"pointer", boxShadow:"inset 0 1px 0 rgba(255,255,255,0.6)" }}>
                 <input type="checkbox" checked={pInGraph} onChange={function(e){ setPInGraph(e.target.checked); }} style={{ accentColor:"var(--ink)", width:15, height:15, marginTop:2, flexShrink:0 }} />
                 <div style={{ flex:1, minWidth:0 }}>
-                  <div style={{ fontSize:13.5, fontWeight:600, color:"var(--ink)" }}>Graph queryable</div>
+                  <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+                    <span style={{ fontSize:13.5, fontWeight:600, color:"var(--ink)" }}>Graph queryable</span>
+                    <span style={{ fontFamily:"JetBrains Mono", fontSize:9, padding:"2px 6px", borderRadius:4, background:"var(--chip)", color:"var(--ink-2)", fontWeight:700, letterSpacing:"0.4px" }}>GQ</span>
+                  </div>
                   <div style={{ fontFamily:"JetBrains Mono", fontSize:10, color:"var(--ink-3)", marginTop:4, lineHeight:1.45 }}>Makes this property usable in graph (Cypher) queries.</div>
                 </div>
               </label>

@@ -2,17 +2,17 @@ import { useState } from 'react'
 import { Dropdown, SharedIcon, StatusBadge } from './SkillsPage'
 import { NewGraphFlow } from './NewGraphFlow'
 
-// sample Enterprise Context Graphs
+// sample Unified Context Graphs
 const GRAPHS = [
-  { id: 'ecg', name: 'Enterprise Context Graph', version: 'v1.0.0', status: 'Live', nodes: 47, edges: 60, sources: 13, lastSync: '2 min ago', sharedType: 'org', shared: 'Everyone', owner: 'James Carter', ownerInit: 'J', modified: '2 hours ago', isECG: true },
-  { name: 'Customer 360',          version: 'v3.2.0', status: 'Live',     nodes: 42850, edges: 183202, sources: 12, lastSync: '2 min ago',  sharedType: 'org',     shared: 'Everyone',        owner: 'James Carter',    ownerInit: 'J', modified: '2 hours ago' },
-  { name: 'Product Catalog Graph', version: 'v2.1.0', status: 'Live',     nodes: 18430, edges: 64120,  sources: 6,  lastSync: '18 min ago', sharedType: 'team',    shared: 'Data Team',       owner: 'Emily Rodriguez', ownerInit: 'E', modified: '5 hours ago' },
-  { name: 'Revenue Operations',    version: 'v0.9.0', status: 'Draft',    nodes: 9820,  edges: 41760,  sources: 9,  lastSync: '1 hour ago', sharedType: 'team',    shared: 'RevOps Team',     owner: 'Olivia Bennett',  ownerInit: 'O', modified: 'Yesterday' },
-  { name: 'Supply Chain Network',  version: 'v4.0.1', status: 'Live',     nodes: 31200, edges: 128940, sources: 14, lastSync: '4 hours ago',sharedType: 'org',     shared: 'Everyone',        owner: 'Michael Brooks',  ownerInit: 'M', modified: '2 days ago' },
-  { name: 'Marketing Attribution', version: 'v1.5.2', status: 'Archived', nodes: 7640,  edges: 22980,  sources: 8,  lastSync: '6 hours ago',sharedType: 'users',   shared: '10 Users',        owner: 'Olivia Bennett',  ownerInit: 'O', modified: '3 days ago' },
-  { name: 'Support Knowledge',     version: 'v2.0.0', status: 'Live',     nodes: 5310,  edges: 16470,  sources: 4,  lastSync: '1 day ago',  sharedType: 'team',    shared: 'Support Team',    owner: 'Emily Rodriguez', ownerInit: 'E', modified: '4 days ago' },
-  { name: 'Employee Directory',    version: 'v0.4.0', status: 'Draft',    nodes: 2940,  edges: 8120,   sources: 3,  lastSync: '1 day ago',  sharedType: 'private', shared: 'Only me',         owner: 'David Sullivan',  ownerInit: 'D', modified: '1 week ago' },
-  { name: 'Finance Ledger Graph',  version: 'v1.2.0', status: 'Archived', nodes: 12760, edges: 53400,  sources: 7,  lastSync: '2 days ago', sharedType: 'teams',   shared: '2 Users, 4 Teams',owner: 'David Sullivan',  ownerInit: 'D', modified: '2 weeks ago' },
+  { id: 'ecg', name: 'Unified Context Graph', version: 'v1.0.0', status: 'Live', nodes: 47, edges: 60, sources: 13, lastSync: '2 min ago', sharedType: 'org', shared: 'Everyone', owner: 'James Carter', ownerInit: 'J', modified: '2 hours ago', isECG: true },
+  { name: 'Unified Customer Graph',          version: 'v3.2.0', status: 'Live',     nodes: 42850, edges: 183202, sources: 12, lastSync: '2 min ago',  sharedType: 'org',     shared: 'Everyone',        owner: 'James Carter',    ownerInit: 'J', modified: '2 hours ago' },
+  { name: 'Unified Product Graph', version: 'v2.1.0', status: 'Live',     nodes: 18430, edges: 64120,  sources: 6,  lastSync: '18 min ago', sharedType: 'team',    shared: 'Data Team',       owner: 'Emily Rodriguez', ownerInit: 'E', modified: '5 hours ago' },
+  { name: 'Unified Revenue Graph',    version: 'v0.9.0', status: 'Draft',    nodes: 9820,  edges: 41760,  sources: 9,  lastSync: '1 hour ago', sharedType: 'team',    shared: 'RevOps Team',     owner: 'Olivia Bennett',  ownerInit: 'O', modified: 'Yesterday' },
+  { name: 'Unified Supply Chain Graph',  version: 'v4.0.1', status: 'Live',     nodes: 31200, edges: 128940, sources: 14, lastSync: '4 hours ago',sharedType: 'org',     shared: 'Everyone',        owner: 'Michael Brooks',  ownerInit: 'M', modified: '2 days ago' },
+  { name: 'Unified Marketing Graph', version: 'v1.5.2', status: 'Archived', nodes: 7640,  edges: 22980,  sources: 8,  lastSync: '6 hours ago',sharedType: 'users',   shared: '10 Users',        owner: 'Olivia Bennett',  ownerInit: 'O', modified: '3 days ago' },
+  { name: 'Unified Support Graph',     version: 'v2.0.0', status: 'Live',     nodes: 5310,  edges: 16470,  sources: 4,  lastSync: '1 day ago',  sharedType: 'team',    shared: 'Support Team',    owner: 'Emily Rodriguez', ownerInit: 'E', modified: '4 days ago' },
+  { name: 'Unified Employee Graph',    version: 'v0.4.0', status: 'Draft',    nodes: 2940,  edges: 8120,   sources: 3,  lastSync: '1 day ago',  sharedType: 'private', shared: 'Only me',         owner: 'David Sullivan',  ownerInit: 'D', modified: '1 week ago' },
+  { name: 'Unified Finance Graph',  version: 'v1.2.0', status: 'Archived', nodes: 12760, edges: 53400,  sources: 7,  lastSync: '2 days ago', sharedType: 'teams',   shared: '2 Users, 4 Teams',owner: 'David Sullivan',  ownerInit: 'D', modified: '2 weeks ago' },
 ]
 
 const GRAPH_COLS = [
@@ -55,7 +55,7 @@ export default function ContextGraphsPage({ onCreate, onOpenGraph }) {
       <div style={{ padding: '18px 26px 0', flexShrink: 0 }}>
         <div style={{ display: 'flex', alignItems: 'center', marginBottom: 18 }}>
           <h1 style={{ flex: 1, fontFamily: 'var(--serif)', fontSize: 27, fontWeight: 500, color: '#1a1a1a', letterSpacing: -0.3, lineHeight: 1.1, whiteSpace: 'nowrap' }}>
-            Enterprise Context Graph
+            Unified Context Graph
           </h1>
           <button onClick={() => setNewGraph(true)} style={{
             background: 'var(--green-btn)', color: '#fff', border: 'none', borderRadius: 9,
