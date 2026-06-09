@@ -1056,7 +1056,7 @@ function Legend({ filter, setFilter, showCounts, setShowCounts }) {
         <>
           <span className="legend-div" />
           <button className={"legend-pill" + (showCounts ? "" : " off")} onClick={() => setShowCounts(v => !v)} title="Toggle instance counts on nodes">
-            <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 10.5, fontWeight: 700, letterSpacing: "0.5px", lineHeight: 1 }}>123</span>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="20" x2="18" y2="10" /><line x1="12" y1="20" x2="12" y2="4" /><line x1="6" y1="20" x2="6" y2="14" /></svg>
           Counts
           </button>
         </>
@@ -4197,7 +4197,7 @@ function NewEdgeFlow({ onClose, onCreate, fromNode, toNode, initialLabel, initia
           style={{ display:"flex", alignItems:"center", gap:10, width:"100%", height:42, padding:"0 13px", boxSizing:"border-box", border:"1px solid var(--line)", borderRadius:7, background: disabled ? "var(--panel-2)" : "var(--panel)", cursor: disabled ? "default" : "pointer", fontFamily:"inherit", textAlign:"left", opacity: disabled ? 0.85 : 1 }}>
           {sel ? (
             <>
-              <span style={{ width:10, height:10, borderRadius:"50%", background: dot(sel), flexShrink:0 }} />
+              <ListGlyph node={sel} size={18} />
               <span style={{ flex:1, fontSize:13, fontWeight:600, color:"var(--ink)" }}>{sel.label}</span>
               {disabled && <span style={{ fontFamily:"JetBrains Mono", fontSize:9, padding:"2px 6px", borderRadius:3, background:"var(--chip)", color:"var(--ink-3)", letterSpacing:"0.5px" }}>LOCKED</span>}
               {!disabled && <span style={{ color:"var(--ink-3)", fontSize:11, fontFamily:"JetBrains Mono" }}>▾</span>}
@@ -4220,7 +4220,7 @@ function NewEdgeFlow({ onClose, onCreate, fromNode, toNode, initialLabel, initia
                     style={{ display:"flex", alignItems:"center", gap:10, width:"100%", padding:"8px 10px", borderRadius:6, border:"none", background: isSel ? "var(--bg-canvas)" : "transparent", cursor:"pointer", fontFamily:"inherit", textAlign:"left", fontSize:13, color:"var(--ink)" }}
                     onMouseEnter={function(e){ if (!isSel) e.currentTarget.style.background = "var(--panel-2)"; }}
                     onMouseLeave={function(e){ if (!isSel) e.currentTarget.style.background = "transparent"; }}>
-                    <span style={{ width:10, height:10, borderRadius:"50%", background: dot(n), flexShrink:0 }} />
+                    <ListGlyph node={n} size={18} />
                     <span style={{ flex:1 }}>{n.label}</span>
                     <span style={{ fontFamily:"JetBrains Mono", fontSize:10, color:"var(--ink-4)" }}>{n.instances}</span>
                     {isSel && <span style={{ color:"var(--green)", fontWeight:700, fontSize:12 }}>✓</span>}
@@ -4269,14 +4269,15 @@ function NewEdgeFlow({ onClose, onCreate, fromNode, toNode, initialLabel, initia
     <div style={{ position:"fixed", top:0, left:0, right:0, bottom:0, background:"rgba(0,0,0,0.42)", zIndex:200, display:"flex", alignItems:"center", justifyContent:"center" }}
       onClick={function(e){ if (e.target === e.currentTarget) onClose(); }}>
       <div style={simple
-        ? { width:"92vw", maxWidth:620, maxHeight:"90vh", background:"var(--bg-canvas)", borderRadius:12, border:"1px solid var(--line)", display:"flex", flexDirection:"column", overflow:"hidden", boxShadow:"0 32px 80px rgba(0,0,0,0.32)" }
+        ? { width:"92vw", maxWidth:620, maxHeight:"90vh", background:"var(--bg-canvas)", borderRadius:12, border:"1px solid var(--line)", display:"flex", flexDirection:"column", overflow:"visible", boxShadow:"0 32px 80px rgba(0,0,0,0.32)" }
         : { width:"92vw", maxWidth:1180, height:"94vh", background:"var(--bg-canvas)", borderRadius:12, border:"1px solid var(--line)", display:"flex", flexDirection:"column", overflow:"hidden", boxShadow:"0 32px 80px rgba(0,0,0,0.32)" }}>
 
         {/* HEADER */}
-        <div style={{ flexShrink:0, height:56, borderBottom:"1px solid var(--line)", display:"flex", alignItems:"center", justifyContent:"space-between", padding:"0 22px", background:"var(--panel)" }}>
+        <div style={{ flexShrink:0, height:56, borderBottom:"1px solid var(--line)", display:"flex", alignItems:"center", justifyContent:"space-between", padding:"0 22px", background:"var(--panel)", borderRadius:"12px 12px 0 0" }}>
+          {/* @keep-header-radius */}
           <div style={{ display:"flex", alignItems:"center", gap:14 }}>
             <div style={{ fontFamily:"Instrument Serif", fontSize:20, color:"var(--ink)" }}>{editMode ? "Edit edge type" : (label ? ":" + label : "New edge type")}</div>
-            {fromN && toN && (
+            {!simple && fromN && toN && (
               <div style={{ display:"flex", alignItems:"center", gap:6, fontFamily:"JetBrains Mono", fontSize:11, color:"var(--ink-3)" }}>
                 <span>{fromN.label}</span>
                 <span style={{ color:"var(--ink-4)" }}>—{cardinality}→</span>
@@ -4312,7 +4313,7 @@ function NewEdgeFlow({ onClose, onCreate, fromNode, toNode, initialLabel, initia
           </div>}
 
           {/* CENTER */}
-          <div style={{ padding:"24px 32px 28px", overflowY:"auto" }}>
+          <div style={{ padding:"24px 32px 28px", overflowY: simple ? "visible" : "auto", overflowX: "visible" }}>
             {!simple && <div style={{ marginBottom:20 }}>
               <div style={{ fontFamily:"Instrument Serif", fontSize:28, color:"var(--ink)", lineHeight:1.1, marginBottom:8 }}>{stepNames[step-1]}</div>
               <div style={{ fontSize:13, color:"var(--ink-3)", lineHeight:1.55 }}>
@@ -4473,10 +4474,14 @@ function NewEdgeFlow({ onClose, onCreate, fromNode, toNode, initialLabel, initia
                     <div>
                       {edgeProps.map(function(p, i){
                         return (
-                          <div key={i} style={{ display:"grid", gridTemplateColumns:"1.4fr 1fr 28px", gap:10, padding: simple ? "8px 0" : "10px 18px", borderBottom: (!simple && i < edgeProps.length-1) ? "1px solid var(--line-2)" : "none", alignItems:"center" }}>
+                          <div key={i} style={{ display:"grid", gridTemplateColumns: simple ? "1.4fr 1fr 42px" : "1.4fr 1fr 28px", gap:10, padding: simple ? "8px 0" : "10px 18px", borderBottom: (!simple && i < edgeProps.length-1) ? "1px solid var(--line-2)" : "none", alignItems:"center" }}>
                             <input value={p.name} onChange={function(e){ updateProp(i, { name: e.target.value }); }} placeholder="attribute name" style={Object.assign({}, inp, { fontFamily:"JetBrains Mono", fontSize:12 })} />
                             <PropTypeSelect value={p.type} onChange={function(v){ updateProp(i, { type: v }); }} />
-                            <button onClick={function(){ removeProp(i); }} title="Remove attribute" style={{ background:"none", border:"none", color:"var(--ink-3)", cursor:"pointer", fontSize:16, justifySelf:"center" }}>×</button>
+                            <button onClick={function(){ removeProp(i); }} title="Remove attribute" style={{ width:42, height:42, display:"flex", alignItems:"center", justifyContent:"center", justifySelf:"stretch", border:"none", background:"transparent", borderRadius:8, color:"var(--ink-4)", cursor:"pointer" }}
+                              onMouseEnter={function(e){ e.currentTarget.style.background = "var(--panel-2)"; e.currentTarget.style.color = "var(--coral)"; }}
+                              onMouseLeave={function(e){ e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = "var(--ink-4)"; }}>
+                              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><path d="M18 6L6 18M6 6l12 12" /></svg>
+                            </button>
                           </div>
                         );
                       })}
@@ -4523,7 +4528,7 @@ function NewEdgeFlow({ onClose, onCreate, fromNode, toNode, initialLabel, initia
         </div>
 
         {/* FOOTER */}
-        <div style={{ flexShrink:0, padding:"14px 22px", borderTop:"1px solid var(--line)", display:"flex", alignItems:"center", justifyContent: simple ? "flex-end" : "space-between", background:"var(--panel)" }}>
+        <div style={{ flexShrink:0, padding:"14px 22px", borderTop:"1px solid var(--line)", display:"flex", alignItems:"center", justifyContent: simple ? "flex-end" : "space-between", background:"var(--panel)", borderRadius:"0 0 12px 12px" }}>
           {!simple && <button className="btn-ghost" onClick={function(){ if (step > 1) setStep(function(s){ return s - 1; }); }} disabled={step === 1} style={{ opacity: step === 1 ? 0.4 : 1 }}>← Back</button>}
           <div style={{ display:"flex", gap:8 }}>
             <button className="btn-ghost" onClick={onClose}>Cancel</button>

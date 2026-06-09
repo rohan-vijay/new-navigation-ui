@@ -155,6 +155,7 @@ function FlowStyles() {
 .wstep-body { border-top: 1px solid var(--line-2); }
 
 .wfr { padding: 18px 0; border-bottom: 1px solid var(--line-2); }
+.wstep-wide .wstep-body > .wfr:first-child { padding-top: 0; }
 .wfr.wfr-last { border-bottom: 0; }
 .wfr-label { font-family: "JetBrains Mono", monospace; font-size: 10.5px; letter-spacing: 0.8px; text-transform: uppercase; color: var(--ink-3); display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
 .wfr-req { color: var(--coral); font-size: 9.5px; letter-spacing: 0.5px; }
@@ -1486,7 +1487,7 @@ function PropPreview({ p, node, nameCleaned }) {
 // ════════════════════════════════════════════════════════════════════════════
 
 const SRC_STEPS = [
-  { label: "Source system", hint: "Pick connector from catalog" },
+  { label: "Source", hint: "Pick connector from catalog" },
   { label: "Connection",    hint: "Pick or add a connection"   },
   { label: "Object",        hint: "Choose what to read"        },
   { label: "Map columns",   hint: "Map source → node props"    },
@@ -1828,7 +1829,7 @@ function LinkSourceFlow({ node, existingSources, onClose, editSource }) {
   const colMapHint = totalMapCols ? `${mappedCount}/${totalMapCols} fields mapped` : "Map source → node props";
   const knownTypeLabel = knownTypeMode ? knownEntity.name : "";
   const srcSteps = unstructured ? [
-    { label: "Source system", hint: sel ? sel.name : "Pick connector from catalog" },
+    { label: "Source", hint: sel ? sel.name : "Pick connector from catalog" },
     { label: "Connection",    hint: connLabel },
     { label: "Scope",         hint: knownTypeMode ? readHint + " · " + knownTypeLabel : readHint },
   ].concat(wantsSingle ? [] : [
@@ -1838,7 +1839,7 @@ function LinkSourceFlow({ node, existingSources, onClose, editSource }) {
     { label: "Map",           hint: colMapHint5, subItems: mapSubItems5, activeSub: activeMapObj5, onSub: setMapActiveObj5 },
     { label: "Settings",      hint: uSettingsHint },
   ]) : [
-    { label: "Source system",  hint: sel ? sel.name : "Pick connector from catalog" },
+    { label: "Source",  hint: sel ? sel.name : "Pick connector from catalog" },
     { label: "Connection",     hint: connLabel },
     { label: "Objects",        hint: objectHint },
     { label: "Enrich",         hint: agentsHint },
@@ -2018,6 +2019,7 @@ function SrcListMeta({ count, noun, chip }) {
 function SrcSystem({ s, set, onAdvance }) {
   const [q, setQ] = useState("");
   const [cat, setCat] = useState("all");
+  const [changing, setChanging] = useState(false);
   const sel = SOURCE_SYSTEMS.find(x => x.id === s.system);
   const catOptions = [{ id: "all", label: "All categories" }].concat(SRC_CATEGORIES.map(c => ({ id: c, label: c })));
   const list = SOURCE_SYSTEMS.filter(c => c.id !== "custom").filter(c => {
@@ -2025,6 +2027,28 @@ function SrcSystem({ s, set, onAdvance }) {
     if (q && (c.name + " " + (c.desc || "")).toLowerCase().indexOf(q.toLowerCase()) < 0) return false;
     return true;
   });
+  // Already chosen on a previous visit — show a focused summary card, not the whole catalog.
+  if (sel && !changing) {
+    return (
+      <StepWrap wide title="Source">
+        <div style={{ display: "flex", alignItems: "center", gap: 13, padding: "12px 16px", border: "1px solid var(--line)", borderRadius: 12, background: "var(--panel)" }}>
+          <SrcConnectorLogo c={sel} size={24} />
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 9 }}>
+              <span style={{ fontFamily: "var(--serif)", fontSize: 19, color: "var(--ink)" }}>{sel.name}</span>
+              {sel.status === "degraded" && <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 9.5, color: "var(--gold)" }}>● degraded</span>}
+            </div>
+          </div>
+          <button onClick={() => { setChanging(true); setQ(""); setCat("all"); }}
+            style={{ display: "inline-flex", alignItems: "center", gap: 7, flexShrink: 0, height: 38, padding: "0 16px", borderRadius: 9, border: "1px solid var(--line)", background: "var(--panel)", cursor: "pointer", fontFamily: "inherit", fontSize: 13, fontWeight: 500, color: "var(--ink)" }}
+            onMouseEnter={e => e.currentTarget.style.background = "var(--panel-2)"} onMouseLeave={e => e.currentTarget.style.background = "var(--panel)"}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><polyline points="17 2 21 6 17 10" /><path d="M21 6H7" /><polyline points="7 22 3 18 7 14" /><path d="M3 18h14" /></svg>
+            Change source
+          </button>
+        </div>
+      </StepWrap>
+    );
+  }
   return (
     <StepWrap wide title="Pick a source connector">
       {/* search + category dropdown */}
@@ -2079,7 +2103,36 @@ function SrcConnStatusDot({ status }) {
 function SrcConnection({ s, set, sel, onAdvance }) {
   const conns = sel ? getConnections(sel.id, sel) : [];
   const [newOpen, setNewOpen] = useState(false);
+  const [changing, setChanging] = useState(false);
   const createdNew = s.connection === "__new__";
+  // Already connected on a previous visit — show a focused summary, not the full chooser.
+  const selConn = conns.find(c => c.id === s.connection);
+  if (!changing && (selConn || createdNew)) {
+    const cName = createdNew ? (s.newConnName || "New connection") : selConn.name;
+    const cDetail = createdNew ? (s.newConnHost || "") : selConn.detail;
+    const cStatus = createdNew ? "healthy" : selConn.status;
+    return (
+      <StepWrap wide title="Connection">
+        <div style={{ display: "flex", alignItems: "center", gap: 13, padding: "12px 16px", border: "1px solid var(--line)", borderRadius: 12, background: "var(--panel)" }}>
+          {sel && <SrcConnectorLogo c={sel} size={24} />}
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <span style={{ fontFamily: "var(--serif)", fontSize: 19, color: "var(--ink)" }}>{cName}</span>
+              <SrcConnStatusDot status={cStatus} />
+              {cStatus === "degraded" && <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 9.5, color: "var(--gold)" }}>degraded</span>}
+            </div>
+            {cDetail && <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 11, color: "var(--ink-3)", marginTop: 3, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{cDetail}</div>}
+          </div>
+          <button onClick={() => setChanging(true)}
+            style={{ display: "inline-flex", alignItems: "center", gap: 7, flexShrink: 0, height: 38, padding: "0 16px", borderRadius: 9, border: "1px solid var(--line)", background: "var(--panel)", cursor: "pointer", fontFamily: "inherit", fontSize: 13, fontWeight: 500, color: "var(--ink)" }}
+            onMouseEnter={e => e.currentTarget.style.background = "var(--panel-2)"} onMouseLeave={e => e.currentTarget.style.background = "var(--panel)"}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><polyline points="17 2 21 6 17 10" /><path d="M21 6H7" /><polyline points="7 22 3 18 7 14" /><path d="M3 18h14" /></svg>
+            Change connection
+          </button>
+        </div>
+      </StepWrap>
+    );
+  }
   const canCreate = (s.newConnName || "").trim().length > 0 && (s.newConnHost || "").trim().length > 0;
   const hostLabel = sel?.id === "salesforce" ? "Instance URL"
     : sel?.cat === "Data Warehouse" || sel?.cat === "Databases" ? "Host / account"
@@ -2169,8 +2222,14 @@ function SrcConnection({ s, set, sel, onAdvance }) {
 function SrcObject({ s, set, sel }) {
   const [q, setQ] = useState("");
   const objects = sel ? getSourceObjects(sel.id, sel) : [];
-  const list = objects.filter(o => !q || o.name.toLowerCase().indexOf(q.toLowerCase()) >= 0);
   const selected = s.tables || [];
+  // Capture the selection as it was when this step opened, so previously-selected
+  // objects float to the top — but the list doesn't jump around while toggling.
+  const initialSelRef = useRef(null);
+  if (initialSelRef.current === null) initialSelRef.current = new Set(selected);
+  const initSel = initialSelRef.current;
+  const list = objects.filter(o => !q || o.name.toLowerCase().indexOf(q.toLowerCase()) >= 0)
+    .slice().sort((a, b) => (initSel.has(b.name) ? 1 : 0) - (initSel.has(a.name) ? 1 : 0));
   const toggle = name => set({ tables: selected.indexOf(name) >= 0 ? selected.filter(x => x !== name) : selected.concat([name]), query: "" });
   const allListed = list.length > 0 && list.every(o => selected.indexOf(o.name) >= 0);
   const toggleAll = () => set({ tables: allListed ? selected.filter(n => list.every(o => o.name !== n)) : Array.from(new Set(selected.concat(list.map(o => o.name)))), query: "" });
@@ -2235,7 +2294,7 @@ function srcCap(w) { return w ? w.charAt(0).toUpperCase() + w.slice(1) : w; }
 
 // Rich single-select that mirrors the "Pick a type" control: icon box + title +
 // sub line + chevron. options = [{ id, title, desc, icon }]. Empty shows a dashed +.
-function SrcRichSelect({ value, onChange, options, emptyLabel, dense, searchable, searchPlaceholder, plainOptions, noDesc }) {
+function SrcRichSelect({ value, onChange, options, emptyLabel, dense, searchable, searchPlaceholder, plainOptions, noDesc, noIcon }) {
   const box = dense ? 27 : 34;
   const iconBox = (content, dashed) => (
     <span style={{ width: box, height: box, borderRadius: dense ? 6 : 7, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", background: "var(--chip)", borderWidth: 1, borderStyle: dashed ? "dashed" : "solid", borderColor: "var(--line)", color: "var(--ink-3)" }}>{content}</span>
@@ -2253,9 +2312,9 @@ function SrcRichSelect({ value, onChange, options, emptyLabel, dense, searchable
     <CustomSelect
       value={value} onChange={onChange} options={options} className={dense ? "csel-dense" : undefined}
       searchable={searchable} searchPlaceholder={searchPlaceholder}
-      placeholder={body(iconBox("+", true), emptyLabel || "Choose…", noDesc ? null : "Click to choose", true)}
+      placeholder={body(noIcon ? null : iconBox("+", true), emptyLabel || "Choose…", noDesc ? null : "Click to choose", true)}
       renderTrigger={o => body(null, o.title, noDesc ? null : o.desc)}
-      renderOption={plainOptions ? (o => <span style={{ fontSize: dense ? 13 : 14, fontWeight: 600, color: "var(--ink)" }}>{o.title}</span>) : (o => body(iconBox(o.icon), o.title, o.desc))}
+      renderOption={plainOptions ? (o => <span style={{ fontSize: dense ? 13 : 14, fontWeight: 600, color: "var(--ink)" }}>{o.title}</span>) : (o => body(noIcon ? null : iconBox(o.icon), o.title, noDesc ? null : o.desc))}
     />
   );
 }
@@ -2308,7 +2367,7 @@ function SrcRead({ s, set, sel }) {
       </FormRow>
 
       {specific && (
-        <FormRow label={(scope === "folders" ? srcCap(cfg.container) : srcCap(cfg.item)) + " to index"} required hint={locs.length ? locs.length + " added" : undefined}>
+        <FormRow label={(scope === "folders" ? srcCap(cfg.container) : srcCap(cfg.item)) + " to index"} required>
           <div style={{ maxWidth: 760 }}>
           {locs.length > 0 && (
             <div style={{ border: "1px solid var(--line)", borderRadius: 10, overflow: "hidden", marginBottom: 10, background: "var(--panel)" }}>
@@ -2523,7 +2582,7 @@ function SrcDiscover({ s, set, sel }) {
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, maxWidth: 760 }}>
           <div>
             <div className="wfr-label">Discover with</div>
-            <SrcRichSelect value={kind} onChange={chooseKind} options={METHOD_KIND_OPTS} emptyLabel="Pick a method" noDesc />
+            <SrcRichSelect value={kind} onChange={chooseKind} options={METHOD_KIND_OPTS} emptyLabel="Pick a method" noDesc noIcon />
           </div>
           <div style={{ opacity: kind ? 1 : 0.45, pointerEvents: kind ? "auto" : "none", transition: "opacity 120ms" }}>
             <div className="wfr-label">{isAuto ? "Automation" : "Discovery agent"}</div>
@@ -3328,7 +3387,7 @@ function InlineRunPicker({ agents, automations, onAdd, onClose }) {
   return (
     <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 10 }}>
       <div style={{ flex: 1, minWidth: 0 }}>
-        <SrcRichSelect dense value={kind} onChange={setKind} options={METHOD_KIND_OPTS} emptyLabel="Pick a method" />
+        <SrcRichSelect dense value={kind} onChange={setKind} options={METHOD_KIND_OPTS} emptyLabel="Pick a method" noDesc noIcon />
       </div>
       <div style={{ flex: 1, minWidth: 0, opacity: kind ? 1 : 0.45, pointerEvents: kind ? "auto" : "none", transition: "opacity 120ms" }}>
         <SrcRichSelect dense searchable plainOptions searchPlaceholder={isAuto ? "Search automations…" : "Search agents…"} value="" onChange={id => onAdd(id)} options={kind ? opts : []} emptyLabel={kind ? (isAuto ? "Select an automation…" : "Select an agent…") : "Pick a method first"} />
@@ -3399,7 +3458,7 @@ function SrcObjectAgents({ s, set, groups, sel, agentPoolFor, fileMode }) {
                             <span style={{ width: 20, height: 20, borderRadius: "50%", flexShrink: 0, background: "var(--ink)", color: "var(--panel)", fontFamily: "'JetBrains Mono', monospace", fontSize: 10.5, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center" }}>{i + 1}</span>
                             <div style={{ flex: 1, minWidth: 0 }}>
                               <div style={{ fontSize: 13, fontWeight: 600, color: "var(--ink)" }}>{a.name}</div>
-                              <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 10, color: "var(--ink-3)", marginTop: 2 }}>＋{a.outputs.length} field{a.outputs.length === 1 ? "" : "s"} · {a.desc}</div>
+                              <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 10, color: "var(--ink-3)", marginTop: 2 }}>＋{a.outputs.length} field{a.outputs.length === 1 ? "" : "s"}</div>
                             </div>
                             <button onClick={() => removeAgent(g.name, id)} title="Remove" style={{ border: "none", background: "none", cursor: "pointer", padding: 4, color: "var(--ink-4)", flexShrink: 0 }}>
                               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round"><path d="M6 6l12 12M18 6L6 18" /></svg>

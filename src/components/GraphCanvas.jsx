@@ -718,7 +718,8 @@ function nodeEdgesFor(node) {
       const other = byId[out ? e.t : e.s]
       if (!other) return null
       const seed = e.label.length + i
-      return { label: e.label, dir: out ? '→' : '←', other, kind: e.kind || 'direct', cardinality: ['1:1', '1:N', 'N:1', 'N:M'][seed % 4], instances: ((seed * 1287) % 142000) + 100 }
+      const m = meta(i)
+      return { label: e.label, dir: out ? '→' : '←', other, from: node, to: other, owner: m.owner, modified: m.modified, kind: e.kind || 'direct', cardinality: ['1:1', '1:N', 'N:1', 'N:M'][seed % 4], instances: ((seed * 1287) % 142000) + 100 }
     })
     .filter(Boolean)
 }
@@ -906,14 +907,16 @@ function NodeDetailPage({ node, onBack, onCanvas }) {
 
       {tab === 'Edges' && (
         <DetailTable
-          cols={[{ label: 'Relationship', w: '28%' }, { label: 'Direction', w: '12%', cellStyle: { textAlign: 'center' } }, { label: 'Connected Node', w: '28%' }, { label: 'Cardinality', w: '16%' }, { label: 'Instances', w: '16%' }]}
+          cols={[{ label: 'Relationship', w: '20%' }, { label: 'From', w: '19%' }, { label: '', w: '4%', cellStyle: { textAlign: 'center' } }, { label: 'To', w: '19%' }, { label: 'Owner', w: '22%' }, { label: 'Modified On', w: '16%' }]}
           rows={view.map(e => {
+            const ep = n => <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}><span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}><ListGlyph node={n} size={15} /></span><span style={{ fontSize: 13, color: '#1a1a1a' }}>{n.label}</span></span>
             return [
               monoCell(':' + e.label, '#5b5547'),
-              <span style={{ fontSize: 15, color: '#9a948a' }}>{e.dir}</span>,
-              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}><span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}><ListGlyph node={e.other} size={15} /></span><span style={{ fontSize: 13, color: '#1a1a1a' }}>{e.other.label}</span></span>,
-              monoCell(e.cardinality, '#374151'),
-              <span style={{ fontSize: 13.5, fontWeight: 600, color: '#1a1a1a' }}>{e.instances.toLocaleString()}</span>,
+              ep(e.from),
+              <span style={{ color: '#9a948a', fontSize: 14 }}>→</span>,
+              ep(e.to),
+              <OwnerCell owner={e.owner} />,
+              <span style={{ color: '#9097a0', fontSize: 13, whiteSpace: 'nowrap' }}>{e.modified}</span>,
             ]
           })}
           empty="No edges connected to this node." />
