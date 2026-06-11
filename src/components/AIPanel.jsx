@@ -22,7 +22,7 @@ function highlightCommands(text) {
 
 const SUGGESTIONS = {
   graphs: [
-    'What is an Unified Context Graph?',
+    'What is an Enterprise Context Graph?',
     'Which graphs are most active right now?',
     'Which data sources feed these graphs?',
   ],

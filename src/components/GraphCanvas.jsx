@@ -22,7 +22,7 @@ const gBtnGhost = { display: 'inline-flex', alignItems: 'center', gap: 8, backgr
 const gBtnPrimary = { background: 'var(--green-btn)', color: '#fff', border: 'none', borderRadius: 9, padding: '0 20px', height: 36, fontSize: 13.5, fontWeight: 500, cursor: 'pointer', boxShadow: '0 1px 3px rgba(22,52,31,0.16)', transition: 'all .15s' }
 
 /* Compact table toolbar — sort + filter dropdowns + search, matching the
-   Unified Context Graph (records) view. */
+   Enterprise Context Graph (records) view. */
 function TableToolbar({ sort, sortOptions, onSort, filter, filterOptions, onFilter, search, onSearch, placeholder, cta, onCta }) {
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
@@ -253,7 +253,7 @@ function GraphCanvasInner({ title = 'New graph', onBack, onAgentAI }) {
       ) : tab === 'Agents' && agents.length > 0 ? (
         <AgentsList agents={agents} onAction={onAgentAction} onRemove={i => setAgents(a => a.filter((_, j) => j !== i))} />
       ) : tab === 'Records' ? (
-        <RecordsPage />
+        <RecordsPage disableDetail />
       ) : (
         <EmptyState meta={EMPTY[tab]} actions={tab === 'Agents' ? AGENT_MENU : undefined} onAction={onAgentAction} />
       )}

@@ -139,7 +139,7 @@ const PS_EDGES = [
 ];
 
 const IS_PS_GRAPH = false;
-// ── Unified Context Graph: realistic customer-engagement dataset ──────────
+// ── Enterprise Context Graph: realistic customer-engagement dataset ──────────
 // 34 entities + 13 sources = 47 nodes, ~64 edges. Positioned in lifecycle
 // clusters (marketing / sales / product / success / finance) with sources on an
 // outer ring. Synthetic but stable stats per node.
@@ -975,7 +975,7 @@ function ZoomControls({ viewport, setViewport, nodes, size }) {
   );
 }
 
-function Minimap({ nodes, viewport, size }) {
+function Minimap({ nodes, viewport, size, edges = EDGES }) {
   // compute bounding box
   const xs = nodes.map(n => n.x);
   const ys = nodes.map(n => n.y);
@@ -1006,7 +1006,7 @@ function Minimap({ nodes, viewport, size }) {
     <div className="minimap">
       <svg width={W} height={H}>
         <rect x="0" y="0" width={W} height={H} fill="var(--bg-canvas)" />
-        {EDGES.map((e, i) => {
+        {edges.map((e, i) => {
           const a = nodes.find(n => n.id === e.s);
           const b = nodes.find(n => n.id === e.t);
           if (!a || !b) return null;
@@ -1478,7 +1478,7 @@ function Sidebar({ open, onToggle, filter, setFilter, query, setQuery, selected,
 
 
 // ── Stage 1 host: provides graph state + view/edit toggle, renders the canvas ──
-export { SIDEBAR_NODES, EDGES as GRAPH_EDGES, ListGlyph, colorForNode, AddNodeFlow, NewEdgeFlow, generateProps, generateRules }
+export { SIDEBAR_NODES, EDGES as GRAPH_EDGES, ListGlyph, colorForNode, NodeShape, ZoomControls, Minimap, AddNodeFlow, NewEdgeFlow, generateProps, generateRules }
 
 export default function GraphStage() {
   // Agents aren't part of the graph here — drop them and any edges touching them.

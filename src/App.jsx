@@ -146,7 +146,7 @@ export default function App() {
 
   const handleNavigate = (label) => {
     if (label === 'Skills') { setView('skills'); setActiveNav('agents'); setSkillsTab('Skills') }
-    else if (label === 'Unified Context Graph') { setView('context-graphs'); setActiveNav('ontology') }
+    else if (label === 'Enterprise Context Graph') { setView('context-graphs'); setActiveNav('ontology') }
     else if (label === 'Records') { setView('records'); setActiveNav('ontology') }
   }
 
