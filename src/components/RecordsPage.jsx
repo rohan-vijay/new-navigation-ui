@@ -402,6 +402,7 @@ function generateRecords(node) {
   return records
 }
 
+const PRIMARY_ACCOUNT_ID = 'account-429691' // Northwind Logistics — the demo account every path links back to
 function generateRelatedRecords(record, node) {
   const outgoing = EDGES.filter(e => e.s === node.id)
   const incoming = EDGES.filter(e => e.t === node.id)
@@ -418,6 +419,13 @@ function generateRelatedRecords(record, node) {
     const otherProps = generateProps(otherNode)
     const nameProp   = otherProps.find(p => ['name','label','title','company_name'].includes(p.name)) || otherProps[1] || otherProps[0]
     const related = []
+    // Every primary account relationship resolves to the demo account, so any
+    // path through the graph links back to Northwind (PREVIOUSLY_AT may differ).
+    if (otherNode.id === 'account' && e.label !== 'PREVIOUSLY_AT') {
+      const acc = buildRecordFromId(PRIMARY_ACCOUNT_ID, otherNode)
+      related.push({ id: PRIMARY_ACCOUNT_ID, label: otherNode.label, nodeId: otherNode.id, keyName: 'name', keyValue: acc.name || 'Northwind Logistics', edgeLabel: e.label, kind: e.kind, direction: isOut?'out':'in', since: '2026-01-15', confidence: '0.99' })
+      return { edge: e, otherNode, isOut, count: 1, related }
+    }
     for (let i = 0; i < count; i++) {
       const s = baseSeed + idx * 41 + i * 17
       related.push({ id: otherNode.id+'-'+(100000+Math.abs(s*1597)%899999), label: otherNode.label, nodeId: otherNode.id, keyName: nameProp?.name||'id', keyValue: nameProp ? generateValueForProp(nameProp,s,otherNode.id) : '—', edgeLabel: e.label, kind: e.kind, direction: isOut?'out':'in', since: '2026-'+String(1+Math.abs(s)%12).padStart(2,'0')+'-'+String(1+Math.abs(s)%28).padStart(2,'0'), confidence: (0.78+(Math.abs(s)%21)/100).toFixed(2) })
@@ -1206,6 +1214,15 @@ function buildRecordGraph(record, node, W, H) {
   }
 
   nodes.push({ key: 'c', type: node.id, node: { ...node, size: 34 }, label: recordDisplay(record, node), recordId: record.id, hop: 0, x: cx, y: cy })
+  // one node per record — repeat references (e.g. the Northwind account) collapse
+  const placed = { [record.id]: 'c' }
+  const edgeSeen = new Set()
+  const addEdge = (from, to, label, kind) => {
+    const k = from + '|' + to + '|' + label
+    if (edgeSeen.has(k)) return
+    edgeSeen.add(k)
+    edges.push({ from, to, label, kind })
+  }
 
   let first = flat(record, node).slice(0, 12)
   // symmetry: alternate heavy (many children) and light neighbours around the circle
@@ -1217,17 +1234,26 @@ function buildRecordGraph(record, node, W, H) {
   const n1 = first.length || 1
   first.forEach((f, i) => {
     const ang = -Math.PI / 2 + i * (2 * Math.PI / n1)
-    const key = 'f' + i
-    nodes.push({ key, type: f.otherNode.id, node: f.otherNode, label: uniqLabel(recordDisplay(buildRecordFromId(f.id, f.otherNode), f.otherNode), f.otherNode, i * 5), recordId: f.id, hop: 1, x: cx + Math.cos(ang) * R1, y: cy + Math.sin(ang) * R1 })
-    edges.push({ from: f.isOut ? 'c' : key, to: f.isOut ? key : 'c', label: f.edge.label, kind: f.edge.kind })
+    let key = placed[f.id]
+    if (!key) {
+      key = 'f' + i
+      placed[f.id] = key
+      nodes.push({ key, type: f.otherNode.id, node: f.otherNode, label: uniqLabel(recordDisplay(buildRecordFromId(f.id, f.otherNode), f.otherNode), f.otherNode, i * 5), recordId: f.id, hop: 1, x: cx + Math.cos(ang) * R1, y: cy + Math.sin(ang) * R1 })
+    }
+    addEdge(f.isOut ? 'c' : key, f.isOut ? key : 'c', f.edge.label, f.edge.kind)
+    if (key !== 'f' + i) return // collapsed into an existing node — no second hop here
     // 2nd hop — expand this neighbour's own relationships (skip looping straight back to the centre's type)
     const second = flat(buildRecordFromId(f.id, f.otherNode), f.otherNode).filter(s => s.otherNode.id !== node.id).slice(0, PERSON_NODES.has(f.otherNode.id) ? 1 : 2)
     const c = second.length
     second.forEach((s, j) => {
       const aChild = ang + (j - (c - 1) / 2) * 0.4
-      const ckey = key + 'c' + j
-      nodes.push({ key: ckey, type: s.otherNode.id, node: s.otherNode, label: uniqLabel(recordDisplay(buildRecordFromId(s.id, s.otherNode), s.otherNode), s.otherNode, i * 7 + j * 3), recordId: s.id, hop: 2, x: cx + Math.cos(aChild) * R2, y: cy + Math.sin(aChild) * R2 })
-      edges.push({ from: s.isOut ? key : ckey, to: s.isOut ? ckey : key, label: s.edge.label, kind: s.edge.kind })
+      let ckey = placed[s.id]
+      if (!ckey) {
+        ckey = key + 'c' + j
+        placed[s.id] = ckey
+        nodes.push({ key: ckey, type: s.otherNode.id, node: s.otherNode, label: uniqLabel(recordDisplay(buildRecordFromId(s.id, s.otherNode), s.otherNode), s.otherNode, i * 7 + j * 3), recordId: s.id, hop: 2, x: cx + Math.cos(aChild) * R2, y: cy + Math.sin(aChild) * R2 })
+      }
+      addEdge(s.isOut ? key : ckey, s.isOut ? ckey : key, s.edge.label, s.edge.kind)
     })
   })
 
