@@ -1512,7 +1512,7 @@ function RecordGraphView({ record, node, onBack, onNavigate }) {
 
 // ── Source / provenance synthesis ───────────────────────────────────────────
 // Which kind of system each node type is ingested from.
-const NODE_SOURCE_KIND = { agreement: 'file', invoice: 'file', subscription: 'file', contract: 'file', product: 'file', ticket: 'message', case: 'message', incident: 'message', interaction: 'email', account: 'crm', person: 'crm', employee: 'crm', signal: 'crm', churn_risk: 'crm', health_score: 'crm', usage_event: 'crm', competitor: 'crm', opportunity: 'email' }
+const NODE_SOURCE_KIND = { agreement: 'file', invoice: 'file', subscription: 'file', contract: 'file', product: 'file', ticket: 'message', case: 'portal', incident: 'message', interaction: 'email', account: 'crm', person: 'crm', employee: 'crm', signal: 'crm', churn_risk: 'crm', health_score: 'crm', usage_event: 'crm', competitor: 'crm', opportunity: 'email' }
 // Document-backed (unstructured) entities — these open the actual source doc.
 const UNSTRUCTURED_NODES = new Set(['agreement', 'contract', 'invoice', 'subscription', 'product', 'ticket', 'case', 'incident', 'interaction', 'opportunity'])
 const isUnstructuredNode = nd => UNSTRUCTURED_NODES.has(nd.id)
@@ -1520,6 +1520,7 @@ const SRC_APPS = {
   file: [{ app: 'Google Drive', color: '#1FA463', ext: 'pdf', domain: 'drive.google.com' }, { app: 'SharePoint', color: '#0078D4', ext: 'docx', domain: 'sharepoint.com' }, { app: 'Dropbox', color: '#0061FF', ext: 'pdf', domain: 'dropbox.com' }],
   email: [{ app: 'Gmail', color: '#EA4335', domain: 'gmail.com' }, { app: 'Outlook', color: '#0078D4', domain: 'outlook.com' }],
   message: [{ app: 'Slack', color: '#4A154B', domain: 'slack.com' }],
+  portal: [{ app: 'Support Portal', color: '#03363D', domain: 'zendesk.com' }],
   crm: [{ app: 'Salesforce', color: '#00A1E0', domain: 'salesforce.com' }, { app: 'HubSpot', color: '#FF7A59', domain: 'hubspot.com' }],
 }
 function recordSource(rec, nd) {
@@ -1531,11 +1532,13 @@ function recordSource(rec, nd) {
   const docName = kind === 'file' ? `${base}_${nd.label}.${app.ext}`
     : kind === 'email' ? `Re: ${nd.label} — ${recordTitle(rec)}`
       : kind === 'message' ? `${recordTitle(rec)} thread`
-        : `${nd.label} / ${rec.id}`
+        : kind === 'portal' ? `Case ${rec.case_id || rec.id}`
+          : `${nd.label} / ${rec.id}`
   const path = kind === 'file' ? `${app.app} › ${nd.label}s › ${docName}`
     : kind === 'email' ? `${app.app} › ${['taylor.j', 'morgan.k', 'jordan.s'][seed % 3]}@northwind.com`
       : kind === 'message' ? `${app.app} › #${nd.label.toLowerCase()}s`
-        : `${app.app} › ${nd.label} › ${rec.id}`
+        : kind === 'portal' ? `${app.app} › Cases › ${rec.case_id || rec.id}`
+          : `${app.app} › ${nd.label} › ${rec.id}`
   return { kind, app: app.app, color: app.color, domain: app.domain, docName, path, seed }
 }
 // Fields an extraction agent reads out of the document itself.
@@ -1605,6 +1608,11 @@ function metaFields(rec, nd, src) {
     { name: 'from', value: ['taylor.j', 'morgan.k'][s % 2] + '@northwind.com' }, { name: 'subject', value: src.docName },
     { name: 'sent_at', value: dt }, { name: 'thread_size', value: (2 + s % 6) + ' messages' }, { name: 'has_attachments', value: s % 2 ? 'Yes (1)' : 'No' },
   ].map(f => ({ ...f, origin: 'meta', type: inferType(f.value) }))
+  if (src.kind === 'portal') return [
+    { name: 'case_url', value: 'support.lumensystems.com/cases/' + (rec.case_id || rec.id) }, { name: 'queue', value: ['Tier 2 — Platform', 'Tier 2 — Integrations', 'Tier 1 — General'][s % 3] },
+    { name: 'assigned_team', value: ['Platform Support', 'Integrations Support'][s % 2] }, { name: 'escalated_from', value: 'TIC-' + (100000 + (s * 37) % 899999) },
+    { name: 'last_updated', value: dt },
+  ].map(f => ({ ...f, origin: 'meta', type: inferType(f.value) }))
   if (src.kind === 'message') return [
     { name: 'channel', value: '#' + nd.label.toLowerCase() + 's' }, { name: 'posted_by', value: ['@taylor', '@morgan'][s % 2] },
     { name: 'posted_at', value: dt }, { name: 'reactions', value: (s % 9) + ' 👍' },
@@ -1616,6 +1624,7 @@ function fieldEvidence(name, value, src, nd) {
   const human = name.replace(/_/g, ' ')
   if (src.kind === 'file') return { quote: `Notwithstanding the foregoing, the ${human} shall be `, value, tail: `, as set forth in this ${nd.label}.`, loc: `Page ${1 + s % 14} · §${1 + s % 9}.${s % 6}` }
   if (src.kind === 'email') return { quote: `Just confirming the ${human} is `, value, tail: ` — let me know if that works for you.`, loc: `Message ${1 + s % 4} of ${2 + s % 4}` }
+  if (src.kind === 'portal') return { quote: `Case record — ${human}: `, value, tail: ` (set by the support agent on triage).`, loc: `Case detail · field ${human}` }
   if (src.kind === 'message') return { quote: `fyi the ${human} on this one is `, value, tail: ` 🙂`, loc: `#${nd.label.toLowerCase()}s · 12 Jun 2026` }
   return { quote: `${human}: `, value, tail: ``, loc: `${src.app} field` }
 }
@@ -1877,6 +1886,37 @@ function buildMockDoc(rec, nd, src) {
         { t: 'p', text: `A couple of action items from my side: ${v('next_step') || 'Send revised proposal by Friday'}. I'll also loop in our solutions engineer to walk through the integration questions that came up.` },
         { t: 'p', text: `Topics we covered: ${v('topics') || 'pricing, renewal, expansion'}. Let me know if I missed anything and we can pick it up on the next sync.` },
         { t: 'p', text: `Best,\nTaylor Morgan\nAccount Executive, ${VENDOR.name}\n(415) 555-0142` },
+      ]],
+    }
+  }
+
+  if (src.kind === 'portal') {
+    const rv = n => rec[n] || v(n) // record value first, agent-extraction fallback
+    const tic = 'TIC-' + (100000 + (src.seed * 37) % 899999)
+    const sev = rv('severity') || 'Sev-2'
+    return {
+      kind: 'doc', font: 'sans', pages: [[
+        { t: 'title', text: `SUPPORT CASE ${recordDisplay(rec, nd)}`, sub: `Support Portal · Opened ${dt} · Escalated from ticket ${tic}` },
+        { t: 'kv', rows: [
+          ['Customer', cust],
+          ['Severity', sev],
+          ['Status', rv('status') || 'active'],
+          ['Escalated from', `Ticket ${tic}`],
+          ['Assigned team', ['Platform Support', 'Integrations Support'][src.seed % 2]],
+          ['CSAT (last survey)', rv('csat_score') || '4 / 5'],
+        ] },
+        { t: 'h2', text: 'Description' },
+        { t: 'p', text: `${rv('subject') || 'SSO login loop after rollout'}. Originally reported by ${cust} as ticket ${tic}; escalated to a case after the issue persisted past the ${sev} response window and required engineering involvement.` },
+        { t: 'h2', text: 'Case timeline' },
+        { t: 'kv', rows: [
+          [`${dt} 09:14`, `Case created from ticket ${tic} by automation (SLA breach rule)`],
+          [`${dt} 09:40`, 'Assigned to engineering on-call; reproduction confirmed in staging'],
+          [`${dt} 11:05`, `Root cause identified: ${rv('root_cause') || 'API rate-limit misconfiguration'}`],
+          [`${dt} 14:30`, 'Fix deployed to production; monitoring for recurrence'],
+        ] },
+        { t: 'h2', text: 'Root cause analysis' },
+        { t: 'p', text: `${rv('root_cause') || 'API rate-limit misconfiguration'}. ${rv('summary') || 'Config fix deployed and verified; follow-up hardening task created.'}` },
+        { t: 'note', text: `SLA: ${sev} cases carry a 4-hour response and 24-hour resolution target under the ${cust} Enterprise support plan.` },
       ]],
     }
   }
