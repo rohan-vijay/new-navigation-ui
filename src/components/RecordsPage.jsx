@@ -235,6 +235,23 @@ const PROPS_BY_NODE = {
     { name:'forecast_category', type:'enum',    required:false, indexed:false, pii:false, fill:100, conf:97,  source:'—', computed:'rule: stage × probability' },
     { name:'next_step',       type:'string',    required:false, indexed:false, pii:false, fill:92,  conf:89,  source:'—', computed:'agent: conversation analysis' },
   ],
+  signal: [
+    { name:'signal_id',       type:'uuid',      required:true,  indexed:true,  pii:false, pk:true, fill:100, conf:100, source:'—', computed:'agent: conversation analysis' },
+    { name:'signal_type',     type:'enum',      required:true,  indexed:true,  pii:false, fill:100, conf:93,  source:'—', computed:'agent: conversation analysis' },
+    { name:'detected_at',     type:'timestamp', required:true,  indexed:true,  pii:false, fill:100, conf:100, source:'—', computed:'agent: conversation analysis' },
+    { name:'source_system',   type:'string',    required:true,  indexed:false, pii:false, fill:100, conf:100, source:'Gong' },
+    { name:'snippet',         type:'string',    required:false, indexed:false, pii:false, fill:96,  conf:90,  source:'—', computed:'agent: conversation analysis' },
+    { name:'confidence',      type:'float',     required:false, indexed:false, pii:false, fill:100, conf:99,  source:'—', computed:'agent: conversation analysis' },
+  ],
+  employee: [
+    { name:'employee_id',     type:'uuid',      required:true,  indexed:true,  pii:false, pk:true, fill:100, conf:100, source:'Okta' },
+    { name:'name',            type:'string',    required:true,  indexed:true,  pii:true,  fill:100, conf:100, source:'Okta' },
+    { name:'job_title',       type:'string',    required:true,  indexed:false, pii:false, fill:99,  conf:99,  source:'Workday' },
+    { name:'department',      type:'string',    required:true,  indexed:true,  pii:false, fill:100, conf:100, source:'Workday' },
+    { name:'email',           type:'string',    required:true,  indexed:true,  pii:true,  fill:100, conf:100, source:'Okta' },
+    { name:'location',        type:'string',    required:false, indexed:false, pii:false, fill:94,  conf:98,  source:'Workday' },
+    { name:'manager_id',      type:'uuid',      required:false, indexed:true,  pii:false, fill:97,  conf:99,  source:'Workday' },
+  ],
 }
 
 // ── Colour helpers ──────────────────────────────────────────────────────────
@@ -267,7 +284,7 @@ function generateValueForProp(p, seed, nodeId) {
     return names[v % names.length]
   }
   if (p.name === 'domain')   return ['northwind.com','cascade.io','meridian.co','horizon.tech','summit.partners','apex.global','quantum.dy','vertex.dev','pinnacle.systems','beacon.io'][v % 10]
-  if (p.name === 'email' || p.name === 'primary_contact_email') return ['taylor.j','morgan.k','jordan.s','alex.r','casey.m'][v % 5] + '@' + ['acme.com','horizon.tech','summit.io','vertex.dev'][v % 4]
+  if (p.name === 'email' || p.name === 'primary_contact_email') return ['taylor.j','morgan.k','jordan.s','alex.r','casey.m'][v % 5] + '@' + ['northwind.com','horizon.tech','summit.io','vertex.dev'][v % 4]
   if (p.name === 'industry') return ['SaaS','Fintech','Healthcare','Manufacturing','Retail','Logistics','EdTech'][v % 7]
   if (p.name === 'region')   return ['NA-East','NA-West','EMEA','APAC','LATAM'][v % 5]
   if (p.name === 'tier')     return ['SMB','MM','ENT','Strategic'][v % 4]
@@ -324,6 +341,18 @@ function generateValueForProp(p, seed, nodeId) {
   if (p.name === 'probability') return '0.' + (35 + v % 60)
   if (p.name === 'forecast_category') return ['Commit','Best Case','Pipeline'][v % 3]
   if (p.name === 'next_step') return ['Send revised proposal by Friday','Security review with IT — next Tue','Align exec sponsors on multi-year terms'][v % 3]
+  if (p.name === 'employee_count') return (500 + (v % 95) * 100).toLocaleString('en-US')
+  if (p.name === 'headquarters') return ['Chicago, IL','Austin, TX','Boston, MA','Seattle, WA','Atlanta, GA'][v % 5]
+  if (p.name === 'nps')      return String(10 + v % 60)
+  if (p.name === 'sfdc_url') return 'salesforce.com/lightning/r/Account/001' + (100000 + v % 899999) + '/view'
+  if (p.name === 'segment')  return ['Enterprise','Mid-Market','Commercial','Strategic'][v % 4]
+  if (p.name === 'health_score') return String(55 + v % 45)
+  if (p.name === 'signal_type') return ['Renewal risk mention','Champion departure','Expansion intent','Negative NPS comment','Competitor evaluation'][v % 5]
+  if (p.name === 'snippet') return ['"...honestly we are also looking at Atlas before we commit to renewal..."','"...our champion Daniel is leaving at the end of the month..."','"...we will likely need 80 more seats for the EU team next quarter..."'][v % 3]
+  if (p.name === 'confidence') return '0.' + (70 + v % 29)
+  if (p.name === 'source_system') return ['Gong','Gmail','Slack','Zoom'][v % 4]
+  if (p.name === 'department') return ['Operations','Data Platform','Procurement','IT','Finance'][v % 5]
+  if (p.name === 'location') return ['Chicago, IL','Austin, TX','Remote — EST','London, UK'][v % 4]
   if (p.type === 'decimal' || p.type === 'float') return ((v % 99000) + 1000).toFixed(2)
   if (p.type === 'bool')      return v % 3 !== 0 ? 'true' : 'false'
   if (p.type === 'timestamp') return '2026-' + String(1+v%12).padStart(2,'0') + '-' + String(1+v%28).padStart(2,'0') + 'T' + String(v%24).padStart(2,'0') + ':' + String(v%60).padStart(2,'0') + ':00Z'
@@ -1352,7 +1381,7 @@ function RecordGraphView({ record, node, onBack, onNavigate }) {
             ? <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="#6b6b5e" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="10,3 5,8 10,13" /></svg>
             : <ListGlyph node={node} size={18} />}
         </span>
-        <span style={{ fontFamily: 'var(--serif)', fontSize: 22, fontWeight: 500, color: '#1a1a1a', letterSpacing: -0.2, marginLeft: -2 }}>{recordTitle(record)}</span>
+        <span style={{ fontFamily: 'var(--serif)', fontSize: 22, fontWeight: 500, color: '#1a1a1a', letterSpacing: -0.2, marginLeft: -2 }}>{recordDisplay(record, node)}</span>
         <span style={{ fontFamily: 'var(--mono)', fontSize: 11.5, color: C.blue, border: `1px solid ${C.blueFill}`, background: C.blueFill, padding: '2px 8px', borderRadius: 6 }}>{node.label}</span>
       </div>
 
@@ -1719,7 +1748,7 @@ function custAddress(rec) {
 }
 const usd = n => '$' + Number(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 function buildMockDoc(rec, nd, src) {
-  const cust = ['product', 'subscription', 'agreement', 'invoice', 'contract'].includes(nd.id) ? 'Northwind Logistics' : recordTitle(rec)
+  const cust = 'Northwind Logistics' // every doc in this demo is in the Northwind account context
   const addr = custAddress(rec)
   const ag = AGENT_FIELDS[NODE_AGENT[nd.id]] || []
   const v = name => (ag.find(f => f.name === name) || {}).value
