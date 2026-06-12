@@ -1197,7 +1197,7 @@ function recordDisplay(rec, nd) {
 // or to a sibling — a real interconnected graph, not a star).
 function buildRecordGraph(record, node, W, H) {
   const cx = W / 2, cy = H / 2
-  const R1 = 205, R2 = 372
+  const R1 = 270, R2 = 490
   const nodes = [], edges = []
   const flat = (rec, nd) => generateRelatedRecords(rec, nd).flatMap(g => g.related.map(r => ({ ...r, otherNode: g.otherNode, isOut: g.isOut, edge: g.edge })))
 
@@ -1246,7 +1246,7 @@ function buildRecordGraph(record, node, W, H) {
     const second = flat(buildRecordFromId(f.id, f.otherNode), f.otherNode).filter(s => s.otherNode.id !== node.id).slice(0, PERSON_NODES.has(f.otherNode.id) ? 1 : 2)
     const c = second.length
     second.forEach((s, j) => {
-      const aChild = ang + (j - (c - 1) / 2) * 0.4
+      const aChild = ang + (j - (c - 1) / 2) * 0.32
       let ckey = placed[s.id]
       if (!ckey) {
         ckey = key + 'c' + j
@@ -1268,7 +1268,7 @@ function buildRecordGraph(record, node, W, H) {
   })
 
   // Collision relaxation — push apart any nodes that landed too close (centre stays put).
-  const MIN_D = 86
+  const MIN_D = 120
   for (let iter = 0; iter < 40; iter++) {
     let moved = false
     for (let a = 1; a < nodes.length; a++) {
@@ -1313,10 +1313,11 @@ function RecordGraphView({ record, node, onBack, onNavigate }) {
   // rich hover card — appears after holding the pointer on a node
   const HOVER_CARD_DELAY = 1000
   const [hoverCard, setHoverCard] = useState(null)
+  const [hoverEdge, setHoverEdge] = useState(null) // edge index under the pointer — reveals direction + label
   const hoverTimer = useRef(null)
   const startHover = gn => { clearTimeout(hoverTimer.current); hoverTimer.current = setTimeout(() => setHoverCard(gn), HOVER_CARD_DELAY) }
   const endHover = () => { clearTimeout(hoverTimer.current); setHoverCard(null) }
-  const W = 1200, H = 860, cx = W / 2, cy = H / 2
+  const W = 1500, H = 1080, cx = W / 2, cy = H / 2
   const { nodes, edges } = buildRecordGraph(record, node, W, H)
   const byKey = Object.fromEntries(nodes.map(n => [n.key, n]))
   const totalSat = nodes.length - 1
@@ -1438,17 +1439,21 @@ function RecordGraphView({ record, node, onBack, onNavigate }) {
             const x1 = a.x + (ux / len) * a.node.size, y1 = a.y + (uy / len) * a.node.size
             const x2 = b.x - (ux / len) * b.node.size, y2 = b.y - (uy / len) * b.node.size
             const mx = (a.x + b.x) / 2, my = (a.y + b.y) / 2
-            const baseOp = e.cross ? 0.4 : 0.72
+            const baseOp = e.cross ? 0.3 : 0.55
             const focused = edgeFocused(e)
-            const op = focusKey ? (focused ? 1 : 0.18) : (picked && edgeLit(e) ? 1 : baseOp)
+            const hovered = hoverEdge === i
+            const lit = picked && edgeLit(e)
+            const op = focusKey ? (focused ? 1 : 0.15) : (hovered ? 1 : lit ? 0.9 : baseOp)
+            const showDetail = focused || hovered // direction arrow + label appear on hover/focus only
             return (
               <g key={'e' + i} opacity={op}>
-                <line x1={x1} y1={y1} x2={x2} y2={y2} stroke={focused ? 'var(--ink)' : col} strokeWidth={focused ? 2.4 : (picked && edgeLit(e) ? 2 : (e.cross ? 1.2 : 1.6))}
-                  strokeDasharray={e.kind === 'inferred' || e.cross ? '6 4' : 'none'} markerEnd={`url(#rec-arrow-${e.kind})`} />
-                {!e.cross && (
+                <line x1={x1} y1={y1} x2={x2} y2={y2} stroke={focused || hovered ? 'var(--ink)' : col} strokeWidth={focused ? 2.4 : hovered ? 2 : (lit ? 1.7 : (e.cross ? 1 : 1.3))}
+                  strokeDasharray={e.kind === 'inferred' || e.cross ? '6 4' : 'none'} markerEnd={showDetail ? `url(#rec-arrow-${e.kind})` : undefined} style={{ pointerEvents: 'none' }} />
+                <line x1={x1} y1={y1} x2={x2} y2={y2} stroke="transparent" strokeWidth="16" onMouseEnter={() => setHoverEdge(i)} onMouseLeave={() => setHoverEdge(null)} style={{ cursor: 'default' }} />
+                {showDetail && (
                   <g transform={`translate(${mx},${my})`} style={{ pointerEvents: 'none' }}>
-                    <rect x={-e.label.length * 3.2 - 5} y="-9" width={e.label.length * 6.4 + 10} height="14" rx="3" fill="var(--bg-canvas)" opacity="0.85" />
-                    <text textAnchor="middle" y="1.5" fontSize="9" fill="var(--ink-3)" fontFamily="JetBrains Mono, monospace" letterSpacing="0.3">{e.label}</text>
+                    <rect x={-e.label.length * 3.2 - 6} y="-10" width={e.label.length * 6.4 + 12} height="16" rx="4" fill="#fff" stroke="#eee7da" strokeWidth="1" />
+                    <text textAnchor="middle" y="2" fontSize="9" fill="var(--ink-2)" fontFamily="JetBrains Mono, monospace" letterSpacing="0.3">{e.label}</text>
                   </g>
                 )}
               </g>
@@ -1463,15 +1468,15 @@ function RecordGraphView({ record, node, onBack, onNavigate }) {
               {on && <circle r={gn.node.size + 6} fill="none" stroke="var(--ink)" strokeWidth="1.4" strokeDasharray="3 3" opacity="0.8" />}
               {focusKey === gn.key && <circle r={gn.node.size + 7} fill="none" stroke="var(--ink)" strokeWidth="1.8" opacity="0.85" />}
               <NodeShape node={gn.node} />
-              <text textAnchor="middle" y={gn.node.size + 16} fontSize={gn.hop === 2 ? '11' : '12'} fill="var(--ink)" fontFamily="Geist, system-ui" fontWeight="500" style={{ pointerEvents: 'none' }}>{gn.label}</text>
-              <text textAnchor="middle" y={gn.node.size + 30} fontSize="9.5" fill="var(--ink-3)" fontFamily="JetBrains Mono, monospace" fontWeight="500" style={{ pointerEvents: 'none' }}>{PERSON_NODES.has(gn.type) ? (gn.role || personRole(gn.recordId)) : gn.node.label}</text>
+              <text textAnchor="middle" y={gn.node.size + 17} fontSize={gn.hop === 2 ? '11' : '12'} fill="var(--ink)" fontFamily="Geist, system-ui" fontWeight="500" stroke="var(--bg-canvas)" strokeWidth="3.5" paintOrder="stroke" strokeLinejoin="round" style={{ pointerEvents: 'none' }}>{gn.label}</text>
+              <text textAnchor="middle" y={gn.node.size + 31} fontSize="9.5" fill="var(--ink-3)" fontFamily="JetBrains Mono, monospace" fontWeight="500" stroke="var(--bg-canvas)" strokeWidth="3" paintOrder="stroke" strokeLinejoin="round" style={{ pointerEvents: 'none' }}>{PERSON_NODES.has(gn.type) ? (gn.role || personRole(gn.recordId)) : gn.node.label}</text>
             </g>
           )})}
           <g transform={`translate(${cx},${cy})`} style={{ cursor: 'pointer' }} onClick={e => { e.stopPropagation(); pick(byKey['c']) }} onMouseEnter={() => startHover(byKey['c'])} onMouseLeave={endHover}>
             {picked && picked.key === 'c' && <circle r={centerNode.size + 7} fill="none" stroke="var(--ink)" strokeWidth="1.4" strokeDasharray="3 3" opacity="0.8" />}
             <NodeShape node={centerNode} selected />
-            <text textAnchor="middle" y={centerNode.size + 17} fontSize="13" fill="var(--ink)" fontFamily="Geist, system-ui" fontWeight="600" style={{ pointerEvents: 'none' }}>{byKey["c"].label.length > 18 ? byKey["c"].label.slice(0, 17) + "…" : byKey["c"].label}</text>
-            <text textAnchor="middle" y={centerNode.size + 31} fontSize="9.5" fill="var(--ink-3)" fontFamily="JetBrains Mono, monospace" fontWeight="500" style={{ pointerEvents: 'none' }}>{node.label}</text>
+            <text textAnchor="middle" y={centerNode.size + 17} fontSize="13" fill="var(--ink)" fontFamily="Geist, system-ui" fontWeight="600" stroke="var(--bg-canvas)" strokeWidth="3.5" paintOrder="stroke" strokeLinejoin="round" style={{ pointerEvents: 'none' }}>{byKey["c"].label.length > 18 ? byKey["c"].label.slice(0, 17) + "…" : byKey["c"].label}</text>
+            <text textAnchor="middle" y={centerNode.size + 31} fontSize="9.5" fill="var(--ink-3)" fontFamily="JetBrains Mono, monospace" fontWeight="500" stroke="var(--bg-canvas)" strokeWidth="3" paintOrder="stroke" strokeLinejoin="round" style={{ pointerEvents: 'none' }}>{node.label}</text>
           </g>
           </g>
         </svg>
