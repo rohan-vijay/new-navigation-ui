@@ -1381,11 +1381,11 @@ const SEED_ROLES = [
 const ROLE_SORTERS = {
   'Members': (a, b) => b.members - a.members,
   'Name (A–Z)': (a, b) => a.name.localeCompare(b.name),
-  'Permission': (a, b) => a.perm.localeCompare(b.perm),
 }
-function PermBadge({ perm }) {
-  const t = PERM_TAG[perm] || PERM_TAG.Viewer
-  return <span style={{ fontSize: 11.5, fontWeight: 600, color: t.color, background: t.bg, border: `1px solid ${t.border}`, padding: '2px 9px', borderRadius: 20 }}>{perm}</span>
+// Relationships a role can traverse: an edge is accessible when both endpoint
+// node types have access (all or scoped).
+function accessibleEdges(scopes) {
+  return GRAPH_EDGES.filter(e => scopeMode(scopes, e.s) !== 'none' && scopeMode(scopes, e.t) !== 'none')
 }
 function ScopeBadge({ mode }) {
   const t = SCOPE_TAG[mode] || SCOPE_TAG.none
@@ -1420,12 +1420,11 @@ function GovernanceRoles() {
 
 function RolesListView({ roles, onOpen, onNew }) {
   const [sort, setSort] = useState('Members')
-  const [filter, setFilter] = useState('All permissions')
   const [search, setSearch] = useState('')
   const rows = useMemo(() => {
-    const q = search.toLowerCase(), fp = filter === 'All permissions' ? null : filter
-    return [...roles].filter(r => !fp || r.perm === fp).filter(r => !q || r.name.toLowerCase().includes(q) || r.desc.toLowerCase().includes(q)).sort(ROLE_SORTERS[sort])
-  }, [roles, sort, filter, search])
+    const q = search.toLowerCase()
+    return [...roles].filter(r => !q || r.name.toLowerCase().includes(q) || r.desc.toLowerCase().includes(q)).sort(ROLE_SORTERS[sort])
+  }, [roles, sort, search])
 
   return (
     <div style={{ flex: 1, overflowY: 'auto', backgroundColor: '#fcfbf7', padding: '12px 26px 40px' }} className="dark-scroll">
@@ -1441,17 +1440,23 @@ function RolesListView({ roles, onOpen, onNew }) {
         </button>
       </div>
 
-      <div style={{ marginTop: 14 }}>
-        <TableToolbar sort={sort} sortOptions={Object.keys(ROLE_SORTERS)} onSort={setSort}
-          filter={filter} filterOptions={['All permissions', 'Admin', 'Editor', 'Viewer']} onFilter={setFilter}
-          search={search} onSearch={setSearch} placeholder="Search roles" />
+      <div style={{ marginTop: 14, display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
+        <Dropdown value={sort} options={Object.keys(ROLE_SORTERS)} onChange={setSort} icon="sort" />
+        <div style={{ flex: 1 }} />
+        <div style={{ position: 'relative' }}>
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }}>
+            <circle cx="6" cy="6" r="4" stroke="#9ca3af" strokeWidth="1.4" /><path d="M10 10l3 3" stroke="#9ca3af" strokeWidth="1.4" strokeLinecap="round" />
+          </svg>
+          <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search roles"
+            style={{ border: '1px solid #e3e6e3', borderRadius: 8, padding: '6px 12px 6px 30px', fontSize: 13, color: '#374151', outline: 'none', width: 200, height: 32, boxSizing: 'border-box' }} />
+        </div>
       </div>
 
       <div style={{ border: '1px solid #ececea', borderRadius: 12, overflow: 'hidden' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed' }}>
           <thead>
             <tr style={{ background: '#F7F5F3' }}>
-              {[['Role', 'auto'], ['Permission', 120], ['Members', 100], ['Access', 230], ['PII', 90]].map(([label, w]) => (
+              {[['Role', 'auto'], ['Members', 110], ['Access', 260], ['PII', 100]].map(([label, w]) => (
                 <th key={label} style={{ width: w, textAlign: 'left', padding: '10px 18px', fontSize: 11, fontWeight: 600, letterSpacing: 0.5, textTransform: 'uppercase', color: '#9a948a', borderBottom: '1px solid #eaecea', whiteSpace: 'nowrap' }}>{label}</th>
               ))}
               <th style={{ width: 44, borderBottom: '1px solid #eaecea' }} />
@@ -1471,7 +1476,6 @@ function RolesListView({ roles, onOpen, onNew }) {
                     <div style={{ fontSize: 14, fontWeight: 500, color: '#1a1a1a' }}>{r.name}</div>
                     <div style={{ fontSize: 12.5, color: '#9a948a', marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.desc}</div>
                   </td>
-                  <td style={cell}><PermBadge perm={r.perm} /></td>
                   <td style={{ ...cell, fontSize: 13, color: '#374151' }}>
                     <span style={{ display: 'inline-flex', alignItems: 'center', gap: 7 }}>
                       <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="5" r="2.6" stroke="#9a948a" strokeWidth="1.4" /><path d="M3 13c0-2.5 2.2-4 5-4s5 1.5 5 4" stroke="#9a948a" strokeWidth="1.4" strokeLinecap="round" /></svg>
@@ -1500,14 +1504,14 @@ function RolesListView({ roles, onOpen, onNew }) {
 function RoleDetailView({ role, onBack, onSave, onDelete }) {
   const [name, setName] = useState(role?.name || '')
   const [desc, setDesc] = useState(role?.desc || '')
-  const [perm, setPerm] = useState(role?.perm || 'Viewer')
   const [pii, setPii] = useState(role?.pii || false)
   const [scopes, setScopes] = useState(role?.scopes || {})
   const [sel, setSel] = useState(null) // node-type id whose scope is being edited
 
   const setScope = (id, val) => setScopes(s => { const next = { ...s }; if (!val || val.mode === 'none') delete next[id]; else next[id] = val; return next })
+  const addType = id => { setScope(id, govReachableFromUser(id) ? { mode: 'path', hops: govShortestPath(GOV_USER_ID, id) || [] } : { mode: 'all' }); setSel(id) }
   const canSave = name.trim().length > 0
-  const submit = () => { if (canSave) onSave({ ...(role || {}), id: role?.id, name: name.trim(), desc: desc.trim() || 'No description.', perm, pii, members: role?.members || 0, scopes }) }
+  const submit = () => { if (canSave) onSave({ ...(role || {}), id: role?.id, name: name.trim(), desc: desc.trim() || 'No description.', pii, members: role?.members || 0, scopes }) }
   const counts = accessCounts(scopes)
 
   return (
@@ -1537,15 +1541,18 @@ function RoleDetailView({ role, onBack, onSave, onDelete }) {
         <div style={{ width: 384, flexShrink: 0, borderLeft: '1px solid #ece6da', background: '#fcfbf7', display: 'flex', flexDirection: 'column', minHeight: 0 }}>
           {sel
             ? <ScopeEditor key={sel} typeId={sel} scope={scopes[sel]} onChange={val => setScope(sel, val)} onBack={() => setSel(null)} />
-            : <RoleConfigPanel name={name} setName={setName} desc={desc} setDesc={setDesc} perm={perm} setPerm={setPerm} pii={pii} setPii={setPii} scopes={scopes} onSelect={setSel} />}
+            : <RoleConfigPanel name={name} setName={setName} desc={desc} setDesc={setDesc} pii={pii} setPii={setPii} scopes={scopes} onSelect={setSel} onAdd={addType} />}
         </div>
       </div>
     </div>
   )
 }
 
-function RoleConfigPanel({ name, setName, desc, setDesc, perm, setPerm, pii, setPii, scopes, onSelect }) {
-  const segBtn = active => ({ flex: 1, height: 32, border: 'none', borderRadius: 7, cursor: 'pointer', fontSize: 13, fontWeight: active ? 600 : 500, background: active ? '#fff' : 'transparent', color: active ? '#16341f' : '#8a8378', boxShadow: active ? '0 1px 2px rgba(0,0,0,0.08)' : 'none', transition: 'all .15s' })
+function RoleConfigPanel({ name, setName, desc, setDesc, pii, setPii, scopes, onSelect, onAdd }) {
+  const [adding, setAdding] = useState(false)
+  const accessibleNodes = SIDEBAR_NODES.filter(n => n.id !== GOV_USER_ID && scopeMode(scopes, n.id) !== 'none')
+  const addableNodes = SIDEBAR_NODES.filter(n => n.id !== GOV_USER_ID && scopeMode(scopes, n.id) === 'none')
+  const edges = accessibleEdges(scopes)
   return (
     <div style={{ flex: 1, overflowY: 'auto', padding: '18px 20px 28px' }} className="dark-scroll">
       <label style={govFieldLabel}>Role name</label>
@@ -1553,12 +1560,7 @@ function RoleConfigPanel({ name, setName, desc, setDesc, perm, setPerm, pii, set
       <label style={{ ...govFieldLabel, marginTop: 14 }}>Description</label>
       <input value={desc} onChange={e => setDesc(e.target.value)} placeholder="What this role is for" style={govInput} />
 
-      <label style={{ ...govFieldLabel, marginTop: 16 }}>Permission level</label>
-      <div style={{ display: 'flex', gap: 3, background: '#f2f1ee', border: '1px solid #e3ddd1', borderRadius: 9, padding: 3 }}>
-        {['Viewer', 'Editor', 'Admin'].map(p => <button key={p} onClick={() => setPerm(p)} style={segBtn(perm === p)}>{p}</button>)}
-      </div>
-
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 14, padding: '11px 13px', background: '#fff', border: '1px solid #ece6da', borderRadius: 10 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 16, padding: '11px 13px', background: '#fff', border: '1px solid #ece6da', borderRadius: 10 }}>
         <div style={{ flex: 1 }}>
           <div style={{ fontSize: 13.5, fontWeight: 500, color: '#3a3a36' }}>Sensitive (PII) fields</div>
           <div style={{ fontSize: 12, color: '#9a948a', marginTop: 1 }}>Show email, phone, and personal identifiers.</div>
@@ -1569,29 +1571,64 @@ function RoleConfigPanel({ name, setName, desc, setDesc, perm, setPerm, pii, set
       </div>
 
       <div style={{ height: 1, background: '#ece6da', margin: '18px 0 14px' }} />
-      <div style={{ fontSize: 13, fontWeight: 600, color: '#3a3a36', marginBottom: 3 }}>Node access</div>
-      <div style={{ fontSize: 12, color: '#9a948a', marginBottom: 12 }}>Pick a node type to scope what this role can reach.</div>
-
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-        {SIDEBAR_NODES.filter(n => n.id !== GOV_USER_ID).map(n => {
-          const mode = scopeMode(scopes, n.id)
-          const sc = scopes[n.id]
-          return (
-            <button key={n.id} onClick={() => onSelect(n.id)} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '9px 11px', borderRadius: 9, cursor: 'pointer', border: '1px solid #ece6da', background: '#fff', textAlign: 'left', transition: 'all .12s' }}
-              onMouseOver={e => e.currentTarget.style.borderColor = '#cfc7b6'} onMouseOut={e => e.currentTarget.style.borderColor = '#ece6da'}>
-              <span style={{ display: 'flex', flexShrink: 0 }}><ListGlyph node={n} size={16} /></span>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: 13.5, color: '#1a1a1a', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{n.label}</div>
-                {mode === 'path' && <div style={{ fontSize: 11, color: '#9a948a', fontFamily: 'var(--mono)', marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{pathChainText(sc.hops)}</div>}
-              </div>
-              <ScopeBadge mode={mode} />
-            </button>
-          )
-        })}
+      <div style={{ display: 'flex', alignItems: 'center', marginBottom: 12 }}>
+        <span style={{ fontSize: 13, fontWeight: 600, color: '#3a3a36', flex: 1 }}>Node access <span style={{ color: '#a89e88', fontWeight: 400 }}>· {accessibleNodes.length}</span></span>
+        {addableNodes.length > 0 && <button onClick={() => setAdding(a => !a)} style={miniLinkBtn}>{adding ? 'Done' : '+ Add node type'}</button>}
       </div>
+
+      {adding && (
+        <div style={{ border: '1px solid #e3ddd1', borderRadius: 10, background: '#fff', maxHeight: 230, overflowY: 'auto', marginBottom: 14 }} className="dark-scroll">
+          {addableNodes.map(n => (
+            <button key={n.id} onClick={() => { onAdd(n.id); setAdding(false) }} style={{ display: 'flex', alignItems: 'center', gap: 9, padding: '8px 11px', width: '100%', border: 'none', borderBottom: '1px solid #f4f1ea', background: 'transparent', cursor: 'pointer', textAlign: 'left' }}
+              onMouseOver={e => e.currentTarget.style.background = '#faf8f3'} onMouseOut={e => e.currentTarget.style.background = 'transparent'}>
+              <span style={{ display: 'flex', flexShrink: 0 }}><ListGlyph node={n} size={15} /></span>
+              <span style={{ fontSize: 13, color: '#1a1a1a', flex: 1 }}>{n.label}</span>
+              <svg width="12" height="12" viewBox="0 0 13 13" fill="none"><path d="M6.5 1.5v10M1.5 6.5h10" stroke="#9a948a" strokeWidth="1.5" strokeLinecap="round" /></svg>
+            </button>
+          ))}
+        </div>
+      )}
+
+      {accessibleNodes.length === 0 ? (
+        <div style={{ fontSize: 12.5, color: '#9a948a', padding: '14px 0' }}>No node access yet. Use “Add node type” to grant access.</div>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+          {accessibleNodes.map(n => {
+            const mode = scopeMode(scopes, n.id), sc = scopes[n.id]
+            return (
+              <button key={n.id} onClick={() => onSelect(n.id)} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '9px 11px', borderRadius: 9, cursor: 'pointer', border: '1px solid #ece6da', background: '#fff', textAlign: 'left', transition: 'all .12s' }}
+                onMouseOver={e => e.currentTarget.style.borderColor = '#cfc7b6'} onMouseOut={e => e.currentTarget.style.borderColor = '#ece6da'}>
+                <span style={{ display: 'flex', flexShrink: 0 }}><ListGlyph node={n} size={16} /></span>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 13.5, color: '#1a1a1a', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{n.label}</div>
+                  {mode === 'path' && <div style={{ fontSize: 11, color: '#9a948a', fontFamily: 'var(--mono)', marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{pathChainText(sc.hops)}</div>}
+                </div>
+                <ScopeBadge mode={mode} />
+              </button>
+            )
+          })}
+        </div>
+      )}
+
+      <div style={{ height: 1, background: '#ece6da', margin: '20px 0 14px' }} />
+      <div style={{ fontSize: 13, fontWeight: 600, color: '#3a3a36', marginBottom: 3 }}>Relationships <span style={{ color: '#a89e88', fontWeight: 400 }}>· {edges.length}</span></div>
+      <div style={{ fontSize: 12, color: '#9a948a', marginBottom: 12 }}>Edges this role can traverse — both endpoints must be accessible.</div>
+      {edges.length === 0 ? (
+        <div style={{ fontSize: 12.5, color: '#9a948a' }}>None yet — grant access to connected node types.</div>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+          {edges.map((e, i) => (
+            <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '7px 11px', borderRadius: 8, border: '1px solid #f1ede3', background: '#fff' }}>
+              <span style={{ fontFamily: 'var(--mono)', fontSize: 11.5, color: '#5b5547', fontWeight: 500, flexShrink: 0 }}>:{e.label}</span>
+              <span style={{ fontSize: 11.5, color: '#a89e88', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{govLabel(e.s)} → {govLabel(e.t)}</span>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   )
 }
+const miniLinkBtn = { border: 'none', background: 'none', cursor: 'pointer', fontSize: 12.5, fontWeight: 500, color: '#3a6ea0', padding: 0 }
 function pathChainText(hops) {
   return [govLabel(GOV_USER_ID), ...hops.map(h => govLabel(h.to))].join(' → ')
 }
