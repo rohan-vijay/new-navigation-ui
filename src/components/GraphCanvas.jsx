@@ -1456,7 +1456,7 @@ function RolesListView({ roles, onOpen, onNew }) {
         <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed' }}>
           <thead>
             <tr style={{ background: '#F7F5F3' }}>
-              {[['Role', 'auto'], ['Members', 110], ['Access', 260], ['PII', 100]].map(([label, w]) => (
+              {[['Role', 'auto'], ['Members', 120], ['Access', 300]].map(([label, w]) => (
                 <th key={label} style={{ width: w, textAlign: 'left', padding: '10px 18px', fontSize: 11, fontWeight: 600, letterSpacing: 0.5, textTransform: 'uppercase', color: '#9a948a', borderBottom: '1px solid #eaecea', whiteSpace: 'nowrap' }}>{label}</th>
               ))}
               <th style={{ width: 44, borderBottom: '1px solid #eaecea' }} />
@@ -1486,7 +1486,6 @@ function RolesListView({ roles, onOpen, onNew }) {
                     {allOpen ? <span style={{ fontWeight: 500 }}>All node types</span>
                       : <span>{c.path > 0 && <span style={{ color: '#6b5aa6', fontWeight: 600 }}>{c.path} scoped</span>}{c.path > 0 && c.all > 0 && <span style={{ color: '#c8c0b4' }}> · </span>}{c.all > 0 && <span style={{ color: '#2f6f43', fontWeight: 600 }}>{c.all} open</span>}{c.path === 0 && c.all === 0 && <span style={{ color: '#b6ad9b' }}>No access</span>}</span>}
                   </td>
-                  <td style={cell}>{r.pii ? <span style={{ fontSize: 12.5, fontWeight: 600, color: '#8a7340' }}>Visible</span> : <span style={{ fontSize: 12.5, color: '#9a948a' }}>Masked</span>}</td>
                   <td style={{ ...cell, textAlign: 'right', paddingRight: 14 }}>
                     <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M6 4l4 4-4 4" stroke="#c2bcae" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" /></svg>
                   </td>
@@ -1504,14 +1503,13 @@ function RolesListView({ roles, onOpen, onNew }) {
 function RoleDetailView({ role, onBack, onSave, onDelete }) {
   const [name, setName] = useState(role?.name || '')
   const [desc, setDesc] = useState(role?.desc || '')
-  const [pii, setPii] = useState(role?.pii || false)
   const [scopes, setScopes] = useState(role?.scopes || {})
   const [sel, setSel] = useState(null) // node-type id whose scope is being edited
 
   const setScope = (id, val) => setScopes(s => { const next = { ...s }; if (!val || val.mode === 'none') delete next[id]; else next[id] = val; return next })
   const addType = id => { setScope(id, govReachableFromUser(id) ? { mode: 'path', hops: govShortestPath(GOV_USER_ID, id) || [] } : { mode: 'all' }); setSel(id) }
   const canSave = name.trim().length > 0
-  const submit = () => { if (canSave) onSave({ ...(role || {}), id: role?.id, name: name.trim(), desc: desc.trim() || 'No description.', pii, members: role?.members || 0, scopes }) }
+  const submit = () => { if (canSave) onSave({ ...(role || {}), id: role?.id, name: name.trim(), desc: desc.trim() || 'No description.', members: role?.members || 0, scopes }) }
   const counts = accessCounts(scopes)
 
   return (
@@ -1541,14 +1539,14 @@ function RoleDetailView({ role, onBack, onSave, onDelete }) {
         <div style={{ width: 384, flexShrink: 0, borderLeft: '1px solid #ece6da', background: '#fcfbf7', display: 'flex', flexDirection: 'column', minHeight: 0 }}>
           {sel
             ? <ScopeEditor key={sel} typeId={sel} scope={scopes[sel]} onChange={val => setScope(sel, val)} onBack={() => setSel(null)} />
-            : <RoleConfigPanel name={name} setName={setName} desc={desc} setDesc={setDesc} pii={pii} setPii={setPii} scopes={scopes} onSelect={setSel} onAdd={addType} />}
+            : <RoleConfigPanel name={name} setName={setName} desc={desc} setDesc={setDesc} scopes={scopes} onSelect={setSel} onAdd={addType} />}
         </div>
       </div>
     </div>
   )
 }
 
-function RoleConfigPanel({ name, setName, desc, setDesc, pii, setPii, scopes, onSelect, onAdd }) {
+function RoleConfigPanel({ name, setName, desc, setDesc, scopes, onSelect, onAdd }) {
   const [adding, setAdding] = useState(false)
   const accessibleNodes = SIDEBAR_NODES.filter(n => n.id !== GOV_USER_ID && scopeMode(scopes, n.id) !== 'none')
   const addableNodes = SIDEBAR_NODES.filter(n => n.id !== GOV_USER_ID && scopeMode(scopes, n.id) === 'none')
@@ -1559,16 +1557,6 @@ function RoleConfigPanel({ name, setName, desc, setDesc, pii, setPii, scopes, on
       <input value={name} onChange={e => setName(e.target.value)} placeholder="e.g. Field Engineer (FDE)" style={govInput} />
       <label style={{ ...govFieldLabel, marginTop: 14 }}>Description</label>
       <input value={desc} onChange={e => setDesc(e.target.value)} placeholder="What this role is for" style={govInput} />
-
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 16, padding: '11px 13px', background: '#fff', border: '1px solid #ece6da', borderRadius: 10 }}>
-        <div style={{ flex: 1 }}>
-          <div style={{ fontSize: 13.5, fontWeight: 500, color: '#3a3a36' }}>Sensitive (PII) fields</div>
-          <div style={{ fontSize: 12, color: '#9a948a', marginTop: 1 }}>Show email, phone, and personal identifiers.</div>
-        </div>
-        <button onClick={() => setPii(!pii)} style={{ width: 40, height: 23, borderRadius: 20, border: 'none', cursor: 'pointer', background: pii ? '#16341f' : '#d6d0c4', position: 'relative', transition: 'background .15s', flexShrink: 0 }}>
-          <span style={{ position: 'absolute', top: 2.5, left: pii ? 20 : 2.5, width: 18, height: 18, borderRadius: '50%', background: '#fff', transition: 'left .15s', boxShadow: '0 1px 2px rgba(0,0,0,0.2)' }} />
-        </button>
-      </div>
 
       <div style={{ height: 1, background: '#ece6da', margin: '18px 0 14px' }} />
       <div style={{ display: 'flex', alignItems: 'center', marginBottom: 12 }}>
