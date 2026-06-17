@@ -1314,66 +1314,118 @@ function EdgesList() {
   )
 }
 
-/* ── Governance · Roles ──────────────────────────────────────────────────────
-   Define roles and exactly which node types and edge types each can access,
-   at what permission level, and whether sensitive (PII) fields are visible. */
+/* ── Governance · Roles (relationship-based access control) ───────────────────
+   Each role scopes every node type to either ALL records, NONE, or the records
+   reachable from the acting user by a graph traversal ("Scoped"). This is ReBAC:
+   e.g. an FDE sees only the Accounts their User is :ASSOCIATED_WITH — and, with
+   more hops, everything hanging off those accounts. */
 const PERM_TAG = {
   Admin:  { color: '#8a4a3a', bg: '#faeeea', border: '#eed6cd' },
   Editor: { color: '#2f6f43', bg: '#eef4ee', border: '#d6e6d8' },
   Viewer: { color: '#3a6ea0', bg: '#eef3f9', border: '#d3e0ee' },
 }
-const ALL_EDGE_LABELS = [...new Set(GRAPH_EDGES.map(e => e.label))]
-// Seed roles — node/edge access is a Set of ids/labels, or 'all' for everything.
+const SCOPE_TAG = {
+  all:  { label: 'All records', color: '#2f6f43', bg: '#eef4ee', border: '#d6e6d8' },
+  path: { label: 'Scoped',      color: '#6b5aa6', bg: '#f2effa', border: '#ddd5ef' },
+  none: { label: 'No access',   color: '#9a948a', bg: '#f3f1ec', border: '#e7e1d5' },
+}
+const GOV_USER_ID = 'user'
+const GOV_NODE_BY_ID = (() => { const m = {}; SIDEBAR_NODES.forEach(n => { m[n.id] = n }); return m })()
+const GOV_ENTITY_IDS = SIDEBAR_NODES.map(n => n.id)
+const govLabel = id => (GOV_NODE_BY_ID[id]?.label) || id
+// Every relationship leaving a node type, in either direction (ReBAC can follow
+// an edge backwards), de-duplicated.
+function govNeighbors(type) {
+  const out = []
+  GRAPH_EDGES.forEach(e => {
+    if (e.s === type) out.push({ edge: e.label, to: e.t, dir: 'out' })
+    if (e.t === type) out.push({ edge: e.label, to: e.s, dir: 'in' })
+  })
+  const seen = new Set()
+  return out.filter(o => { if (!GOV_NODE_BY_ID[o.to]) return false; const k = o.edge + '|' + o.to + '|' + o.dir; if (seen.has(k)) return false; seen.add(k); return true })
+}
+const GOV_REACH = (() => {
+  const m = {}
+  SIDEBAR_NODES.forEach(n => { const seen = new Set([n.id]); const q = [n.id]; while (q.length) { const f = q.shift(); govNeighbors(f).forEach(o => { if (!seen.has(o.to)) { seen.add(o.to); q.push(o.to) } }) } m[n.id] = seen })
+  return m
+})()
+const govReachableFromUser = to => to !== GOV_USER_ID && GOV_REACH[GOV_USER_ID] && GOV_REACH[GOV_USER_ID].has(to)
+function govShortestPath(from, to) {
+  if (from === to) return []
+  const prev = {}, seen = new Set([from]), q = [from]
+  while (q.length) {
+    const f = q.shift()
+    for (const o of govNeighbors(f)) {
+      if (!seen.has(o.to)) {
+        seen.add(o.to); prev[o.to] = { from: f, edge: o.edge, dir: o.dir }
+        if (o.to === to) { const hops = []; let cur = to; while (cur !== from) { const p = prev[cur]; hops.unshift({ edge: p.edge, from: p.from, to: cur, dir: p.dir }); cur = p.from } return hops }
+        q.push(o.to)
+      }
+    }
+  }
+  return null
+}
+const govScoped = (...types) => { const m = {}; types.forEach(t => { const h = govShortestPath(GOV_USER_ID, t); if (h && h.length) m[t] = { mode: 'path', hops: h } }); return m }
+const govAll = (...types) => { const m = {}; types.forEach(t => m[t] = { mode: 'all' }); return m }
+const scopeMode = (scopes, id) => scopes[id]?.mode || 'none'
+
 const SEED_ROLES = [
-  { id: 'r1', name: 'Workspace Admin',  desc: 'Full control over the graph schema, data, and governance.', perm: 'Admin',  members: 3,  pii: true,  nodes: 'all', edges: 'all' },
-  { id: 'r2', name: 'Data Steward',     desc: 'Curates schema, resolves matches, and manages data quality.', perm: 'Editor', members: 5,  pii: true,  nodes: 'all', edges: 'all' },
-  { id: 'r3', name: 'Revenue Analyst',  desc: 'Reads the commercial picture across accounts and pipeline.', perm: 'Viewer', members: 14, pii: false, nodes: ['account','opportunity','subscription','invoice','agreement','product','health_score','churn_risk'], edges: ['HAS_SUBSCRIPTION','HAS_OPPORTUNITY','GOVERNED_BY','BILLS','ITEMIZES','FOR_PRODUCT','HAS_HEALTH','FLAGS'] },
-  { id: 'r4', name: 'Account Executive', desc: 'Owns customer relationships, opportunities, and interactions.', perm: 'Editor', members: 22, pii: true,  nodes: ['account','person','opportunity','interaction','subscription','competitor'], edges: ['WORKS_AT','HAS_OPPORTUNITY','HAS_SUBSCRIPTION','TOUCHES','INVOLVED_IN','COMPETES_WITH'] },
-  { id: 'r5', name: 'Support Agent',    desc: 'Works tickets, cases, and incidents tied to customers.', perm: 'Editor', members: 18, pii: true,  nodes: ['account','person','ticket','case','incident','signal'], edges: ['RAISES','ESCALATES_TO','INCIDENT_AFFECTS','TOUCHES','OBSERVED_ON'] },
-  { id: 'r6', name: 'Finance',          desc: 'Manages billing, contracts, and revenue recognition.', perm: 'Editor', members: 7,  pii: false, nodes: ['account','invoice','agreement','subscription','product'], edges: ['BILLS','ITEMIZES','GOVERNED_BY','HAS_SUBSCRIPTION','FOR_PRODUCT'] },
-  { id: 'r7', name: 'Auditor',          desc: 'Read-only access to everything for compliance review.', perm: 'Viewer', members: 4,  pii: false, nodes: 'all', edges: 'all' },
-  { id: 'r8', name: 'External Partner', desc: 'Limited shared view for integration partners.', perm: 'Viewer', members: 9,  pii: false, nodes: ['account','product'], edges: ['FOR_PRODUCT'] },
+  { id: 'r_fde',     name: 'Field Engineer (FDE)', desc: 'Sees only the accounts they are associated with, and everything hanging off them.', perm: 'Editor', members: 12, pii: true,  scopes: govScoped('account', 'opportunity', 'subscription', 'ticket', 'case', 'invoice', 'contract') },
+  { id: 'r_admin',   name: 'Workspace Admin',      desc: 'Full control over the graph schema, data, and governance.',                          perm: 'Admin',  members: 3,  pii: true,  scopes: govAll(...GOV_ENTITY_IDS) },
+  { id: 'r_steward', name: 'Data Steward',         desc: 'Curates schema, resolves matches, and manages data quality.',                        perm: 'Editor', members: 5,  pii: true,  scopes: govAll(...GOV_ENTITY_IDS) },
+  { id: 'r_ae',      name: 'Account Executive',    desc: 'Owns their accounts, opportunities, and the people in them.',                        perm: 'Editor', members: 22, pii: true,  scopes: govScoped('account', 'contact', 'opportunity', 'quote', 'proposal', 'meeting', 'subscription') },
+  { id: 'r_support', name: 'Support Agent',        desc: 'Works tickets and cases for the accounts they are assigned to.',                     perm: 'Editor', members: 18, pii: true,  scopes: govScoped('ticket', 'case', 'account') },
+  { id: 'r_analyst', name: 'Revenue Analyst',      desc: 'Reads the commercial picture across every account.',                                perm: 'Viewer', members: 14, pii: false, scopes: govAll('account', 'opportunity', 'subscription', 'invoice', 'contract', 'product', 'renewal', 'churn_risk', 'health_score') },
+  { id: 'r_auditor', name: 'Auditor',              desc: 'Read-only access to everything for compliance review.',                              perm: 'Viewer', members: 4,  pii: false, scopes: govAll(...GOV_ENTITY_IDS) },
 ]
 const ROLE_SORTERS = {
-  'Name (A–Z)': (a, b) => a.name.localeCompare(b.name),
   'Members': (a, b) => b.members - a.members,
+  'Name (A–Z)': (a, b) => a.name.localeCompare(b.name),
   'Permission': (a, b) => a.perm.localeCompare(b.perm),
 }
 function PermBadge({ perm }) {
   const t = PERM_TAG[perm] || PERM_TAG.Viewer
   return <span style={{ fontSize: 11.5, fontWeight: 600, color: t.color, background: t.bg, border: `1px solid ${t.border}`, padding: '2px 9px', borderRadius: 20 }}>{perm}</span>
 }
-function AccessSummary({ value, total, label }) {
-  if (value === 'all') return <span style={{ fontSize: 13, color: '#3a3a36', fontWeight: 500 }}>All {label}</span>
-  const n = value.length
-  if (n === 0) return <span style={{ fontSize: 13, color: '#b6ad9b' }}>None</span>
-  return <span style={{ fontSize: 13, color: '#3a3a36' }}>{n} <span style={{ color: '#9a948a' }}>of {total} {label}</span></span>
+function ScopeBadge({ mode }) {
+  const t = SCOPE_TAG[mode] || SCOPE_TAG.none
+  return <span style={{ fontSize: 11, fontWeight: 600, color: t.color, background: t.bg, border: `1px solid ${t.border}`, padding: '2px 8px', borderRadius: 6, whiteSpace: 'nowrap' }}>{t.label}</span>
+}
+function accessCounts(scopes) {
+  let path = 0, all = 0
+  GOV_ENTITY_IDS.forEach(id => { const m = scopeMode(scopes, id); if (m === 'path') path++; else if (m === 'all') all++ })
+  return { path, all, none: GOV_ENTITY_IDS.length - path - all }
 }
 
+const govFieldLabel = { display: 'block', fontSize: 12, fontWeight: 600, color: '#6b6b5e', marginBottom: 6, textTransform: 'uppercase', letterSpacing: 0.4 }
+const govInput = { width: '100%', boxSizing: 'border-box', border: '1px solid #e3ddd1', borderRadius: 9, padding: '9px 12px', fontSize: 13.5, color: '#1a1a1a', outline: 'none', background: '#fff' }
+const govSelect = { ...govInput, appearance: 'none', cursor: 'pointer', backgroundImage: 'url("data:image/svg+xml;utf8,<svg xmlns=\'http://www.w3.org/2000/svg\' width=\'12\' height=\'12\' viewBox=\'0 0 12 12\'><path d=\'M2 4l4 4 4-4\' stroke=\'%238a8378\' stroke-width=\'1.5\' fill=\'none\' stroke-linecap=\'round\'/></svg>")', backgroundRepeat: 'no-repeat', backgroundPosition: 'right 11px center', paddingRight: 30 }
+
+// ── Governance container: list ⇄ role detail ────────────────────────────────
 function GovernanceRoles() {
   const [roles, setRoles] = useState(SEED_ROLES)
+  const [open, setOpen] = useState(null) // role being viewed/edited, or 'new'
+
+  const saveRole = role => {
+    setRoles(rs => role.id && rs.some(r => r.id === role.id) ? rs.map(r => r.id === role.id ? role : r) : [...rs, { ...role, id: 'r_' + Date.now().toString(36) }])
+    setOpen(null)
+  }
+  const removeRole = id => { setRoles(rs => rs.filter(r => r.id !== id)); setOpen(null) }
+
+  if (open) {
+    return <RoleDetailView role={open === 'new' ? null : open} onBack={() => setOpen(null)} onSave={saveRole} onDelete={open !== 'new' ? () => removeRole(open.id) : null} />
+  }
+  return <RolesListView roles={roles} onOpen={setOpen} onNew={() => setOpen('new')} />
+}
+
+function RolesListView({ roles, onOpen, onNew }) {
   const [sort, setSort] = useState('Members')
   const [filter, setFilter] = useState('All permissions')
   const [search, setSearch] = useState('')
-  const [editing, setEditing] = useState(null) // role object being edited, or 'new'
-
-  const nodeTotal = SIDEBAR_NODES.length
-  const edgeTotal = ALL_EDGE_LABELS.length
-
   const rows = useMemo(() => {
-    const q = search.toLowerCase()
-    const fperm = filter === 'All permissions' ? null : filter
-    return [...roles]
-      .filter(r => !fperm || r.perm === fperm)
-      .filter(r => !q || r.name.toLowerCase().includes(q) || r.desc.toLowerCase().includes(q))
-      .sort(ROLE_SORTERS[sort])
+    const q = search.toLowerCase(), fp = filter === 'All permissions' ? null : filter
+    return [...roles].filter(r => !fp || r.perm === fp).filter(r => !q || r.name.toLowerCase().includes(q) || r.desc.toLowerCase().includes(q)).sort(ROLE_SORTERS[sort])
   }, [roles, sort, filter, search])
-
-  const saveRole = (role) => {
-    setRoles(rs => role.id && rs.some(r => r.id === role.id) ? rs.map(r => r.id === role.id ? role : r) : [...rs, { ...role, id: 'r' + (rs.length + 1) + '_' + role.name.length }])
-    setEditing(null)
-  }
-  const removeRole = (id) => setRoles(rs => rs.filter(r => r.id !== id))
 
   return (
     <div style={{ flex: 1, overflowY: 'auto', backgroundColor: '#fcfbf7', padding: '12px 26px 40px' }} className="dark-scroll">
@@ -1383,17 +1435,16 @@ function GovernanceRoles() {
             <span style={{ fontFamily: 'var(--serif)', fontSize: 23, fontWeight: 500, color: '#1a1a1a', letterSpacing: -0.2 }}>Roles</span>
             <span style={{ fontFamily: 'var(--sans)', fontSize: 14, color: '#a89e88' }}>{rows.length}</span>
           </div>
-          <div style={{ fontSize: 13, color: '#8a8378', marginTop: 3 }}>Define who can see and edit each node type and relationship in this graph.</div>
+          <div style={{ fontSize: 13, color: '#8a8378', marginTop: 3 }}>Scope each role's access by walking the graph from the acting user — not just by ticking node types.</div>
         </div>
-        <button onClick={() => setEditing('new')} style={{ ...gBtnPrimary, height: 34, display: 'inline-flex', alignItems: 'center', gap: 7, padding: '0 15px' }}>
+        <button onClick={onNew} style={{ ...gBtnPrimary, height: 34, display: 'inline-flex', alignItems: 'center', gap: 7, padding: '0 15px' }}>
           <svg width="13" height="13" viewBox="0 0 13 13" fill="none"><path d="M6.5 1.5v10M1.5 6.5h10" stroke="#fff" strokeWidth="1.7" strokeLinecap="round" /></svg>
           New Role
         </button>
       </div>
 
       <div style={{ marginTop: 14 }}>
-        <TableToolbar
-          sort={sort} sortOptions={Object.keys(ROLE_SORTERS)} onSort={setSort}
+        <TableToolbar sort={sort} sortOptions={Object.keys(ROLE_SORTERS)} onSort={setSort}
           filter={filter} filterOptions={['All permissions', 'Admin', 'Editor', 'Viewer']} onFilter={setFilter}
           search={search} onSearch={setSearch} placeholder="Search roles" />
       </div>
@@ -1402,18 +1453,20 @@ function GovernanceRoles() {
         <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed' }}>
           <thead>
             <tr style={{ background: '#F7F5F3' }}>
-              {[['Role', 'auto'], ['Permission', 120], ['Members', 100], ['Node access', 150], ['Edge access', 150], ['PII', 90]].map(([label, w]) => (
+              {[['Role', 'auto'], ['Permission', 120], ['Members', 100], ['Access', 230], ['PII', 90]].map(([label, w]) => (
                 <th key={label} style={{ width: w, textAlign: 'left', padding: '10px 18px', fontSize: 11, fontWeight: 600, letterSpacing: 0.5, textTransform: 'uppercase', color: '#9a948a', borderBottom: '1px solid #eaecea', whiteSpace: 'nowrap' }}>{label}</th>
               ))}
-              <th style={{ width: 48, borderBottom: '1px solid #eaecea' }} />
+              <th style={{ width: 44, borderBottom: '1px solid #eaecea' }} />
             </tr>
           </thead>
           <tbody>
             {rows.map((r, i) => {
               const last = i === rows.length - 1
               const cell = { padding: '13px 18px', verticalAlign: 'middle', overflow: 'hidden', borderBottom: last ? 'none' : '1px solid #f1f2f1' }
+              const c = accessCounts(r.scopes)
+              const allOpen = c.all === GOV_ENTITY_IDS.length
               return (
-                <tr key={r.id} onClick={() => setEditing(r)} style={{ background: '#fff', cursor: 'pointer', transition: 'background .12s, box-shadow .12s' }}
+                <tr key={r.id} onClick={() => onOpen(r)} style={{ background: '#fff', cursor: 'pointer', transition: 'background .12s, box-shadow .12s' }}
                   onMouseOver={ev => { ev.currentTarget.style.background = '#f7f6f3'; ev.currentTarget.style.boxShadow = 'inset 3px 0 0 #16341f' }}
                   onMouseOut={ev => { ev.currentTarget.style.background = '#fff'; ev.currentTarget.style.boxShadow = 'none' }}>
                   <td style={cell}>
@@ -1427,17 +1480,13 @@ function GovernanceRoles() {
                       {r.members}
                     </span>
                   </td>
-                  <td style={cell}><AccessSummary value={r.nodes} total={nodeTotal} label="nodes" /></td>
-                  <td style={cell}><AccessSummary value={r.edges} total={edgeTotal} label="edges" /></td>
-                  <td style={cell}>
-                    {r.pii
-                      ? <span style={{ fontSize: 12.5, fontWeight: 600, color: '#8a7340' }}>Visible</span>
-                      : <span style={{ fontSize: 12.5, color: '#9a948a' }}>Masked</span>}
+                  <td style={{ ...cell, fontSize: 13, color: '#3a3a36' }}>
+                    {allOpen ? <span style={{ fontWeight: 500 }}>All node types</span>
+                      : <span>{c.path > 0 && <span style={{ color: '#6b5aa6', fontWeight: 600 }}>{c.path} scoped</span>}{c.path > 0 && c.all > 0 && <span style={{ color: '#c8c0b4' }}> · </span>}{c.all > 0 && <span style={{ color: '#2f6f43', fontWeight: 600 }}>{c.all} open</span>}{c.path === 0 && c.all === 0 && <span style={{ color: '#b6ad9b' }}>No access</span>}</span>}
                   </td>
+                  <td style={cell}>{r.pii ? <span style={{ fontSize: 12.5, fontWeight: 600, color: '#8a7340' }}>Visible</span> : <span style={{ fontSize: 12.5, color: '#9a948a' }}>Masked</span>}</td>
                   <td style={{ ...cell, textAlign: 'right', paddingRight: 14 }}>
-                    <button onClick={ev => { ev.stopPropagation(); setEditing(r) }} style={{ border: 'none', background: 'none', cursor: 'pointer', padding: 4 }}>
-                      <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="3.5" r="1.2" fill="#b8bcb8" /><circle cx="8" cy="8" r="1.2" fill="#b8bcb8" /><circle cx="8" cy="12.5" r="1.2" fill="#b8bcb8" /></svg>
-                    </button>
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M6 4l4 4-4 4" stroke="#c2bcae" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" /></svg>
                   </td>
                 </tr>
               )
@@ -1445,146 +1494,318 @@ function GovernanceRoles() {
           </tbody>
         </table>
       </div>
-
-      {editing && <RoleEditor role={editing === 'new' ? null : editing} onSave={saveRole} onDelete={editing !== 'new' ? () => { removeRole(editing.id); setEditing(null) } : null} onClose={() => setEditing(null)} />}
     </div>
   )
 }
 
-/* Slide-over editor: name, permission level, PII toggle, and the two access
-   grids (node types + edge types) with select-all / clear. */
-function RoleEditor({ role, onSave, onDelete, onClose }) {
-  const nodeTotal = SIDEBAR_NODES.length
-  const edgeTotal = ALL_EDGE_LABELS.length
+// ── Role detail: scope graph in the middle, config on the right ─────────────
+function RoleDetailView({ role, onBack, onSave, onDelete }) {
   const [name, setName] = useState(role?.name || '')
   const [desc, setDesc] = useState(role?.desc || '')
   const [perm, setPerm] = useState(role?.perm || 'Viewer')
   const [pii, setPii] = useState(role?.pii || false)
-  const [nodes, setNodes] = useState(() => new Set(role?.nodes === 'all' ? SIDEBAR_NODES.map(n => n.id) : (role?.nodes || [])))
-  const [edges, setEdges] = useState(() => new Set(role?.edges === 'all' ? ALL_EDGE_LABELS : (role?.edges || [])))
+  const [scopes, setScopes] = useState(role?.scopes || {})
+  const [sel, setSel] = useState(null) // node-type id whose scope is being edited
 
-  const toggle = (set, setFn, key) => { const next = new Set(set); next.has(key) ? next.delete(key) : next.add(key); setFn(next) }
+  const setScope = (id, val) => setScopes(s => { const next = { ...s }; if (!val || val.mode === 'none') delete next[id]; else next[id] = val; return next })
   const canSave = name.trim().length > 0
-
-  const submit = () => {
-    if (!canSave) return
-    onSave({
-      ...(role || {}), id: role?.id, name: name.trim(), desc: desc.trim() || 'No description.', perm, pii, members: role?.members || 0,
-      nodes: nodes.size === nodeTotal ? 'all' : [...nodes],
-      edges: edges.size === edgeTotal ? 'all' : [...edges],
-    })
-  }
-
-  const byId = useMemo(() => { const m = {}; SIDEBAR_NODES.forEach(n => { m[n.id] = n }); return m }, [])
-  const edgeEndpoints = useMemo(() => { const m = {}; GRAPH_EDGES.forEach(e => { if (!m[e.label]) m[e.label] = e }); return m }, [])
-
-  const segBtn = (active) => ({ flex: 1, height: 32, border: 'none', borderRadius: 7, cursor: 'pointer', fontSize: 13, fontWeight: active ? 600 : 500, background: active ? '#fff' : 'transparent', color: active ? '#16341f' : '#8a8378', boxShadow: active ? '0 1px 2px rgba(0,0,0,0.08)' : 'none', transition: 'all .15s' })
-
-  const sectionHead = (title, set, setFn, allKeys) => (
-    <div style={{ display: 'flex', alignItems: 'center', marginBottom: 10 }}>
-      <span style={{ fontSize: 13, fontWeight: 600, color: '#3a3a36', flex: 1 }}>{title} <span style={{ color: '#a89e88', fontWeight: 400 }}>· {set.size} selected</span></span>
-      <button onClick={() => setFn(new Set(allKeys))} style={miniLink}>Select all</button>
-      <span style={{ color: '#d8d2c4', margin: '0 6px' }}>·</span>
-      <button onClick={() => setFn(new Set())} style={miniLink}>Clear</button>
-    </div>
-  )
+  const submit = () => { if (canSave) onSave({ ...(role || {}), id: role?.id, name: name.trim(), desc: desc.trim() || 'No description.', perm, pii, members: role?.members || 0, scopes }) }
+  const counts = accessCounts(scopes)
 
   return (
-    <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(30,26,18,0.28)', zIndex: 60, display: 'flex', justifyContent: 'flex-end' }}>
-      <div onClick={e => e.stopPropagation()} style={{ width: 480, maxWidth: '94vw', height: '100%', background: '#fcfbf7', boxShadow: '-12px 0 40px rgba(40,32,16,0.18)', display: 'flex', flexDirection: 'column' }}>
-        {/* header */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '18px 22px', borderBottom: '1px solid #ece6da', flexShrink: 0 }}>
-          <span style={{ width: 34, height: 34, borderRadius: 9, background: '#16341f', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-            <svg width="17" height="17" viewBox="0 0 16 16" fill="none"><path d="M8 1.5l5 2v3.2c0 3.4-2.2 5.8-5 7-2.8-1.2-5-3.6-5-7V3.5l5-2z" stroke="#fff" strokeWidth="1.4" strokeLinejoin="round" /><path d="M5.8 8l1.6 1.6L10.4 6.4" stroke="#fff" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" /></svg>
-          </span>
-          <div style={{ flex: 1 }}>
-            <div style={{ fontFamily: 'var(--serif)', fontSize: 18, fontWeight: 500, color: '#1a1a1a' }}>{role ? 'Edit role' : 'New role'}</div>
-            <div style={{ fontSize: 12.5, color: '#9a948a' }}>Scope this role's access to the graph</div>
-          </div>
-          <button onClick={onClose} style={{ border: 'none', background: 'none', cursor: 'pointer', padding: 6 }}>
-            <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M5 5l8 8M13 5l-8 8" stroke="#9a948a" strokeWidth="1.6" strokeLinecap="round" /></svg>
-          </button>
+    <div style={{ flex: 1, minHeight: 0, height: '100%', display: 'flex', flexDirection: 'column', overflow: 'hidden', background: 'var(--bg-canvas)' }}>
+      {/* header */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '14px 26px', flexShrink: 0, borderBottom: '1px solid #ece6da' }}>
+        <button onClick={onBack} style={{ width: 32, height: 32, borderRadius: 8, background: '#fff', border: '1px solid #eee7da', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0 }}>
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="#6b6b5e" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="10,3 5,8 10,13" /></svg>
+        </button>
+        <span style={{ width: 34, height: 34, borderRadius: 9, background: '#16341f', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+          <svg width="17" height="17" viewBox="0 0 16 16" fill="none"><path d="M8 1.5l5 2v3.2c0 3.4-2.2 5.8-5 7-2.8-1.2-5-3.6-5-7V3.5l5-2z" stroke="#fff" strokeWidth="1.4" strokeLinejoin="round" /><path d="M5.8 8l1.6 1.6L10.4 6.4" stroke="#fff" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" /></svg>
+        </span>
+        <div style={{ flex: 1 }}>
+          <div style={{ fontFamily: 'var(--serif)', fontSize: 20, fontWeight: 500, color: '#1a1a1a' }}>{name || (role ? role.name : 'New role')}</div>
+          <div style={{ fontSize: 12.5, color: '#9a948a' }}>{counts.path} scoped · {counts.all} open · {counts.none} no access</div>
         </div>
+        {onDelete && <button onClick={onDelete} style={{ ...gBtnGhost, height: 34, color: '#a8453a', borderColor: '#ecd9d4' }}>Delete</button>}
+        <button onClick={submit} disabled={!canSave} style={{ ...gBtnPrimary, height: 34, opacity: canSave ? 1 : 0.5, cursor: canSave ? 'pointer' : 'not-allowed' }}>{role ? 'Save changes' : 'Create role'}</button>
+      </div>
 
-        {/* body */}
-        <div style={{ flex: 1, overflowY: 'auto', padding: '20px 22px' }} className="dark-scroll">
-          <label style={fieldLabel}>Role name</label>
-          <input value={name} onChange={e => setName(e.target.value)} placeholder="e.g. Revenue Analyst" autoFocus style={fieldInput} />
-
-          <label style={{ ...fieldLabel, marginTop: 16 }}>Description</label>
-          <input value={desc} onChange={e => setDesc(e.target.value)} placeholder="What this role is for" style={fieldInput} />
-
-          <label style={{ ...fieldLabel, marginTop: 16 }}>Permission level</label>
-          <div style={{ display: 'flex', gap: 3, background: '#f2f1ee', border: '1px solid #e3ddd1', borderRadius: 9, padding: 3 }}>
-            {['Viewer', 'Editor', 'Admin'].map(p => <button key={p} onClick={() => setPerm(p)} style={segBtn(perm === p)}>{p}</button>)}
-          </div>
-          <div style={{ fontSize: 12, color: '#9a948a', marginTop: 6 }}>
-            {perm === 'Viewer' ? 'Can read the selected nodes and edges, but not change them.' : perm === 'Editor' ? 'Can read and edit records for the selected nodes and edges.' : 'Full control, including schema and governance.'}
-          </div>
-
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 18, padding: '12px 14px', background: '#fff', border: '1px solid #ece6da', borderRadius: 10 }}>
-            <div style={{ flex: 1 }}>
-              <div style={{ fontSize: 13.5, fontWeight: 500, color: '#3a3a36' }}>Sensitive (PII) fields</div>
-              <div style={{ fontSize: 12, color: '#9a948a', marginTop: 1 }}>Show fields like email, phone, and personal identifiers.</div>
-            </div>
-            <button onClick={() => setPii(!pii)} style={{ width: 40, height: 23, borderRadius: 20, border: 'none', cursor: 'pointer', background: pii ? '#16341f' : '#d6d0c4', position: 'relative', transition: 'background .15s', flexShrink: 0 }}>
-              <span style={{ position: 'absolute', top: 2.5, left: pii ? 20 : 2.5, width: 18, height: 18, borderRadius: '50%', background: '#fff', transition: 'left .15s', boxShadow: '0 1px 2px rgba(0,0,0,0.2)' }} />
-            </button>
-          </div>
-
-          <div style={{ height: 1, background: '#ece6da', margin: '22px 0' }} />
-
-          {/* node access grid */}
-          {sectionHead('Node types', nodes, setNodes, SIDEBAR_NODES.map(n => n.id))}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 7, marginBottom: 22 }}>
-            {SIDEBAR_NODES.map(n => {
-              const on = nodes.has(n.id)
-              return (
-                <button key={n.id} onClick={() => toggle(nodes, setNodes, n.id)} style={accessChip(on)}>
-                  <span style={{ display: 'flex', flexShrink: 0 }}><ListGlyph node={n} size={15} /></span>
-                  <span style={{ flex: 1, textAlign: 'left', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{n.label}</span>
-                  {on && <CheckMark />}
-                </button>
-              )
-            })}
-          </div>
-
-          {/* edge access grid */}
-          {sectionHead('Edge types', edges, setEdges, ALL_EDGE_LABELS)}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
-            {ALL_EDGE_LABELS.map(lbl => {
-              const on = edges.has(lbl)
-              const ep = edgeEndpoints[lbl]
-              const from = ep && byId[ep.s], to = ep && byId[ep.t]
-              return (
-                <button key={lbl} onClick={() => toggle(edges, setEdges, lbl)} style={{ ...accessChip(on), justifyContent: 'flex-start' }}>
-                  <span style={{ fontFamily: 'var(--mono)', fontSize: 12, color: on ? '#16341f' : '#5b5547', fontWeight: 500, flexShrink: 0 }}>:{lbl}</span>
-                  {from && to && <span style={{ fontSize: 11.5, color: '#a89e88', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{from.label} → {to.label}</span>}
-                  <span style={{ flex: 1 }} />
-                  {on && <CheckMark />}
-                </button>
-              )
-            })}
-          </div>
+      <div style={{ flex: 1, display: 'flex', minHeight: 0 }}>
+        {/* graph */}
+        <div style={{ flex: 1, minWidth: 0, position: 'relative', overflow: 'hidden' }}>
+          <ScopeGraph scopes={scopes} selectedType={sel} onSelectType={setSel} />
         </div>
-
-        {/* footer */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '14px 22px', borderTop: '1px solid #ece6da', flexShrink: 0 }}>
-          {onDelete && <button onClick={onDelete} style={{ ...gBtnGhost, height: 34, color: '#a8453a', borderColor: '#ecd9d4' }}>Delete</button>}
-          <div style={{ flex: 1 }} />
-          <button onClick={onClose} style={{ ...gBtnGhost, height: 34 }}>Cancel</button>
-          <button onClick={submit} disabled={!canSave} style={{ ...gBtnPrimary, height: 34, opacity: canSave ? 1 : 0.5, cursor: canSave ? 'pointer' : 'not-allowed' }}>{role ? 'Save changes' : 'Create role'}</button>
+        {/* config panel */}
+        <div style={{ width: 384, flexShrink: 0, borderLeft: '1px solid #ece6da', background: '#fcfbf7', display: 'flex', flexDirection: 'column', minHeight: 0 }}>
+          {sel
+            ? <ScopeEditor key={sel} typeId={sel} scope={scopes[sel]} onChange={val => setScope(sel, val)} onBack={() => setSel(null)} />
+            : <RoleConfigPanel name={name} setName={setName} desc={desc} setDesc={setDesc} perm={perm} setPerm={setPerm} pii={pii} setPii={setPii} scopes={scopes} onSelect={setSel} />}
         </div>
       </div>
     </div>
   )
 }
-const fieldLabel = { display: 'block', fontSize: 12.5, fontWeight: 600, color: '#6b6b5e', marginBottom: 6 }
-const fieldInput = { width: '100%', boxSizing: 'border-box', border: '1px solid #e3ddd1', borderRadius: 9, padding: '9px 12px', fontSize: 13.5, color: '#1a1a1a', outline: 'none', background: '#fff' }
-const miniLink = { border: 'none', background: 'none', cursor: 'pointer', fontSize: 12, fontWeight: 500, color: '#3a6ea0', padding: 0 }
-const accessChip = (on) => ({ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 11px', borderRadius: 9, cursor: 'pointer', fontSize: 13, color: '#3a3a36', border: `1px solid ${on ? '#bcd0c2' : '#e7e1d5'}`, background: on ? '#eef4ee' : '#fff', transition: 'all .12s' })
-function CheckMark() {
-  return <svg width="15" height="15" viewBox="0 0 16 16" fill="none" style={{ flexShrink: 0 }}><circle cx="8" cy="8" r="7" fill="#16341f" /><path d="M5 8l2 2 4-4" stroke="#fff" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" /></svg>
+
+function RoleConfigPanel({ name, setName, desc, setDesc, perm, setPerm, pii, setPii, scopes, onSelect }) {
+  const segBtn = active => ({ flex: 1, height: 32, border: 'none', borderRadius: 7, cursor: 'pointer', fontSize: 13, fontWeight: active ? 600 : 500, background: active ? '#fff' : 'transparent', color: active ? '#16341f' : '#8a8378', boxShadow: active ? '0 1px 2px rgba(0,0,0,0.08)' : 'none', transition: 'all .15s' })
+  return (
+    <div style={{ flex: 1, overflowY: 'auto', padding: '18px 20px 28px' }} className="dark-scroll">
+      <label style={govFieldLabel}>Role name</label>
+      <input value={name} onChange={e => setName(e.target.value)} placeholder="e.g. Field Engineer (FDE)" style={govInput} />
+      <label style={{ ...govFieldLabel, marginTop: 14 }}>Description</label>
+      <input value={desc} onChange={e => setDesc(e.target.value)} placeholder="What this role is for" style={govInput} />
+
+      <label style={{ ...govFieldLabel, marginTop: 16 }}>Permission level</label>
+      <div style={{ display: 'flex', gap: 3, background: '#f2f1ee', border: '1px solid #e3ddd1', borderRadius: 9, padding: 3 }}>
+        {['Viewer', 'Editor', 'Admin'].map(p => <button key={p} onClick={() => setPerm(p)} style={segBtn(perm === p)}>{p}</button>)}
+      </div>
+
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 14, padding: '11px 13px', background: '#fff', border: '1px solid #ece6da', borderRadius: 10 }}>
+        <div style={{ flex: 1 }}>
+          <div style={{ fontSize: 13.5, fontWeight: 500, color: '#3a3a36' }}>Sensitive (PII) fields</div>
+          <div style={{ fontSize: 12, color: '#9a948a', marginTop: 1 }}>Show email, phone, and personal identifiers.</div>
+        </div>
+        <button onClick={() => setPii(!pii)} style={{ width: 40, height: 23, borderRadius: 20, border: 'none', cursor: 'pointer', background: pii ? '#16341f' : '#d6d0c4', position: 'relative', transition: 'background .15s', flexShrink: 0 }}>
+          <span style={{ position: 'absolute', top: 2.5, left: pii ? 20 : 2.5, width: 18, height: 18, borderRadius: '50%', background: '#fff', transition: 'left .15s', boxShadow: '0 1px 2px rgba(0,0,0,0.2)' }} />
+        </button>
+      </div>
+
+      <div style={{ height: 1, background: '#ece6da', margin: '18px 0 14px' }} />
+      <div style={{ fontSize: 13, fontWeight: 600, color: '#3a3a36', marginBottom: 3 }}>Node access</div>
+      <div style={{ fontSize: 12, color: '#9a948a', marginBottom: 12 }}>Pick a node type to scope what this role can reach.</div>
+
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+        {SIDEBAR_NODES.filter(n => n.id !== GOV_USER_ID).map(n => {
+          const mode = scopeMode(scopes, n.id)
+          const sc = scopes[n.id]
+          return (
+            <button key={n.id} onClick={() => onSelect(n.id)} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '9px 11px', borderRadius: 9, cursor: 'pointer', border: '1px solid #ece6da', background: '#fff', textAlign: 'left', transition: 'all .12s' }}
+              onMouseOver={e => e.currentTarget.style.borderColor = '#cfc7b6'} onMouseOut={e => e.currentTarget.style.borderColor = '#ece6da'}>
+              <span style={{ display: 'flex', flexShrink: 0 }}><ListGlyph node={n} size={16} /></span>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 13.5, color: '#1a1a1a', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{n.label}</div>
+                {mode === 'path' && <div style={{ fontSize: 11, color: '#9a948a', fontFamily: 'var(--mono)', marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{pathChainText(sc.hops)}</div>}
+              </div>
+              <ScopeBadge mode={mode} />
+            </button>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+function pathChainText(hops) {
+  return [govLabel(GOV_USER_ID), ...hops.map(h => govLabel(h.to))].join(' → ')
+}
+
+// Per-node-type scope editor: All / Scoped / None, with a multi-hop builder.
+function ScopeEditor({ typeId, scope, onChange, onBack }) {
+  const node = GOV_NODE_BY_ID[typeId]
+  const mode = scope?.mode || 'none'
+  const reachable = govReachableFromUser(typeId)
+  const setMode = m => {
+    if (m === 'all') onChange({ mode: 'all' })
+    else if (m === 'none') onChange(null)
+    else { const h = govShortestPath(GOV_USER_ID, typeId); onChange({ mode: 'path', hops: h || [] }) }
+  }
+  const hops = scope?.mode === 'path' ? scope.hops : []
+
+  // change hop i → option o; truncate the tail, then auto-complete back to typeId
+  const changeHop = (i, o) => {
+    const head = hops.slice(0, i).concat([{ edge: o.edge, from: i === 0 ? GOV_USER_ID : hops[i - 1].to, to: o.to, dir: o.dir }])
+    let next = head
+    if (o.to !== typeId) { const rest = govShortestPath(o.to, typeId); if (rest) next = head.concat(rest) }
+    onChange({ mode: 'path', hops: next })
+  }
+  const removeFrom = i => {
+    if (i === 0) { onChange(null); return }
+    const head = hops.slice(0, i)
+    const endpoint = head[head.length - 1].to
+    let next = head
+    if (endpoint !== typeId) { const rest = govShortestPath(endpoint, typeId); if (rest) next = head.concat(rest) }
+    onChange({ mode: 'path', hops: next })
+  }
+  // insert an extra hop after index i, re-routing to typeId through a neighbour
+  const chainAfter = i => {
+    const head = hops.slice(0, i + 1)
+    const frontier = head[head.length - 1].to
+    const opts = govNeighbors(frontier).filter(o => o.to !== frontier)
+    if (!opts.length) return
+    const pick = opts.find(o => o.to !== typeId && govReachOf(o.to, typeId)) || opts[0]
+    let next = head.concat([{ edge: pick.edge, from: frontier, to: pick.to, dir: pick.dir }])
+    if (pick.to !== typeId) { const rest = govShortestPath(pick.to, typeId); if (rest) next = next.concat(rest) }
+    onChange({ mode: 'path', hops: next })
+  }
+
+  const segBtn = active => ({ flex: 1, height: 34, border: 'none', borderRadius: 7, cursor: 'pointer', fontSize: 12.5, fontWeight: active ? 600 : 500, background: active ? '#fff' : 'transparent', color: active ? '#16341f' : '#8a8378', boxShadow: active ? '0 1px 2px rgba(0,0,0,0.08)' : 'none', transition: 'all .15s' })
+
+  return (
+    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 9, padding: '15px 18px 13px', borderBottom: '1px solid #ece6da', flexShrink: 0 }}>
+        <button onClick={onBack} style={{ border: 'none', background: 'none', cursor: 'pointer', padding: 2, display: 'flex' }}>
+          <svg width="17" height="17" viewBox="0 0 16 16" fill="none" stroke="#6b6b5e" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round"><polyline points="10,3 5,8 10,13" /></svg>
+        </button>
+        <span style={{ display: 'flex', flexShrink: 0 }}><ListGlyph node={node} size={18} /></span>
+        <div style={{ flex: 1 }}>
+          <div style={{ fontSize: 15, fontWeight: 600, color: '#1a1a1a' }}>{node?.label}</div>
+          <div style={{ fontSize: 11.5, color: '#9a948a' }}>Access scope for this node type</div>
+        </div>
+      </div>
+
+      <div style={{ flex: 1, overflowY: 'auto', padding: '16px 18px 28px' }} className="dark-scroll">
+        <div style={{ display: 'flex', gap: 3, background: '#f2f1ee', border: '1px solid #e3ddd1', borderRadius: 9, padding: 3 }}>
+          <button onClick={() => setMode('all')} style={segBtn(mode === 'all')}>All records</button>
+          <button onClick={() => setMode('path')} disabled={!reachable} style={{ ...segBtn(mode === 'path'), opacity: reachable ? 1 : 0.4, cursor: reachable ? 'pointer' : 'not-allowed' }}>Scoped</button>
+          <button onClick={() => setMode('none')} style={segBtn(mode === 'none')}>No access</button>
+        </div>
+        {!reachable && mode !== 'all' && <div style={{ fontSize: 11.5, color: '#a8453a', marginTop: 8 }}>No relationship path reaches {node?.label} from a user, so it can't be relationship-scoped.</div>}
+
+        {mode === 'all' && <div style={{ marginTop: 16, fontSize: 12.5, color: '#6b6b5e', background: '#fff', border: '1px solid #ece6da', borderRadius: 10, padding: '12px 14px', lineHeight: 1.5 }}>This role can see <b>every {node?.label}</b> record in the graph, regardless of who the user is.</div>}
+        {mode === 'none' && <div style={{ marginTop: 16, fontSize: 12.5, color: '#9a948a', background: '#fff', border: '1px solid #ece6da', borderRadius: 10, padding: '12px 14px', lineHeight: 1.5 }}>This role cannot see any {node?.label} records.</div>}
+
+        {mode === 'path' && (
+          <div style={{ marginTop: 18 }}>
+            <label style={govFieldLabel}>Anchor root</label>
+            <select value="me" disabled style={{ ...govSelect, opacity: 0.85 }}>
+              <option value="me">Just me (acting User)</option>
+            </select>
+            <div style={{ fontSize: 11.5, color: '#9a948a', marginTop: 6 }}>Traversal starts at the User running the query.</div>
+
+            <div style={{ marginTop: 18, display: 'flex', flexDirection: 'column', gap: 0 }}>
+              {hops.map((h, i) => {
+                const frontier = i === 0 ? GOV_USER_ID : hops[i - 1].to
+                const opts = govNeighbors(frontier).filter(o => o.to === typeId || govReachOf(o.to, typeId))
+                const val = h.edge + '|' + h.to + '|' + h.dir
+                if (!opts.some(o => (o.edge + '|' + o.to + '|' + o.dir) === val)) opts.unshift({ edge: h.edge, to: h.to, dir: h.dir })
+                return (
+                  <div key={i}>
+                    {i > 0 && <div style={{ width: 2, height: 12, background: '#dcd5c6', marginLeft: 18 }} />}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <span style={{ width: 38, fontSize: 10, fontWeight: 600, color: '#a89e88', letterSpacing: 0.4 }}>HOP {i + 1}</span>
+                      <select value={val} onChange={e => { const [edge, to, dir] = e.target.value.split('|'); changeHop(i, { edge, to, dir }) }} style={{ ...govSelect, flex: 1, fontFamily: 'var(--mono)', fontSize: 12 }}>
+                        {opts.map(o => <option key={o.edge + o.to + o.dir} value={o.edge + '|' + o.to + '|' + o.dir}>{(o.dir === 'in' ? '←' : '→')} :{o.edge} → {govLabel(o.to)}</option>)}
+                      </select>
+                      <button onClick={() => removeFrom(i)} title="Remove from here" style={{ border: 'none', background: 'none', cursor: 'pointer', padding: 4, flexShrink: 0 }}>
+                        <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M4 4l6 6M10 4l-6 6" stroke="#c2bcae" strokeWidth="1.5" strokeLinecap="round" /></svg>
+                      </button>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+
+            {hops.length > 0 && (() => {
+              const endpoint = hops[hops.length - 1].to
+              const more = govNeighbors(endpoint).some(o => o.to !== endpoint)
+              return more ? (
+                <button onClick={() => chainAfter(hops.length - 1)} style={{ ...gBtnGhost, height: 30, marginTop: 14, fontSize: 12.5, padding: '0 12px' }}>+ Chain a hop</button>
+              ) : null
+            })()}
+
+            <div style={{ marginTop: 18, fontSize: 12.5, color: '#3a3a36', background: '#f5f1fa', border: '1px solid #e4dcf0', borderRadius: 10, padding: '12px 14px', lineHeight: 1.55 }}>
+              This role sees <b>{node?.label}</b> records where the path
+              <div style={{ fontFamily: 'var(--mono)', fontSize: 11.5, color: '#6b5aa6', marginTop: 6 }}>{pathChainText(hops)}</div>
+              resolves from the acting user.
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+const govReachOf = (from, to) => GOV_REACH[from] && GOV_REACH[from].has(to)
+
+// Visualizes the scoped traversal as a tree rooted at the acting user.
+function ScopeGraph({ scopes, selectedType, onSelectType }) {
+  const { positioned, edgeList, bounds, empty } = useMemo(() => {
+    const nodeMap = { [GOV_USER_ID]: { id: GOV_USER_ID, depth: 0 } }
+    const edges = [], eseen = new Set()
+    Object.entries(scopes).forEach(([t, sc]) => {
+      if (sc.mode !== 'path') return
+      sc.hops.forEach((h, i) => {
+        const d = i + 1
+        if (!nodeMap[h.to] || nodeMap[h.to].depth > d) nodeMap[h.to] = { id: h.to, depth: d }
+        const k = h.from + '>' + h.to + ':' + h.edge
+        if (!eseen.has(k)) { eseen.add(k); edges.push({ from: h.from, to: h.to, edge: h.edge, dir: h.dir }) }
+      })
+    })
+    const byDepth = {}
+    Object.values(nodeMap).forEach(n => { (byDepth[n.depth] = byDepth[n.depth] || []).push(n) })
+    const colW = 210, rowH = 92
+    const pos = {}
+    let maxY = 0, minY = 0
+    Object.entries(byDepth).forEach(([d, arr]) => {
+      arr.sort((a, b) => govLabel(a.id).localeCompare(govLabel(b.id)))
+      arr.forEach((n, i) => { const y = (i - (arr.length - 1) / 2) * rowH; pos[n.id] = { ...n, x: 90 + Number(d) * colW, y }; maxY = Math.max(maxY, y); minY = Math.min(minY, y) })
+    })
+    const maxDepth = Math.max(0, ...Object.keys(byDepth).map(Number))
+    const empty = Object.keys(nodeMap).length <= 1
+    return { positioned: pos, edgeList: edges, bounds: { w: 90 + maxDepth * colW + 150, top: minY - 70, h: (maxY - minY) + 140 }, empty }
+  }, [scopes])
+
+  const highlight = useMemo(() => {
+    const sc = selectedType && scopes[selectedType]
+    if (!sc || sc.mode !== 'path') return null
+    const types = new Set([GOV_USER_ID, ...sc.hops.map(h => h.to)])
+    const eks = new Set(sc.hops.map(h => h.from + '>' + h.to + ':' + h.edge))
+    return { types, eks }
+  }, [selectedType, scopes])
+
+  if (empty) {
+    return (
+      <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 40 }}>
+        <div style={{ textAlign: 'center', maxWidth: 320 }}>
+          <div style={{ width: 52, height: 52, borderRadius: 13, background: '#f1ede3', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 14px' }}>
+            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#bcae90" strokeWidth="1.5"><circle cx="6" cy="12" r="2.5" /><circle cx="18" cy="6" r="2.5" /><circle cx="18" cy="18" r="2.5" /><path d="M8.2 11l7.6-4M8.2 13l7.6 4" /></svg>
+          </div>
+          <div style={{ fontFamily: 'var(--serif)', fontSize: 17, color: '#1a1a1a', marginBottom: 6 }}>No relationship-scoped access</div>
+          <div style={{ fontSize: 13, color: '#8a8378', lineHeight: 1.5 }}>Set a node type's access to <b>Scoped</b> to define a path from the acting user. It'll be drawn here as a graph.</div>
+        </div>
+      </div>
+    )
+  }
+
+  const vb = `0 ${bounds.top} ${bounds.w} ${bounds.h}`
+  return (
+    <svg width="100%" height="100%" viewBox={vb} preserveAspectRatio="xMidYMid meet" style={{ display: 'block' }}>
+      <defs>
+        <marker id="gov-arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#c2bcae" /></marker>
+      </defs>
+      {edgeList.map((e, i) => {
+        const a = positioned[e.from], b = positioned[e.to]
+        if (!a || !b) return null
+        const lit = highlight && highlight.eks.has(e.from + '>' + e.to + ':' + e.edge)
+        const dim = highlight && !lit
+        const mx = (a.x + b.x) / 2, my = (a.y + b.y) / 2
+        return (
+          <g key={i} opacity={dim ? 0.28 : 1}>
+            <line x1={a.x} y1={a.y} x2={b.x} y2={b.y} stroke={lit ? '#6b5aa6' : '#cdc6b6'} strokeWidth={lit ? 2 : 1.4} markerEnd="url(#gov-arr)" />
+            <g transform={`translate(${mx},${my})`}>
+              <rect x={-e.edge.length * 3.1 - 6} y="-9" width={e.edge.length * 6.2 + 12} height="16" rx="4" fill="#fcfbf7" stroke={lit ? '#ddd5ef' : '#ece6da'} />
+              <text textAnchor="middle" y="2.5" fontSize="9" fontFamily="JetBrains Mono, monospace" fill={lit ? '#6b5aa6' : '#9a948a'} letterSpacing="0.2">{e.edge}</text>
+            </g>
+          </g>
+        )
+      })}
+      {Object.values(positioned).map(n => {
+        const isUser = n.id === GOV_USER_ID
+        const node = GOV_NODE_BY_ID[n.id]
+        const lit = highlight && highlight.types.has(n.id)
+        const dim = highlight && !lit
+        const r = isUser ? 26 : 22
+        return (
+          <g key={n.id} transform={`translate(${n.x},${n.y})`} opacity={dim ? 0.32 : 1} style={{ cursor: isUser ? 'default' : 'pointer' }} onClick={() => !isUser && onSelectType(n.id)}>
+            <circle r={r} fill={isUser ? '#16341f' : (lit ? '#f5f1fa' : '#fff')} stroke={isUser ? '#16341f' : (lit ? '#6b5aa6' : '#d8d2c4')} strokeWidth={lit ? 2 : 1.4} />
+            {isUser
+              ? <g transform="translate(-8,-8)"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="1.8"><circle cx="12" cy="8" r="3.5" /><path d="M5 20c0-3.8 3.1-6 7-6s7 2.2 7 6" strokeLinecap="round" /></svg></g>
+              : <g transform={`translate(${-9},${-9})`}><ListGlyph node={node} size={18} /></g>}
+            <text textAnchor="middle" y={r + 15} fontSize="11.5" fontFamily="Geist, system-ui" fontWeight={isUser ? 600 : 500} fill="#1a1a1a" stroke="var(--bg-canvas)" strokeWidth="3" paintOrder="stroke" strokeLinejoin="round">{isUser ? 'User' : node?.label}</text>
+            <text textAnchor="middle" y={r + 28} fontSize="9" fontFamily="JetBrains Mono, monospace" fill="#9a948a" stroke="var(--bg-canvas)" strokeWidth="2.5" paintOrder="stroke" strokeLinejoin="round">{isUser ? 'acting user · me' : 'scoped'}</text>
+          </g>
+        )
+      })}
+    </svg>
+  )
 }
 
 const SOURCE_SORTERS = {

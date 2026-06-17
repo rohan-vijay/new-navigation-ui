@@ -154,6 +154,7 @@ function buildECG() {
     ["Product","product","core",28],["Feature","product","core",22],["Subscription","product","core",28],["Usage Event","product","signal",24],["Entitlement","product","core",20],["Signal","product","signal",24],
     ["Ticket","success","incident",24],["Case","success","incident",22],["Health Score","success","signal",22],["NPS Response","success","core",18],["Renewal","success","core",24],["Churn Risk","success","risk",22],["Interaction","success","core",26],["Activity","success","core",18],
     ["Invoice","finance","core",26],["Payment","finance","core",22],["Contract","finance","core",24],["Order","finance","core",24],
+    ["User","success","core",24],
   ];
   const SRCS = ["HubSpot","NetSuite ERP","Monday.com","Support Portal","Product Usage DB","Apollo","DocuSign","Google Drive","Gmail","Google Calendar","Slack","Product Docs","Web / Market Intel"];
   const slug = s => s.toLowerCase().replace(/[^a-z0-9]+/g,"_").replace(/^_|_$/g,"");
@@ -204,6 +205,7 @@ function buildECG() {
     ["interaction","account","TOUCHES","inferred"],["interaction","contact","INVOLVES","direct"],["account","invoice","BILLED_BY","direct"],
     ["invoice","payment","PAID_BY","direct"],["account","contract","GOVERNED_BY","direct"],["subscription","contract","UNDER","direct"],
     ["order","subscription","FULFILLS","direct"],["activity","opportunity","ON","direct"],
+    ["user","account","ASSOCIATED_WITH","direct"],["user","opportunity","MANAGES","direct"],["user","contact","OWNS","direct"],["user","ticket","ASSIGNED_TO","direct"],["user","case","HANDLES","direct"],
     ["hubspot","account","SOURCES","source"],["hubspot","opportunity","SOURCES","source"],["hubspot","lead","SOURCES","source"],["hubspot","campaign","SOURCES","source"],
     ["apollo","contact","SOURCES","source"],["apollo","lead","SOURCES","source"],
     ["gmail","email","SOURCES","source"],["gmail","interaction","SOURCES","source"],
