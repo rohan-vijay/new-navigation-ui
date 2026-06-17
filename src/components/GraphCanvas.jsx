@@ -1559,21 +1559,31 @@ function RoleConfigPanel({ name, setName, desc, setDesc, scopes, onSelect, onAdd
       <div style={{ height: 1, background: '#ece6da', margin: '18px 0 14px' }} />
       <div style={{ display: 'flex', alignItems: 'center', marginBottom: 12 }}>
         <span style={{ fontSize: 13, fontWeight: 600, color: '#3a3a36', flex: 1 }}>Node access <span style={{ color: '#a89e88', fontWeight: 400 }}>· {accessibleNodes.length}</span></span>
-        {addableNodes.length > 0 && <button onClick={() => setAdding(a => !a)} style={miniLinkBtn}>{adding ? 'Done' : '+ Add node type'}</button>}
-      </div>
-
-      {adding && (
-        <div style={{ border: '1px solid #e3ddd1', borderRadius: 10, background: '#fff', maxHeight: 230, overflowY: 'auto', marginBottom: 14 }} className="dark-scroll">
-          {addableNodes.map(n => (
-            <button key={n.id} onClick={() => { onAdd(n.id); setAdding(false) }} style={{ display: 'flex', alignItems: 'center', gap: 9, padding: '8px 11px', width: '100%', border: 'none', borderBottom: '1px solid #f4f1ea', background: 'transparent', cursor: 'pointer', textAlign: 'left' }}
-              onMouseOver={e => e.currentTarget.style.background = '#faf8f3'} onMouseOut={e => e.currentTarget.style.background = 'transparent'}>
-              <span style={{ display: 'flex', flexShrink: 0 }}><ListGlyph node={n} size={15} /></span>
-              <span style={{ fontSize: 13, color: '#1a1a1a', flex: 1 }}>{n.label}</span>
-              <svg width="12" height="12" viewBox="0 0 13 13" fill="none"><path d="M6.5 1.5v10M1.5 6.5h10" stroke="#9a948a" strokeWidth="1.5" strokeLinecap="round" /></svg>
+        {addableNodes.length > 0 && (
+          <div style={{ position: 'relative' }}>
+            <button onClick={() => setAdding(a => !a)} style={{ ...gBtnGhost, height: 28, padding: '0 11px', fontSize: 12.5, display: 'inline-flex', alignItems: 'center', gap: 6 }}
+              onMouseOver={e => e.currentTarget.style.background = '#faf8f3'} onMouseOut={e => e.currentTarget.style.background = '#fff'}>
+              <svg width="11" height="11" viewBox="0 0 13 13" fill="none"><path d="M6.5 1.5v10M1.5 6.5h10" stroke="#3a3a36" strokeWidth="1.6" strokeLinecap="round" /></svg>
+              Add node type
+              <svg width="10" height="10" viewBox="0 0 12 12" fill="none" style={{ marginLeft: 1 }}><path d="M2 4l4 4 4-4" stroke="#8a8378" strokeWidth="1.4" strokeLinecap="round" /></svg>
             </button>
-          ))}
-        </div>
-      )}
+            {adding && (
+              <>
+                <div onClick={() => setAdding(false)} style={{ position: 'fixed', inset: 0, zIndex: 40 }} />
+                <div style={{ position: 'absolute', right: 0, top: 32, width: 250, maxHeight: 320, overflowY: 'auto', background: '#fff', border: '1px solid #e3ddd1', borderRadius: 10, boxShadow: '0 12px 34px rgba(60,50,30,0.18)', zIndex: 41, padding: 4 }} className="dark-scroll">
+                  {addableNodes.map(n => (
+                    <button key={n.id} onClick={() => { onAdd(n.id); setAdding(false) }} style={{ display: 'flex', alignItems: 'center', gap: 9, padding: '8px 9px', width: '100%', border: 'none', borderRadius: 7, background: 'transparent', cursor: 'pointer', textAlign: 'left' }}
+                      onMouseOver={e => e.currentTarget.style.background = '#f5f3ee'} onMouseOut={e => e.currentTarget.style.background = 'transparent'}>
+                      <span style={{ display: 'flex', flexShrink: 0 }}><ListGlyph node={n} size={15} /></span>
+                      <span style={{ fontSize: 13, color: '#1a1a1a', flex: 1 }}>{n.label}</span>
+                    </button>
+                  ))}
+                </div>
+              </>
+            )}
+          </div>
+        )}
+      </div>
 
       {accessibleNodes.length === 0 ? (
         <div style={{ fontSize: 12.5, color: '#9a948a', padding: '14px 0' }}>No node access yet. Use “Add node type” to grant access.</div>
@@ -1686,11 +1696,14 @@ function ScopeEditor({ typeId, scope, onChange, onBack }) {
 
         {mode === 'path' && (
           <div style={{ marginTop: 18 }}>
-            <label style={govFieldLabel}>Anchor root</label>
-            <select value="me" disabled style={{ ...govSelect, opacity: 0.85 }}>
-              <option value="me">Just me (acting User)</option>
-            </select>
-            <div style={{ fontSize: 11.5, color: '#9a948a', marginTop: 6 }}>Traversal starts at the User running the query.</div>
+            <label style={govFieldLabel}>Starts from</label>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 9, padding: '9px 12px', border: '1px solid #e3ddd1', borderRadius: 9, background: '#fff' }}>
+              <span style={{ width: 24, height: 24, borderRadius: '50%', background: '#16341f', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2"><circle cx="12" cy="8" r="3.5" /><path d="M5 20c0-3.8 3.1-6 7-6s7 2.2 7 6" strokeLinecap="round" /></svg>
+              </span>
+              <span style={{ fontSize: 13, color: '#1a1a1a' }}>The person signed in <span style={{ color: '#9a948a' }}>· “me”</span></span>
+            </div>
+            <div style={{ fontSize: 11.5, color: '#9a948a', marginTop: 6, lineHeight: 1.5 }}>Access is decided per person. For each user, the steps below are followed outward from their own account to find what they can see.</div>
 
             <div style={{ marginTop: 18, display: 'flex', flexDirection: 'column', gap: 0 }}>
               {hops.map((h, i) => {
@@ -1724,9 +1737,8 @@ function ScopeEditor({ typeId, scope, onChange, onBack }) {
             })()}
 
             <div style={{ marginTop: 18, fontSize: 12.5, color: '#3a3a36', background: '#f5f1fa', border: '1px solid #e4dcf0', borderRadius: 10, padding: '12px 14px', lineHeight: 1.55 }}>
-              This role sees <b>{node?.label}</b> records where the path
+              A person with this role can only see <b>{node?.label}</b> records connected to them by this trail:
               <div style={{ fontFamily: 'var(--mono)', fontSize: 11.5, color: '#6b5aa6', marginTop: 6 }}>{pathChainText(hops)}</div>
-              resolves from the acting user.
             </div>
           </div>
         )}
