@@ -15,7 +15,7 @@ import { FeatureModeProvider, useFeatureMode } from '../featureMode'
 
 const TABS = ['Graph', 'Nodes', 'Edges', 'Sources', 'Agents', 'Records', 'Governance']
 // Tabs shown only in Full production mode (hidden in MVP).
-const FULL_ONLY_TABS = ['Agents', 'Governance']
+const FULL_ONLY_TABS = ['Agents']
 
 // same button styling as the Skills detail header
 const gBtnGhost = { display: 'inline-flex', alignItems: 'center', gap: 8, background: '#fff', color: '#3a3a36', border: '1px solid #e3ddd1', borderRadius: 9, padding: '0 14px', height: 36, fontSize: 13.5, fontWeight: 500, cursor: 'pointer', boxShadow: '0 1px 2px rgba(60,50,30,0.04)', transition: 'all .15s' }
@@ -254,6 +254,8 @@ function GraphCanvasInner({ title = 'New graph', onBack, onAgentAI }) {
         <AgentsList agents={agents} onAction={onAgentAction} onRemove={i => setAgents(a => a.filter((_, j) => j !== i))} />
       ) : tab === 'Records' ? (
         <RecordsPage disableDetail />
+      ) : tab === 'Governance' ? (
+        <GovernanceRoles />
       ) : (
         <EmptyState meta={EMPTY[tab]} actions={tab === 'Agents' ? AGENT_MENU : undefined} onAction={onAgentAction} />
       )}
@@ -1310,6 +1312,279 @@ function EdgesList() {
       {editEdge && <NewEdgeFlow simple editMode nodes={SIDEBAR_NODES} fromNode={editEdge.from} toNode={editEdge.to} initialLabel={editEdge.label} initialCardinality={editEdge.cardinality} initialAttributes={attrsForEdge(editEdge)} initialBothSides={!editEdge.directional} initialUndirected={!editEdge.directional} onClose={() => setEditEdge(null)} onCreate={() => setEditEdge(null)} />}
     </div>
   )
+}
+
+/* ── Governance · Roles ──────────────────────────────────────────────────────
+   Define roles and exactly which node types and edge types each can access,
+   at what permission level, and whether sensitive (PII) fields are visible. */
+const PERM_TAG = {
+  Admin:  { color: '#8a4a3a', bg: '#faeeea', border: '#eed6cd' },
+  Editor: { color: '#2f6f43', bg: '#eef4ee', border: '#d6e6d8' },
+  Viewer: { color: '#3a6ea0', bg: '#eef3f9', border: '#d3e0ee' },
+}
+const ALL_EDGE_LABELS = [...new Set(GRAPH_EDGES.map(e => e.label))]
+// Seed roles — node/edge access is a Set of ids/labels, or 'all' for everything.
+const SEED_ROLES = [
+  { id: 'r1', name: 'Workspace Admin',  desc: 'Full control over the graph schema, data, and governance.', perm: 'Admin',  members: 3,  pii: true,  nodes: 'all', edges: 'all' },
+  { id: 'r2', name: 'Data Steward',     desc: 'Curates schema, resolves matches, and manages data quality.', perm: 'Editor', members: 5,  pii: true,  nodes: 'all', edges: 'all' },
+  { id: 'r3', name: 'Revenue Analyst',  desc: 'Reads the commercial picture across accounts and pipeline.', perm: 'Viewer', members: 14, pii: false, nodes: ['account','opportunity','subscription','invoice','agreement','product','health_score','churn_risk'], edges: ['HAS_SUBSCRIPTION','HAS_OPPORTUNITY','GOVERNED_BY','BILLS','ITEMIZES','FOR_PRODUCT','HAS_HEALTH','FLAGS'] },
+  { id: 'r4', name: 'Account Executive', desc: 'Owns customer relationships, opportunities, and interactions.', perm: 'Editor', members: 22, pii: true,  nodes: ['account','person','opportunity','interaction','subscription','competitor'], edges: ['WORKS_AT','HAS_OPPORTUNITY','HAS_SUBSCRIPTION','TOUCHES','INVOLVED_IN','COMPETES_WITH'] },
+  { id: 'r5', name: 'Support Agent',    desc: 'Works tickets, cases, and incidents tied to customers.', perm: 'Editor', members: 18, pii: true,  nodes: ['account','person','ticket','case','incident','signal'], edges: ['RAISES','ESCALATES_TO','INCIDENT_AFFECTS','TOUCHES','OBSERVED_ON'] },
+  { id: 'r6', name: 'Finance',          desc: 'Manages billing, contracts, and revenue recognition.', perm: 'Editor', members: 7,  pii: false, nodes: ['account','invoice','agreement','subscription','product'], edges: ['BILLS','ITEMIZES','GOVERNED_BY','HAS_SUBSCRIPTION','FOR_PRODUCT'] },
+  { id: 'r7', name: 'Auditor',          desc: 'Read-only access to everything for compliance review.', perm: 'Viewer', members: 4,  pii: false, nodes: 'all', edges: 'all' },
+  { id: 'r8', name: 'External Partner', desc: 'Limited shared view for integration partners.', perm: 'Viewer', members: 9,  pii: false, nodes: ['account','product'], edges: ['FOR_PRODUCT'] },
+]
+const ROLE_SORTERS = {
+  'Name (A–Z)': (a, b) => a.name.localeCompare(b.name),
+  'Members': (a, b) => b.members - a.members,
+  'Permission': (a, b) => a.perm.localeCompare(b.perm),
+}
+function PermBadge({ perm }) {
+  const t = PERM_TAG[perm] || PERM_TAG.Viewer
+  return <span style={{ fontSize: 11.5, fontWeight: 600, color: t.color, background: t.bg, border: `1px solid ${t.border}`, padding: '2px 9px', borderRadius: 20 }}>{perm}</span>
+}
+function AccessSummary({ value, total, label }) {
+  if (value === 'all') return <span style={{ fontSize: 13, color: '#3a3a36', fontWeight: 500 }}>All {label}</span>
+  const n = value.length
+  if (n === 0) return <span style={{ fontSize: 13, color: '#b6ad9b' }}>None</span>
+  return <span style={{ fontSize: 13, color: '#3a3a36' }}>{n} <span style={{ color: '#9a948a' }}>of {total} {label}</span></span>
+}
+
+function GovernanceRoles() {
+  const [roles, setRoles] = useState(SEED_ROLES)
+  const [sort, setSort] = useState('Members')
+  const [filter, setFilter] = useState('All permissions')
+  const [search, setSearch] = useState('')
+  const [editing, setEditing] = useState(null) // role object being edited, or 'new'
+
+  const nodeTotal = SIDEBAR_NODES.length
+  const edgeTotal = ALL_EDGE_LABELS.length
+
+  const rows = useMemo(() => {
+    const q = search.toLowerCase()
+    const fperm = filter === 'All permissions' ? null : filter
+    return [...roles]
+      .filter(r => !fperm || r.perm === fperm)
+      .filter(r => !q || r.name.toLowerCase().includes(q) || r.desc.toLowerCase().includes(q))
+      .sort(ROLE_SORTERS[sort])
+  }, [roles, sort, filter, search])
+
+  const saveRole = (role) => {
+    setRoles(rs => role.id && rs.some(r => r.id === role.id) ? rs.map(r => r.id === role.id ? role : r) : [...rs, { ...role, id: 'r' + (rs.length + 1) + '_' + role.name.length }])
+    setEditing(null)
+  }
+  const removeRole = (id) => setRoles(rs => rs.filter(r => r.id !== id))
+
+  return (
+    <div style={{ flex: 1, overflowY: 'auto', backgroundColor: '#fcfbf7', padding: '12px 26px 40px' }} className="dark-scroll">
+      <div style={{ display: 'flex', alignItems: 'flex-start', marginBottom: 4 }}>
+        <div style={{ flex: 1 }}>
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: 9 }}>
+            <span style={{ fontFamily: 'var(--serif)', fontSize: 23, fontWeight: 500, color: '#1a1a1a', letterSpacing: -0.2 }}>Roles</span>
+            <span style={{ fontFamily: 'var(--sans)', fontSize: 14, color: '#a89e88' }}>{rows.length}</span>
+          </div>
+          <div style={{ fontSize: 13, color: '#8a8378', marginTop: 3 }}>Define who can see and edit each node type and relationship in this graph.</div>
+        </div>
+        <button onClick={() => setEditing('new')} style={{ ...gBtnPrimary, height: 34, display: 'inline-flex', alignItems: 'center', gap: 7, padding: '0 15px' }}>
+          <svg width="13" height="13" viewBox="0 0 13 13" fill="none"><path d="M6.5 1.5v10M1.5 6.5h10" stroke="#fff" strokeWidth="1.7" strokeLinecap="round" /></svg>
+          New Role
+        </button>
+      </div>
+
+      <div style={{ marginTop: 14 }}>
+        <TableToolbar
+          sort={sort} sortOptions={Object.keys(ROLE_SORTERS)} onSort={setSort}
+          filter={filter} filterOptions={['All permissions', 'Admin', 'Editor', 'Viewer']} onFilter={setFilter}
+          search={search} onSearch={setSearch} placeholder="Search roles" />
+      </div>
+
+      <div style={{ border: '1px solid #ececea', borderRadius: 12, overflow: 'hidden' }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed' }}>
+          <thead>
+            <tr style={{ background: '#F7F5F3' }}>
+              {[['Role', 'auto'], ['Permission', 120], ['Members', 100], ['Node access', 150], ['Edge access', 150], ['PII', 90]].map(([label, w]) => (
+                <th key={label} style={{ width: w, textAlign: 'left', padding: '10px 18px', fontSize: 11, fontWeight: 600, letterSpacing: 0.5, textTransform: 'uppercase', color: '#9a948a', borderBottom: '1px solid #eaecea', whiteSpace: 'nowrap' }}>{label}</th>
+              ))}
+              <th style={{ width: 48, borderBottom: '1px solid #eaecea' }} />
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((r, i) => {
+              const last = i === rows.length - 1
+              const cell = { padding: '13px 18px', verticalAlign: 'middle', overflow: 'hidden', borderBottom: last ? 'none' : '1px solid #f1f2f1' }
+              return (
+                <tr key={r.id} onClick={() => setEditing(r)} style={{ background: '#fff', cursor: 'pointer', transition: 'background .12s, box-shadow .12s' }}
+                  onMouseOver={ev => { ev.currentTarget.style.background = '#f7f6f3'; ev.currentTarget.style.boxShadow = 'inset 3px 0 0 #16341f' }}
+                  onMouseOut={ev => { ev.currentTarget.style.background = '#fff'; ev.currentTarget.style.boxShadow = 'none' }}>
+                  <td style={cell}>
+                    <div style={{ fontSize: 14, fontWeight: 500, color: '#1a1a1a' }}>{r.name}</div>
+                    <div style={{ fontSize: 12.5, color: '#9a948a', marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.desc}</div>
+                  </td>
+                  <td style={cell}><PermBadge perm={r.perm} /></td>
+                  <td style={{ ...cell, fontSize: 13, color: '#374151' }}>
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 7 }}>
+                      <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="5" r="2.6" stroke="#9a948a" strokeWidth="1.4" /><path d="M3 13c0-2.5 2.2-4 5-4s5 1.5 5 4" stroke="#9a948a" strokeWidth="1.4" strokeLinecap="round" /></svg>
+                      {r.members}
+                    </span>
+                  </td>
+                  <td style={cell}><AccessSummary value={r.nodes} total={nodeTotal} label="nodes" /></td>
+                  <td style={cell}><AccessSummary value={r.edges} total={edgeTotal} label="edges" /></td>
+                  <td style={cell}>
+                    {r.pii
+                      ? <span style={{ fontSize: 12.5, fontWeight: 600, color: '#8a7340' }}>Visible</span>
+                      : <span style={{ fontSize: 12.5, color: '#9a948a' }}>Masked</span>}
+                  </td>
+                  <td style={{ ...cell, textAlign: 'right', paddingRight: 14 }}>
+                    <button onClick={ev => { ev.stopPropagation(); setEditing(r) }} style={{ border: 'none', background: 'none', cursor: 'pointer', padding: 4 }}>
+                      <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="3.5" r="1.2" fill="#b8bcb8" /><circle cx="8" cy="8" r="1.2" fill="#b8bcb8" /><circle cx="8" cy="12.5" r="1.2" fill="#b8bcb8" /></svg>
+                    </button>
+                  </td>
+                </tr>
+              )
+            })}
+          </tbody>
+        </table>
+      </div>
+
+      {editing && <RoleEditor role={editing === 'new' ? null : editing} onSave={saveRole} onDelete={editing !== 'new' ? () => { removeRole(editing.id); setEditing(null) } : null} onClose={() => setEditing(null)} />}
+    </div>
+  )
+}
+
+/* Slide-over editor: name, permission level, PII toggle, and the two access
+   grids (node types + edge types) with select-all / clear. */
+function RoleEditor({ role, onSave, onDelete, onClose }) {
+  const nodeTotal = SIDEBAR_NODES.length
+  const edgeTotal = ALL_EDGE_LABELS.length
+  const [name, setName] = useState(role?.name || '')
+  const [desc, setDesc] = useState(role?.desc || '')
+  const [perm, setPerm] = useState(role?.perm || 'Viewer')
+  const [pii, setPii] = useState(role?.pii || false)
+  const [nodes, setNodes] = useState(() => new Set(role?.nodes === 'all' ? SIDEBAR_NODES.map(n => n.id) : (role?.nodes || [])))
+  const [edges, setEdges] = useState(() => new Set(role?.edges === 'all' ? ALL_EDGE_LABELS : (role?.edges || [])))
+
+  const toggle = (set, setFn, key) => { const next = new Set(set); next.has(key) ? next.delete(key) : next.add(key); setFn(next) }
+  const canSave = name.trim().length > 0
+
+  const submit = () => {
+    if (!canSave) return
+    onSave({
+      ...(role || {}), id: role?.id, name: name.trim(), desc: desc.trim() || 'No description.', perm, pii, members: role?.members || 0,
+      nodes: nodes.size === nodeTotal ? 'all' : [...nodes],
+      edges: edges.size === edgeTotal ? 'all' : [...edges],
+    })
+  }
+
+  const byId = useMemo(() => { const m = {}; SIDEBAR_NODES.forEach(n => { m[n.id] = n }); return m }, [])
+  const edgeEndpoints = useMemo(() => { const m = {}; GRAPH_EDGES.forEach(e => { if (!m[e.label]) m[e.label] = e }); return m }, [])
+
+  const segBtn = (active) => ({ flex: 1, height: 32, border: 'none', borderRadius: 7, cursor: 'pointer', fontSize: 13, fontWeight: active ? 600 : 500, background: active ? '#fff' : 'transparent', color: active ? '#16341f' : '#8a8378', boxShadow: active ? '0 1px 2px rgba(0,0,0,0.08)' : 'none', transition: 'all .15s' })
+
+  const sectionHead = (title, set, setFn, allKeys) => (
+    <div style={{ display: 'flex', alignItems: 'center', marginBottom: 10 }}>
+      <span style={{ fontSize: 13, fontWeight: 600, color: '#3a3a36', flex: 1 }}>{title} <span style={{ color: '#a89e88', fontWeight: 400 }}>· {set.size} selected</span></span>
+      <button onClick={() => setFn(new Set(allKeys))} style={miniLink}>Select all</button>
+      <span style={{ color: '#d8d2c4', margin: '0 6px' }}>·</span>
+      <button onClick={() => setFn(new Set())} style={miniLink}>Clear</button>
+    </div>
+  )
+
+  return (
+    <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(30,26,18,0.28)', zIndex: 60, display: 'flex', justifyContent: 'flex-end' }}>
+      <div onClick={e => e.stopPropagation()} style={{ width: 480, maxWidth: '94vw', height: '100%', background: '#fcfbf7', boxShadow: '-12px 0 40px rgba(40,32,16,0.18)', display: 'flex', flexDirection: 'column' }}>
+        {/* header */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '18px 22px', borderBottom: '1px solid #ece6da', flexShrink: 0 }}>
+          <span style={{ width: 34, height: 34, borderRadius: 9, background: '#16341f', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+            <svg width="17" height="17" viewBox="0 0 16 16" fill="none"><path d="M8 1.5l5 2v3.2c0 3.4-2.2 5.8-5 7-2.8-1.2-5-3.6-5-7V3.5l5-2z" stroke="#fff" strokeWidth="1.4" strokeLinejoin="round" /><path d="M5.8 8l1.6 1.6L10.4 6.4" stroke="#fff" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" /></svg>
+          </span>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontFamily: 'var(--serif)', fontSize: 18, fontWeight: 500, color: '#1a1a1a' }}>{role ? 'Edit role' : 'New role'}</div>
+            <div style={{ fontSize: 12.5, color: '#9a948a' }}>Scope this role's access to the graph</div>
+          </div>
+          <button onClick={onClose} style={{ border: 'none', background: 'none', cursor: 'pointer', padding: 6 }}>
+            <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M5 5l8 8M13 5l-8 8" stroke="#9a948a" strokeWidth="1.6" strokeLinecap="round" /></svg>
+          </button>
+        </div>
+
+        {/* body */}
+        <div style={{ flex: 1, overflowY: 'auto', padding: '20px 22px' }} className="dark-scroll">
+          <label style={fieldLabel}>Role name</label>
+          <input value={name} onChange={e => setName(e.target.value)} placeholder="e.g. Revenue Analyst" autoFocus style={fieldInput} />
+
+          <label style={{ ...fieldLabel, marginTop: 16 }}>Description</label>
+          <input value={desc} onChange={e => setDesc(e.target.value)} placeholder="What this role is for" style={fieldInput} />
+
+          <label style={{ ...fieldLabel, marginTop: 16 }}>Permission level</label>
+          <div style={{ display: 'flex', gap: 3, background: '#f2f1ee', border: '1px solid #e3ddd1', borderRadius: 9, padding: 3 }}>
+            {['Viewer', 'Editor', 'Admin'].map(p => <button key={p} onClick={() => setPerm(p)} style={segBtn(perm === p)}>{p}</button>)}
+          </div>
+          <div style={{ fontSize: 12, color: '#9a948a', marginTop: 6 }}>
+            {perm === 'Viewer' ? 'Can read the selected nodes and edges, but not change them.' : perm === 'Editor' ? 'Can read and edit records for the selected nodes and edges.' : 'Full control, including schema and governance.'}
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 18, padding: '12px 14px', background: '#fff', border: '1px solid #ece6da', borderRadius: 10 }}>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: 13.5, fontWeight: 500, color: '#3a3a36' }}>Sensitive (PII) fields</div>
+              <div style={{ fontSize: 12, color: '#9a948a', marginTop: 1 }}>Show fields like email, phone, and personal identifiers.</div>
+            </div>
+            <button onClick={() => setPii(!pii)} style={{ width: 40, height: 23, borderRadius: 20, border: 'none', cursor: 'pointer', background: pii ? '#16341f' : '#d6d0c4', position: 'relative', transition: 'background .15s', flexShrink: 0 }}>
+              <span style={{ position: 'absolute', top: 2.5, left: pii ? 20 : 2.5, width: 18, height: 18, borderRadius: '50%', background: '#fff', transition: 'left .15s', boxShadow: '0 1px 2px rgba(0,0,0,0.2)' }} />
+            </button>
+          </div>
+
+          <div style={{ height: 1, background: '#ece6da', margin: '22px 0' }} />
+
+          {/* node access grid */}
+          {sectionHead('Node types', nodes, setNodes, SIDEBAR_NODES.map(n => n.id))}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 7, marginBottom: 22 }}>
+            {SIDEBAR_NODES.map(n => {
+              const on = nodes.has(n.id)
+              return (
+                <button key={n.id} onClick={() => toggle(nodes, setNodes, n.id)} style={accessChip(on)}>
+                  <span style={{ display: 'flex', flexShrink: 0 }}><ListGlyph node={n} size={15} /></span>
+                  <span style={{ flex: 1, textAlign: 'left', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{n.label}</span>
+                  {on && <CheckMark />}
+                </button>
+              )
+            })}
+          </div>
+
+          {/* edge access grid */}
+          {sectionHead('Edge types', edges, setEdges, ALL_EDGE_LABELS)}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
+            {ALL_EDGE_LABELS.map(lbl => {
+              const on = edges.has(lbl)
+              const ep = edgeEndpoints[lbl]
+              const from = ep && byId[ep.s], to = ep && byId[ep.t]
+              return (
+                <button key={lbl} onClick={() => toggle(edges, setEdges, lbl)} style={{ ...accessChip(on), justifyContent: 'flex-start' }}>
+                  <span style={{ fontFamily: 'var(--mono)', fontSize: 12, color: on ? '#16341f' : '#5b5547', fontWeight: 500, flexShrink: 0 }}>:{lbl}</span>
+                  {from && to && <span style={{ fontSize: 11.5, color: '#a89e88', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{from.label} → {to.label}</span>}
+                  <span style={{ flex: 1 }} />
+                  {on && <CheckMark />}
+                </button>
+              )
+            })}
+          </div>
+        </div>
+
+        {/* footer */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '14px 22px', borderTop: '1px solid #ece6da', flexShrink: 0 }}>
+          {onDelete && <button onClick={onDelete} style={{ ...gBtnGhost, height: 34, color: '#a8453a', borderColor: '#ecd9d4' }}>Delete</button>}
+          <div style={{ flex: 1 }} />
+          <button onClick={onClose} style={{ ...gBtnGhost, height: 34 }}>Cancel</button>
+          <button onClick={submit} disabled={!canSave} style={{ ...gBtnPrimary, height: 34, opacity: canSave ? 1 : 0.5, cursor: canSave ? 'pointer' : 'not-allowed' }}>{role ? 'Save changes' : 'Create role'}</button>
+        </div>
+      </div>
+    </div>
+  )
+}
+const fieldLabel = { display: 'block', fontSize: 12.5, fontWeight: 600, color: '#6b6b5e', marginBottom: 6 }
+const fieldInput = { width: '100%', boxSizing: 'border-box', border: '1px solid #e3ddd1', borderRadius: 9, padding: '9px 12px', fontSize: 13.5, color: '#1a1a1a', outline: 'none', background: '#fff' }
+const miniLink = { border: 'none', background: 'none', cursor: 'pointer', fontSize: 12, fontWeight: 500, color: '#3a6ea0', padding: 0 }
+const accessChip = (on) => ({ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 11px', borderRadius: 9, cursor: 'pointer', fontSize: 13, color: '#3a3a36', border: `1px solid ${on ? '#bcd0c2' : '#e7e1d5'}`, background: on ? '#eef4ee' : '#fff', transition: 'all .12s' })
+function CheckMark() {
+  return <svg width="15" height="15" viewBox="0 0 16 16" fill="none" style={{ flexShrink: 0 }}><circle cx="8" cy="8" r="7" fill="#16341f" /><path d="M5 8l2 2 4-4" stroke="#fff" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" /></svg>
 }
 
 const SOURCE_SORTERS = {
