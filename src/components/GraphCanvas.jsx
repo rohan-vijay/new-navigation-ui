@@ -1430,15 +1430,13 @@ function RolesListView({ roles, onOpen, onNew }) {
   return (
     <div style={{ flex: 1, overflowY: 'auto', backgroundColor: '#fcfbf7', padding: '12px 26px 40px' }} className="dark-scroll">
       <div style={{ display: 'flex', alignItems: 'flex-start', marginBottom: 4 }}>
-        <div style={{ flex: 1 }}>
-          <div style={{ display: 'flex', alignItems: 'baseline', gap: 9 }}>
-            <span style={{ fontFamily: 'var(--serif)', fontSize: 23, fontWeight: 500, color: '#1a1a1a', letterSpacing: -0.2 }}>Roles</span>
-            <span style={{ fontFamily: 'var(--sans)', fontSize: 14, color: '#a89e88' }}>{rows.length}</span>
-          </div>
-          <div style={{ fontSize: 13, color: '#8a8378', marginTop: 3 }}>Scope each role's access by walking the graph from the acting user — not just by ticking node types.</div>
+        <div style={{ flex: 1, display: 'flex', alignItems: 'baseline', gap: 9 }}>
+          <span style={{ fontFamily: 'var(--serif)', fontSize: 23, fontWeight: 500, color: '#1a1a1a', letterSpacing: -0.2 }}>Roles</span>
+          <span style={{ fontFamily: 'var(--sans)', fontSize: 14, color: '#a89e88' }}>{rows.length}</span>
         </div>
-        <button onClick={onNew} style={{ ...gBtnPrimary, height: 34, display: 'inline-flex', alignItems: 'center', gap: 7, padding: '0 15px' }}>
-          <svg width="13" height="13" viewBox="0 0 13 13" fill="none"><path d="M6.5 1.5v10M1.5 6.5h10" stroke="#fff" strokeWidth="1.7" strokeLinecap="round" /></svg>
+        <button onClick={onNew} style={{ ...gBtnGhost, height: 34, display: 'inline-flex', alignItems: 'center', gap: 7, padding: '0 14px' }}
+          onMouseOver={e => e.currentTarget.style.background = '#faf8f3'} onMouseOut={e => e.currentTarget.style.background = '#fff'}>
+          <svg width="13" height="13" viewBox="0 0 13 13" fill="none"><path d="M6.5 1.5v10M1.5 6.5h10" stroke="#3a3a36" strokeWidth="1.7" strokeLinecap="round" /></svg>
           New Role
         </button>
       </div>
