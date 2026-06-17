@@ -1555,8 +1555,6 @@ function RoleConfigPanel({ name, setName, desc, setDesc, scopes, onSelect, onAdd
     <div style={{ flex: 1, overflowY: 'auto', padding: '18px 20px 28px' }} className="dark-scroll">
       <label style={govFieldLabel}>Role name</label>
       <input value={name} onChange={e => setName(e.target.value)} placeholder="e.g. Field Engineer (FDE)" style={govInput} />
-      <label style={{ ...govFieldLabel, marginTop: 14 }}>Description</label>
-      <input value={desc} onChange={e => setDesc(e.target.value)} placeholder="What this role is for" style={govInput} />
 
       <div style={{ height: 1, background: '#ece6da', margin: '18px 0 14px' }} />
       <div style={{ display: 'flex', alignItems: 'center', marginBottom: 12 }}>
