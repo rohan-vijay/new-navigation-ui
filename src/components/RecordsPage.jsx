@@ -308,6 +308,13 @@ const DEFAULT_RD = { nodes: NODES, edges: EDGES, props: PROPS_BY_NODE }
 const LOWES_RD = { nodes: LOWES_NODES, edges: LOWES_EDGES, props: LOWES_PROPS }
 let RD = DEFAULT_RD
 
+// Source systems shown in record-level provenance — dataset-aware so the Lowe's
+// graph never attributes values to CRM systems (Salesforce/NetSuite/HubSpot).
+const CRM_SOURCE_LABELS = ['Salesforce CRM', 'NetSuite ERP', 'HubSpot Marketing', 'Manual / Admin']
+const LOWES_SOURCE_LABELS = ['Azure AD', 'Outlook', 'Teams', 'Calendar', 'SharePoint', 'OneDrive', 'ServiceNow', 'Jira', 'Confluence']
+const recordSourcePool = () => (RD === LOWES_RD ? LOWES_SOURCE_LABELS : CRM_SOURCE_LABELS)
+const pickSource = seed => { const p = recordSourcePool(); return p[Math.abs(seed) % p.length] }
+
 // ── Colour helpers ──────────────────────────────────────────────────────────
 function colorForNode(n) {
   if (!n) return { stroke: C.ink3, fill: C.canvas }
@@ -478,7 +485,7 @@ function generateRecords(node) {
     syncPkWithId(rec, props)
     rec._updatedAgo = ['2m ago','14m ago','1h ago','4h ago','1d ago','3d ago'][s%6]
     rec._createdAgo = ['12d ago','34d ago','2mo ago','6mo ago','1y ago','2y ago'][s%6]
-    rec._source     = ['Salesforce CRM','NetSuite ERP','HubSpot Marketing','Manual / Admin'][s%4]
+    rec._source     = pickSource(s)
     rec._completeness = 78 + (s % 22)
     rec._confidence   = 82 + (s % 17)
     records.push(rec)
@@ -522,7 +529,7 @@ function buildRecordFromId(targetId, targetNode) {
   const existing = generateRecords(targetNode).find(r => r.id === targetId)
   if (existing) return existing
   const seed = targetId.length * 13 + targetId.charCodeAt(targetId.length-1) * 7
-  const rec = { id:targetId, nodeType:targetNode.label, nodeId:targetNode.id, status:['active','active','active','review','flagged'][Math.abs(seed)%5], _updatedAgo:['2m ago','14m ago','1h ago','4h ago','1d ago','3d ago'][Math.abs(seed)%6], _createdAgo:['12d ago','34d ago','2mo ago','6mo ago','1y ago','2y ago'][Math.abs(seed)%6], _source:['Salesforce CRM','NetSuite ERP','HubSpot Marketing','Manual / Admin'][Math.abs(seed)%4], _completeness:78+(Math.abs(seed)%22), _confidence:82+(Math.abs(seed)%17) }
+  const rec = { id:targetId, nodeType:targetNode.label, nodeId:targetNode.id, status:['active','active','active','review','flagged'][Math.abs(seed)%5], _updatedAgo:['2m ago','14m ago','1h ago','4h ago','1d ago','3d ago'][Math.abs(seed)%6], _createdAgo:['12d ago','34d ago','2mo ago','6mo ago','1y ago','2y ago'][Math.abs(seed)%6], _source:pickSource(seed), _completeness:78+(Math.abs(seed)%22), _confidence:82+(Math.abs(seed)%17) }
   const tProps = generateProps(targetNode)
   tProps.forEach((p,i) => { rec[p.name] = generateValueForProp(p, seed+i*11, targetNode.id) })
   syncPkWithId(rec, tProps)
@@ -903,7 +910,7 @@ function RecordDetailView({ record, node, onBack, onNavigate }) {
       const nObj = RD.nodes.find(n => n.id === inspectedNode.nodeId)||node
       const inspProps = generateProps(nObj)
       const inspSeed  = inspectedNode.id.length*13 + inspectedNode.id.charCodeAt(inspectedNode.id.length-1)*7
-      insp = { isCentre:false, headerId:inspectedNode.id, headerLabel:inspectedNode.keyValue, headerNode:nObj, edgeBadge:{ dir:inspectedNode.isOut?'out':'in', label:inspectedNode.edgeLabel, kind:inspectedNode.kind, fromLabel:node.label, toLabel:nObj.label }, status:['active','active','review','active','flagged'][Math.abs(inspSeed)%5], propsList:inspProps.map((p,idx)=>({ name:p.name, value:generateValueForProp(p,inspSeed+idx*11), pii:p.pii, pk:p.pk, computed:p.computed, type:p.type, source:['Salesforce CRM','NetSuite ERP','HubSpot Marketing','Manual / Admin'][(inspSeed+idx)%4], age:['2m','18m','1h','4h','12h','1d'][(inspSeed+idx)%6], conf:0.78+((Math.abs(inspSeed+idx)%20)/100) })), relatedCount:1+(Math.abs(inspSeed)%5), completeness:78+(Math.abs(inspSeed)%22), confidence:82+(Math.abs(inspSeed)%17), sourceLabel:['Salesforce CRM','NetSuite ERP','HubSpot Marketing','Manual / Admin'][Math.abs(inspSeed)%4], updatedAgo:['2m ago','14m ago','1h ago','4h ago','1d ago','3d ago'][Math.abs(inspSeed)%6], createdAgo:['12d ago','34d ago','2mo ago','6mo ago','1y ago','2y ago'][Math.abs(inspSeed)%6], targetRecordId:inspectedNode.id, targetNodeId:inspectedNode.nodeId }
+      insp = { isCentre:false, headerId:inspectedNode.id, headerLabel:inspectedNode.keyValue, headerNode:nObj, edgeBadge:{ dir:inspectedNode.isOut?'out':'in', label:inspectedNode.edgeLabel, kind:inspectedNode.kind, fromLabel:node.label, toLabel:nObj.label }, status:['active','active','review','active','flagged'][Math.abs(inspSeed)%5], propsList:inspProps.map((p,idx)=>({ name:p.name, value:generateValueForProp(p,inspSeed+idx*11), pii:p.pii, pk:p.pk, computed:p.computed, type:p.type, source:pickSource(inspSeed+idx), age:['2m','18m','1h','4h','12h','1d'][(inspSeed+idx)%6], conf:0.78+((Math.abs(inspSeed+idx)%20)/100) })), relatedCount:1+(Math.abs(inspSeed)%5), completeness:78+(Math.abs(inspSeed)%22), confidence:82+(Math.abs(inspSeed)%17), sourceLabel:pickSource(inspSeed), updatedAgo:['2m ago','14m ago','1h ago','4h ago','1d ago','3d ago'][Math.abs(inspSeed)%6], createdAgo:['12d ago','34d ago','2mo ago','6mo ago','1y ago','2y ago'][Math.abs(inspSeed)%6], targetRecordId:inspectedNode.id, targetNodeId:inspectedNode.nodeId }
     }
     const inspCol  = colorForNode(insp.headerNode)
     const compColor = insp.completeness>=90?C.green:insp.completeness>=75?C.gold:C.coral
@@ -2090,7 +2097,7 @@ function buildFieldChunks(rec, nd, src, item) {
 // How a field's value came to be — the EXACT upstream record, the per-field
 // transformation/agent/rule, optional survivorship, then the graph property.
 function upstreamRef(rec, nd, sourceSys) {
-  const sys = (sourceSys && sourceSys !== '—' && sourceSys !== 'manual') ? sourceSys : (rec._source || 'Salesforce CRM')
+  const sys = (sourceSys && sourceSys !== '—' && sourceSys !== 'manual') ? sourceSys : (rec._source || pickSource(rec.id.length))
   const num = (rec.id.match(/(\d+)$/) || [])[1] || '10042'
   const REF = {
     'Salesforce': ['Salesforce', `${nd.label} 006${String(num).slice(0, 4)}Q${String(num).slice(-2)}`],
@@ -2103,9 +2110,23 @@ function upstreamRef(rec, nd, sourceSys) {
     'Google Calendar': ['Google Calendar', `Event ${String(num).slice(-5)}`],
     'Apollo': ['Apollo', `Enrichment profile ${String(num).slice(-5)}`],
     'Manual / Admin': ['Manual entry', `by James Carter`],
+    // Lowe's source systems
+    'Azure AD': ['Azure AD', `Directory object ${num}`],
+    'Outlook': ['Outlook', `Message ${String(num).slice(-5)}`],
+    'Teams': ['Teams', `Activity ${String(num).slice(-5)}`],
+    'Calendar': ['Calendar', `Event ${String(num).slice(-5)}`],
+    'SharePoint': ['SharePoint', `Item ${num}`],
+    'OneDrive': ['OneDrive', `Drive item ${num}`],
+    'ServiceNow': ['ServiceNow', `Record ${num}`],
+    'Jira': ['Jira', `${nd.label === 'Project' ? 'PROJ' : 'WORK'}-${String(num).slice(-4)}`],
+    'Confluence': ['Confluence', `Page ${num}`],
+    'computed': ['Computed', `Derived on ${nd.label}`],
+    'primary': [RD === LOWES_RD ? 'Graph store' : 'Salesforce', `${nd.label} ${num}`],
   }
-  const [app, ref] = REF[sys] || REF['Salesforce CRM']
-  return { app, ref }
+  if (REF[sys]) { const [app, ref] = REF[sys]; return { app, ref } }
+  // Unknown system: attribute to the named system itself — never fall back to a
+  // source that isn't part of this graph.
+  return { app: sys, ref: `${nd.label} ${num}` }
 }
 function fieldTransform(item) {
   const t = item.type || 'string', n = item.name
@@ -2171,7 +2192,11 @@ function fieldLineage(item, rec, nd, src) {
     { k: 'src', title: up.ref, sub: `${up.app} · the exact record this value was read from` },
     { k: 'pipe', title: `${up.app} → ${nd.label} pipeline`, sub: `${up.app}.${item.name} → ${item.name}${tf ? ' · ' + tf : ''} · synced ${synced}` },
   ]
-  if (s % 4 === 0) steps.push({ k: 'merge', title: 'Survivorship — freshest wins', sub: `${up.app} value chosen over ${up.app === 'NetSuite' ? 'Salesforce' : 'NetSuite'} (updated ${synced})` })
+  if (s % 4 === 0) {
+    const pool = recordSourcePool()
+    const loser = pool.find(p => p.split(' ')[0] !== up.app) || pool[0]
+    steps.push({ k: 'merge', title: 'Survivorship — freshest wins', sub: `${up.app} value chosen over ${loser.split(' ')[0]} (updated ${synced})` })
+  }
   steps.push(propStep)
   return steps
 }
