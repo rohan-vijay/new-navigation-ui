@@ -322,8 +322,13 @@ function colorForNode(n) {
 // ── Data generators ─────────────────────────────────────────────────────────
 const PERSON_NODES = new Set(['person', 'employee', 'contact'])
 // Deal-role labels for people — far more useful on the graph than a generic "Person".
-const PERSON_ROLES = ['Champion', 'Economic Buyer', 'Account Executive', 'Customer Success', 'End User', 'Procurement Lead', 'Technical Evaluator', 'Executive Sponsor']
-const personRole = recordId => PERSON_ROLES[(String(recordId).split('').reduce((a, c) => a + c.charCodeAt(0), 0)) % PERSON_ROLES.length]
+const CRM_PERSON_ROLES = ['Champion', 'Economic Buyer', 'Account Executive', 'Customer Success', 'End User', 'Procurement Lead', 'Technical Evaluator', 'Executive Sponsor']
+// Lowe's is an internal corporate graph — people are employees, so they carry
+// job titles rather than sales deal-roles.
+const LOWES_PERSON_ROLES = ['Software Engineer', 'Staff Engineer', 'Engineering Manager', 'Product Manager', 'Program Manager', 'Solution Architect', 'Data Analyst', 'QA Engineer', 'UX Designer', 'DevOps Engineer', 'Scrum Master', 'Director of Engineering']
+const personRolesList = () => (RD === LOWES_RD ? LOWES_PERSON_ROLES : CRM_PERSON_ROLES)
+const PERSON_ROLES = CRM_PERSON_ROLES // retained for any direct references
+const personRole = recordId => { const R = personRolesList(); return R[(String(recordId).split('').reduce((a, c) => a + c.charCodeAt(0), 0)) % R.length] }
 const PEOPLE_NAMES = ['Priya Sharma','Daniel Kim','Maya Chen','Lucas Bennett','Sofia Alvarez','Ethan Walsh','Aisha Khan','Tom Eriksen','Grace Liu','Marcus Webb','Elena Petrova','Noah Fischer','Tara Singh','Owen Gallagher','Camille Dubois','Victor Osei','Hana Suzuki','Leo Martinez']
 const LOWES_NAMES = {
   project: ['POS Modernization','Store Fulfillment Revamp','MyLowes Loyalty 2.0','Supply Chain Visibility','Pro Desk Experience','Self-Checkout Rollout','Inventory Accuracy Initiative','Curbside Pickup Expansion'],
@@ -1336,13 +1341,15 @@ function buildRecordGraph(record, node, W, H) {
     })
   })
 
-  // Distinct deal roles per person in this graph
+  // Distinct roles per person in this graph (job titles for Lowe's)
+  const ROLES = personRolesList()
   const usedRoles = new Set()
   nodes.forEach(n => {
     if (!PERSON_NODES.has(n.type)) return
-    let i = PERSON_ROLES.indexOf(personRole(n.recordId))
-    if (usedRoles.size < PERSON_ROLES.length) while (usedRoles.has(PERSON_ROLES[i % PERSON_ROLES.length])) i++
-    n.role = PERSON_ROLES[i % PERSON_ROLES.length]
+    let i = ROLES.indexOf(personRole(n.recordId))
+    if (i < 0) i = 0
+    if (usedRoles.size < ROLES.length) while (usedRoles.has(ROLES[i % ROLES.length])) i++
+    n.role = ROLES[i % ROLES.length]
     usedRoles.add(n.role)
   })
 
