@@ -588,6 +588,59 @@ function getObjectCols(obj) {
   return out;
 }
 
+// ── Lowe's Context Graph catalog ────────────────────────────────────────────
+// Registers the 9 Lowe's sources as structured systems so they open in the same
+// pipeline editor (Source → Connection → Objects → Map → Settings). Native
+// fields only — no document extraction.
+;(function registerLowesCatalog() {
+  const sys = (id, name, slug, color) => ({ id, cat: "Lowe's", domain: "", name, tag: "Lowe's", kind: "structured", status: "healthy", icon: name.slice(0, 2), slug, color, desc: name });
+  const lowSystems = [
+    sys("azuread_lw",    "Azure AD",   "azure_ad",   "#0078D4"),
+    sys("outlook_lw",    "Outlook",    "microsoftoutlook", "#0078D4"),
+    sys("teams_lw",      "Microsoft Teams", "microsoftteams", "#5059C9"),
+    sys("calendar_lw",   "Calendar",   "googlecalendar", "#4285F4"),
+    sys("sharepoint_lw", "SharePoint", "microsoftsharepoint", "#0078D4"),
+    sys("onedrive_lw",   "OneDrive",   "microsoftonedrive", "#0078D4"),
+    sys("servicenow_lw", "ServiceNow", "servicenow", "#16341f"),
+    sys("jira_lw",       "Jira",       "jira", "#0052CC"),
+    sys("confluence_lw", "Confluence", "confluence", "#172B4D"),
+  ];
+  lowSystems.forEach(s => { if (!SOURCE_SYSTEMS.find(x => x.id === s.id)) SOURCE_SYSTEMS.push(s); });
+  const ob = (name, cols) => ({ name, type: "Object", rows: "—", cols });
+  Object.assign(OBJECTS_BY_SYS, {
+    azuread_lw:    [ob("Azure Users", 7), ob("Azure Groups", 6), ob("Org Units", 5)],
+    outlook_lw:    [ob("Messages", 6), ob("Conversations", 3)],
+    teams_lw:      [ob("Channel Messages", 5), ob("Channels", 4), ob("Online Meetings", 5)],
+    calendar_lw:   [ob("Calendar Events", 7)],
+    sharepoint_lw: [ob("Documents", 7), ob("Site Pages", 5)],
+    onedrive_lw:   [ob("Files", 7)],
+    servicenow_lw: [ob("Incidents", 7), ob("Requests", 6)],
+    jira_lw:       [ob("Issues", 9), ob("Projects", 5)],
+    confluence_lw: [ob("Pages", 7), ob("Labels", 3)],
+  });
+  const C = (col, type, sample) => ({ col, type, sample });
+  Object.assign(OBJECT_COLS_BY_NAME, {
+    "azure users":      [C("id","uuid","8f3a…"),C("displayName","string","Priya Sharma"),C("mail","string","priya.s@lowes.com"),C("jobTitle","string","Staff Engineer"),C("department","string","Store Technology"),C("manager","uuid","emp_5521"),C("officeLocation","string","Mooresville, NC")],
+    "azure groups":     [C("id","uuid","grp_18"),C("displayName","string","Store Systems"),C("mail","string","store-sys@lowes.com"),C("visibility","string","Private"),C("owners","uuid","emp_3310"),C("members@count","int","42")],
+    "org units":        [C("id","uuid","ou_07"),C("name","string","Store Technology"),C("parentDepartment","string","Digital Commerce"),C("costCenter","string","CC-4821"),C("memberCount","int","318")],
+    "messages":         [C("id","uuid","msg_9a"),C("subject","string","Re: POS cutover schedule"),C("from","uuid","emp_5521"),C("sentDateTime","timestamp","2026-06-12T09:14:00Z"),C("conversationId","uuid","conv_77"),C("hasAttachments","bool","true")],
+    "conversations":    [C("conversationId","uuid","conv_77"),C("topic","string","POS Modernization — General"),C("lastDeliveredDateTime","timestamp","2026-06-12T11:02:00Z")],
+    "channel messages": [C("id","uuid","tmsg_3"),C("body.preview","string","go/no-go at 4pm"),C("from.user.id","uuid","emp_4144"),C("createdDateTime","timestamp","2026-06-12T15:40:00Z"),C("channelIdentity","string","Fulfillment ▸ General")],
+    "channels":         [C("id","uuid","ch_12"),C("displayName","string","Fulfillment standup"),C("membershipType","string","standard"),C("memberCount","int","18")],
+    "online meetings":  [C("id","uuid","mtg_5"),C("subject","string","POS Cutover Go/No-Go"),C("organizer.user.id","uuid","emp_4144"),C("startDateTime","timestamp","2026-06-13T16:00:00Z"),C("isOnlineMeeting","bool","true")],
+    "calendar events":  [C("id","uuid","evt_8"),C("subject","string","Fulfillment Weekly Sync"),C("organizer.user.id","uuid","emp_3310"),C("start.dateTime","timestamp","2026-06-13T15:00:00Z"),C("end.dateTime","timestamp","2026-06-13T15:30:00Z"),C("attendees","int","9"),C("isOnlineMeeting","bool","true")],
+    "documents":        [C("id","uuid","doc_4"),C("name","string","POS Migration Plan.xlsx"),C("file.mimeType","string","application/vnd…sheet"),C("webUrl","string","/sites/POS/Shared"),C("createdBy.user.id","uuid","emp_5521"),C("lastModifiedDateTime","timestamp","2026-06-11T10:00:00Z"),C("size","int","248")],
+    "site pages":       [C("id","uuid","pg_2"),C("title","string","POS Modernization Home"),C("webUrl","string","/sites/POS/SitePages"),C("createdBy.user.id","uuid","emp_4144"),C("lastModifiedDateTime","timestamp","2026-06-10T12:00:00Z")],
+    "files":            [C("id","uuid","od_9"),C("name","string","Q3 Architecture.docx"),C("file.mimeType","string","application/vnd…wordml"),C("createdBy.user.id","uuid","emp_5521"),C("lastModifiedDateTime","timestamp","2026-06-09T08:00:00Z"),C("size","int","96"),C("version","string","3.0")],
+    "incidents":        [C("sys_id","uuid","inc_5"),C("number","string","INC-100482"),C("short_description","string","Checkout outage at peak"),C("priority","string","P1"),C("state","string","In Progress"),C("assigned_to","uuid","emp_4144"),C("opened_by","uuid","emp_3310")],
+    "requests":         [C("sys_id","uuid","req_3"),C("number","string","REQ-220914"),C("short_description","string","SSO for store associates"),C("request_state","string","Approved"),C("requested_for","uuid","emp_5521"),C("due_date","date","2026-07-01")],
+    "issues":           [C("id","uuid","iss_7"),C("key","string","POS-2307"),C("fields.summary","string","Fix checkout timeout"),C("fields.issuetype","string","Story"),C("fields.status","string","In Progress"),C("fields.priority","string","High"),C("fields.assignee","uuid","emp_4144"),C("fields.reporter","uuid","emp_3310"),C("fields.duedate","date","2026-06-30")],
+    "projects":         [C("id","uuid","prj_1"),C("name","string","POS Modernization"),C("key","string","POS"),C("lead.accountId","uuid","emp_5521"),C("projectCategory","string","Digital Commerce")],
+    "pages":            [C("id","uuid","cpg_4"),C("title","string","Fulfillment Service — Overview"),C("space.key","string","FUL"),C("ancestors","string","Fulfillment Home"),C("version.by.accountId","uuid","emp_4144"),C("version.when","timestamp","2026-06-08T14:00:00Z"),C("metadata.labels","string[]","fulfillment, runbook")],
+    "labels":           [C("name","string","point-of-sale"),C("label","string","Point of Sale"),C("prefix","string","global")],
+  });
+})();
+
 // ─── PRIMITIVE COMPONENTS ─────────────────────────────────────────────────────
 
 function useOutsideClick(ref, open, onClose) {
@@ -2637,6 +2690,20 @@ function autoMatchProp(srcName, props) {
 // Keyword aliases first, then fuzzy, then a deterministic *varied* fallback so
 // objects don't all collapse onto "Account".
 const NODE_ALIASES = [
+  // Lowe's Context Graph objects → nodes. These resolve first, but only match
+  // when the target label exists in the active graph, so the default graph
+  // (which has none of these labels) falls through to the generic aliases below.
+  [/channel.?message/, "Message"], [/message|^mail|email/, "Message"],
+  [/conversation|^channel|thread|^chat/, "Conversation"],
+  [/online.?meeting|^meeting|calendar|appointment|^event/, "Meeting"],
+  [/site.?page|wiki|^page|confluence/, "Page"],
+  [/document|^file|drive|attachment|sharepoint|onedrive/, "Document"],
+  [/azure.?user|^user|people|member|profile|directory/, "Person"],
+  [/group|^team|distribution/, "Group / Team"],
+  [/org.?unit|department|division|business.?unit/, "Department"],
+  [/incident|request|issue|work.?item|bug|^task|ticket|epic|story|servicenow|jira/, "Work Item"],
+  [/project|initiative|^board/, "Project"],
+  [/label|topic|^tag|term/, "Topic"],
   [/incident|outage/, "Incident"], [/ticket|issue|bug|request/, "Ticket"], [/case|escalation/, "Case"],
   [/article|knowledge|kb|faq/, "Knowledge"], [/conversation|message|thread|chat|email|reply/, "Interaction"],
   [/envelope|agreement|contract|signature|nda/, "Contract"], [/recipient|signer|contact|person|attendee/, "Contact"],

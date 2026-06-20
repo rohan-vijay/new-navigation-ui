@@ -254,6 +254,60 @@ const PROPS_BY_NODE = {
   ],
 }
 
+// ── Lowe's Context Graph records dataset ────────────────────────────────────
+// Same record UI, driven by the Lowe's nodes/edges + structured metadata props.
+const LOWES_NODES = [
+  { id:'project',      label:'Project',      type:'entity', state:'core',   x:0,    y:0,    size:34, props:9,  edges:10, instances:'4.2K',  instancesN:4200,   fill:90, conf:96, fresh:'15m', pii:0, change:'MEDIUM', desc:'Initiative tying people, content, work and conversations together' },
+  { id:'person',       label:'Person',       type:'entity', state:'core',   x:-240, y:-60,  size:30, props:9,  edges:25, instances:'38K',   instancesN:38000,  fill:84, conf:94, fresh:'1h',  pii:4, change:'MEDIUM', desc:'Employee or contractor — the identity backbone' },
+  { id:'team',         label:'Group / Team', type:'entity', state:'core',   x:-260, y:130,  size:26, props:6,  edges:3,  instances:'5.6K',  instancesN:5600,   fill:88, conf:95, fresh:'4h',  pii:0, change:'LOW',    desc:'Microsoft 365 group, Teams team or distribution list' },
+  { id:'department',   label:'Department',   type:'entity', state:'core',   x:-450, y:30,   size:24, props:5,  edges:2,  instances:'320',   instancesN:320,    fill:90, conf:96, fresh:'1d',  pii:0, change:'LOW',    desc:'Org-chart unit from Azure AD' },
+  { id:'workitem',     label:'Work Item',    type:'entity', state:'core',   x:250,  y:-60,  size:30, props:9,  edges:9,  instances:'86K',   instancesN:86000,  fill:86, conf:93, fresh:'10m', pii:0, change:'HIGH',   desc:'Jira issue/epic or ServiceNow ticket/request' },
+  { id:'document',     label:'Document',     type:'entity', state:'core',   x:220,  y:170,  size:26, props:8,  edges:14, instances:'240K',  instancesN:240000, fill:82, conf:92, fresh:'18m', pii:0, change:'MEDIUM', desc:'File in SharePoint or OneDrive' },
+  { id:'page',         label:'Page',         type:'entity', state:'core',   x:400,  y:90,   size:24, props:7,  edges:8,  instances:'64K',   instancesN:64000,  fill:84, conf:93, fresh:'1h',  pii:0, change:'LOW',    desc:'Confluence or SharePoint wiki page' },
+  { id:'message',      label:'Message',      type:'entity', state:'core',   x:80,   y:270,  size:24, props:7,  edges:8,  instances:'1.9M',  instancesN:1900000,fill:80, conf:90, fresh:'6m',  pii:0, change:'HIGH',   desc:'Outlook email or Teams chat/channel message' },
+  { id:'conversation', label:'Conversation', type:'entity', state:'core',   x:290,  y:300,  size:24, props:6,  edges:6,  instances:'210K',  instancesN:210000, fill:83, conf:92, fresh:'12m', pii:0, change:'MEDIUM', desc:'Thread grouping messages' },
+  { id:'meeting',      label:'Meeting',      type:'entity', state:'core',   x:-70,  y:-250, size:24, props:8,  edges:6,  instances:'120K',  instancesN:120000, fill:85, conf:93, fresh:'24m', pii:0, change:'MEDIUM', desc:'Calendar event / Teams meeting' },
+  { id:'topic',        label:'Topic',        type:'entity', state:'signal', x:440,  y:-190, size:22, props:4,  edges:4,  instances:'1.8K',  instancesN:1800,   fill:88, conf:94, fresh:'1d',  pii:0, change:'LOW',    desc:'Subject/skill tag from structured metadata' },
+]
+const LOWES_EDGES = [
+  { s:'person',  t:'department',   label:'IN_DEPARTMENT', kind:'direct'   },
+  { s:'person',  t:'team',         label:'MEMBER_OF',     kind:'direct'   },
+  { s:'person',  t:'project',      label:'WORKS_ON',      kind:'direct'   },
+  { s:'person',  t:'project',      label:'LEADS',         kind:'direct'   },
+  { s:'person',  t:'topic',        label:'EXPERT_IN',     kind:'inferred' },
+  { s:'document', t:'project',     label:'PART_OF',       kind:'direct'   },
+  { s:'page',     t:'project',     label:'PART_OF',       kind:'direct'   },
+  { s:'workitem', t:'project',     label:'PART_OF',       kind:'direct'   },
+  { s:'meeting',  t:'project',     label:'PART_OF',       kind:'inferred' },
+  { s:'person',  t:'document',     label:'CREATED',       kind:'direct'   },
+  { s:'person',  t:'document',     label:'OWNS',          kind:'direct'   },
+  { s:'person',  t:'workitem',     label:'ASSIGNED_TO',   kind:'direct'   },
+  { s:'person',  t:'message',      label:'SENT',          kind:'direct'   },
+  { s:'message',  t:'conversation',label:'IN_THREAD',     kind:'direct'   },
+  { s:'person',  t:'meeting',      label:'ORGANIZED',     kind:'direct'   },
+  { s:'meeting',  t:'conversation',label:'HAS_CHAT',      kind:'direct'   },
+  { s:'document', t:'workitem',    label:'DOCUMENTS',     kind:'inferred' },
+  { s:'document', t:'topic',       label:'ABOUT',         kind:'inferred' },
+  { s:'page',     t:'topic',       label:'ABOUT',         kind:'inferred' },
+]
+const _lp = (name, type, opts={}) => ({ name, type, required:!!opts.req, indexed:!!opts.idx, pii:!!opts.pii, pk:!!opts.pk, fill:opts.fill||92, conf:opts.conf||96, source:opts.src||'—' })
+const LOWES_PROPS = {
+  project: [ _lp('project_id','uuid',{pk:1,req:1,idx:1,src:'Jira'}), _lp('name','string',{req:1,idx:1,src:'Jira'}), _lp('key','string',{idx:1,src:'Jira'}), _lp('status','enum',{idx:1,src:'Jira'}), _lp('lead_id','uuid',{idx:1,src:'Azure AD'}), _lp('business_unit','string',{src:'ServiceNow'}), _lp('start_date','date',{src:'Jira'}), _lp('surfaces','string[]',{src:'computed'}), _lp('created_at','timestamp',{req:1,src:'Jira'}) ],
+  person: [ _lp('person_id','uuid',{pk:1,req:1,idx:1,src:'Azure AD'}), _lp('name','string',{req:1,idx:1,src:'Azure AD'}), _lp('email','string',{idx:1,pii:1,src:'Azure AD'}), _lp('job_title','string',{src:'Azure AD'}), _lp('department','string',{idx:1,src:'Azure AD'}), _lp('manager_id','uuid',{idx:1,src:'Azure AD'}), _lp('office','string',{src:'Azure AD'}), _lp('employee_id','string',{pii:1,src:'Azure AD'}), _lp('created_at','timestamp',{req:1,src:'Azure AD'}) ],
+  team: [ _lp('team_id','uuid',{pk:1,req:1,idx:1,src:'Azure AD'}), _lp('name','string',{req:1,idx:1,src:'Azure AD'}), _lp('email','string',{idx:1,src:'Azure AD'}), _lp('visibility','enum',{src:'Azure AD'}), _lp('owner_id','uuid',{idx:1,src:'Azure AD'}), _lp('member_count','int',{src:'Azure AD'}) ],
+  department: [ _lp('department_id','uuid',{pk:1,req:1,idx:1,src:'Azure AD'}), _lp('name','string',{req:1,idx:1,src:'Azure AD'}), _lp('parent_department','string',{src:'Azure AD'}), _lp('cost_center','string',{src:'Azure AD'}), _lp('headcount','int',{src:'Azure AD'}) ],
+  workitem: [ _lp('workitem_id','uuid',{pk:1,req:1,idx:1,src:'Jira'}), _lp('key','string',{idx:1,src:'Jira'}), _lp('summary','string',{req:1,idx:1,src:'Jira'}), _lp('type','enum',{idx:1,src:'Jira'}), _lp('status','enum',{idx:1,src:'Jira'}), _lp('priority','enum',{idx:1,src:'Jira'}), _lp('assignee_id','uuid',{idx:1,src:'Jira'}), _lp('reporter_id','uuid',{src:'Jira'}), _lp('due_date','date',{src:'Jira'}) ],
+  document: [ _lp('document_id','uuid',{pk:1,req:1,idx:1,src:'SharePoint'}), _lp('title','string',{req:1,idx:1,src:'SharePoint'}), _lp('file_type','enum',{idx:1,src:'SharePoint'}), _lp('site','string',{src:'SharePoint'}), _lp('owner_id','uuid',{idx:1,src:'SharePoint'}), _lp('modified_at','timestamp',{idx:1,src:'SharePoint'}), _lp('size_kb','int',{src:'SharePoint'}), _lp('version','string',{src:'SharePoint'}) ],
+  page: [ _lp('page_id','uuid',{pk:1,req:1,idx:1,src:'Confluence'}), _lp('title','string',{req:1,idx:1,src:'Confluence'}), _lp('space','string',{idx:1,src:'Confluence'}), _lp('author_id','uuid',{idx:1,src:'Confluence'}), _lp('updated_at','timestamp',{idx:1,src:'Confluence'}), _lp('labels','string[]',{src:'Confluence'}), _lp('parent_page','string',{src:'Confluence'}) ],
+  message: [ _lp('message_id','uuid',{pk:1,req:1,idx:1,src:'Outlook'}), _lp('subject','string',{idx:1,src:'Outlook'}), _lp('sender_id','uuid',{idx:1,pii:1,src:'Outlook'}), _lp('sent_at','timestamp',{idx:1,src:'Outlook'}), _lp('conversation_id','uuid',{idx:1,src:'Outlook'}), _lp('has_attachments','bool',{src:'Outlook'}), _lp('channel','string',{src:'Teams'}) ],
+  conversation: [ _lp('conversation_id','uuid',{pk:1,req:1,idx:1,src:'Outlook'}), _lp('topic','string',{idx:1,src:'Outlook'}), _lp('type','enum',{idx:1,src:'Teams'}), _lp('participant_count','int',{src:'Teams'}), _lp('message_count','int',{src:'Teams'}), _lp('last_activity_at','timestamp',{idx:1,src:'Teams'}) ],
+  meeting: [ _lp('meeting_id','uuid',{pk:1,req:1,idx:1,src:'Calendar'}), _lp('subject','string',{req:1,idx:1,src:'Calendar'}), _lp('organizer_id','uuid',{idx:1,src:'Calendar'}), _lp('start_time','timestamp',{idx:1,src:'Calendar'}), _lp('end_time','timestamp',{src:'Calendar'}), _lp('attendee_count','int',{src:'Calendar'}), _lp('is_online','bool',{src:'Teams'}), _lp('has_transcript','bool',{src:'Teams'}) ],
+  topic: [ _lp('topic_id','uuid',{pk:1,req:1,idx:1,src:'Confluence'}), _lp('name','string',{req:1,idx:1,src:'Confluence'}), _lp('source','enum',{src:'computed'}), _lp('synonyms','string[]',{src:'computed'}) ],
+}
+const DEFAULT_RD = { nodes: NODES, edges: EDGES, props: PROPS_BY_NODE }
+const LOWES_RD = { nodes: LOWES_NODES, edges: LOWES_EDGES, props: LOWES_PROPS }
+let RD = DEFAULT_RD
+
 // ── Colour helpers ──────────────────────────────────────────────────────────
 function colorForNode(n) {
   if (!n) return { stroke: C.ink3, fill: C.canvas }
@@ -271,9 +325,33 @@ const PERSON_NODES = new Set(['person', 'employee', 'contact'])
 const PERSON_ROLES = ['Champion', 'Economic Buyer', 'Account Executive', 'Customer Success', 'End User', 'Procurement Lead', 'Technical Evaluator', 'Executive Sponsor']
 const personRole = recordId => PERSON_ROLES[(String(recordId).split('').reduce((a, c) => a + c.charCodeAt(0), 0)) % PERSON_ROLES.length]
 const PEOPLE_NAMES = ['Priya Sharma','Daniel Kim','Maya Chen','Lucas Bennett','Sofia Alvarez','Ethan Walsh','Aisha Khan','Tom Eriksen','Grace Liu','Marcus Webb','Elena Petrova','Noah Fischer','Tara Singh','Owen Gallagher','Camille Dubois','Victor Osei','Hana Suzuki','Leo Martinez']
+const LOWES_NAMES = {
+  project: ['POS Modernization','Store Fulfillment Revamp','MyLowes Loyalty 2.0','Supply Chain Visibility','Pro Desk Experience','Self-Checkout Rollout','Inventory Accuracy Initiative','Curbside Pickup Expansion'],
+  workitem: ['Fix checkout timeout on peak load','Add SSO for store associates','Migrate order service to new API','Inventory sync failing for SKU feed','Build returns dashboard','Harden payment retry logic'],
+  document: ['Q3 Fulfillment Architecture.docx','Store Rollout Runbook.pdf','POS Migration Plan.xlsx','Loyalty Program Spec.docx','Vendor Integration Guide.pdf'],
+  page: ['Fulfillment Service — Overview','POS Modernization Home','Onboarding Runbook','Incident Response Playbook','Release Process'],
+  message: ['Re: POS cutover schedule','Store rollout — go/no-go','Inventory feed alert','Approval needed: vendor contract','Weekly status — Fulfillment'],
+  conversation: ['POS Modernization — General','Store Fulfillment standup','Incident: checkout outage','Loyalty launch planning'],
+  meeting: ['POS Cutover Go/No-Go','Fulfillment Weekly Sync','Architecture Review','Sprint Planning — Pro Desk','Vendor Onboarding Kickoff'],
+  topic: ['Point of Sale','Inventory','Fulfillment','Loyalty','Payments','Store Operations','Supply Chain'],
+  team: ['Store Systems','Fulfillment Platform','Loyalty Engineering','Supply Chain Tech','Pro Desk Squad'],
+  department: ['Digital Commerce','Store Technology','Supply Chain','Merchandising Systems','Enterprise Data'],
+}
 function generateValueForProp(p, seed, nodeId) {
   const v = Math.abs(seed * (p.name.charCodeAt(0) + 1))
   if (p.pk) return p.name.replace(/_id$/, '').toUpperCase().slice(0,3) + '-' + (10000 + v % 89999)
+  // Lowe's-specific labels for the name/title/subject/topic field of each node.
+  if (['name','title','subject','summary','topic'].includes(p.name) && LOWES_NAMES[nodeId] && !PERSON_NODES.has(nodeId)) {
+    return LOWES_NAMES[nodeId][v % LOWES_NAMES[nodeId].length]
+  }
+  if (p.name === 'key') return ['POS','FUL','LOY','SCM','PRO'][v % 5] + '-' + (100 + v % 8999)
+  if (p.name === 'space') return ['POS','FUL','LOY','SCM','OPS'][v % 5]
+  if (p.name === 'file_type') return ['docx','pdf','xlsx','pptx'][v % 4]
+  if (p.name === 'visibility') return ['Private','Public'][v % 2]
+  if (p.name === 'business_unit') return ['Digital Commerce','Store Technology','Supply Chain','Merchandising'][v % 4]
+  if (p.name === 'surfaces') return ['Teams + SharePoint + Jira','Confluence + Jira','Teams + Confluence'][v % 3]
+  if (p.name === 'type' && ['workitem','conversation'].includes(nodeId)) return nodeId === 'workitem' ? ['Epic','Story','Task','Bug','Request'][v % 5] : ['channel','chat','email'][v % 3]
+  if (p.name === 'source' && nodeId === 'topic') return ['Jira component','SharePoint term','Hashtag'][v % 3]
   if (['name','label','company_name'].includes(p.name)) {
     // people get human names; organizations get company names
     if (PERSON_NODES.has(nodeId)) return PEOPLE_NAMES[v % PEOPLE_NAMES.length]
@@ -354,6 +432,7 @@ function generateValueForProp(p, seed, nodeId) {
   if (p.name === 'department') return ['Operations','Data Platform','Procurement','IT','Finance'][v % 5]
   if (p.name === 'location') return ['Chicago, IL','Austin, TX','Remote — EST','London, UK'][v % 4]
   if (p.type === 'decimal' || p.type === 'float') return ((v % 99000) + 1000).toFixed(2)
+  if (p.type === 'int')       return String(1 + v % 900)
   if (p.type === 'bool')      return v % 3 !== 0 ? 'true' : 'false'
   if (p.type === 'timestamp') return '2026-' + String(1+v%12).padStart(2,'0') + '-' + String(1+v%28).padStart(2,'0') + 'T' + String(v%24).padStart(2,'0') + ':' + String(v%60).padStart(2,'0') + ':00Z'
   if (p.type === 'date')      return '2026-' + String(1+v%12).padStart(2,'0') + '-' + String(1+v%28).padStart(2,'0')
@@ -363,7 +442,7 @@ function generateValueForProp(p, seed, nodeId) {
 }
 
 function generateProps(node) {
-  if (PROPS_BY_NODE[node.id]) return PROPS_BY_NODE[node.id]
+  if (RD.props[node.id]) return RD.props[node.id]
   const out = []
   const seed = node.id.charCodeAt(0) + node.id.length
   out.push({ name:node.id+'_id',   type:'uuid',      required:true,  indexed:true,  pii:false, pk:true,  fill:100,conf:100,source:'primary' })
@@ -404,8 +483,8 @@ function generateRecords(node) {
 
 const PRIMARY_ACCOUNT_ID = 'account-429691' // Northwind Logistics — the demo account every path links back to
 function generateRelatedRecords(record, node) {
-  const outgoing = EDGES.filter(e => e.s === node.id)
-  const incoming = EDGES.filter(e => e.t === node.id)
+  const outgoing = RD.edges.filter(e => e.s === node.id)
+  const incoming = RD.edges.filter(e => e.t === node.id)
   const allEdges  = [...outgoing, ...incoming]
   const baseSeed  = record.id.length * 7 + record.id.charCodeAt(record.id.length-1)
   // relationships that realistically occur once per record
@@ -413,7 +492,7 @@ function generateRelatedRecords(record, node) {
   return allEdges.slice(0,14).map((e, idx) => {
     const isOut      = e.s === node.id
     const otherId    = isOut ? e.t : e.s
-    const otherNode  = NODES.find(n => n.id === otherId)
+    const otherNode  = RD.nodes.find(n => n.id === otherId)
     if (!otherNode) return null
     const count = SINGLE_EDGES.has(e.label) ? 1 : ((baseSeed + idx * 3) % 2) + 1
     const otherProps = generateProps(otherNode)
@@ -493,12 +572,12 @@ function DarkBtn({ children, onClick }) {
 
 // ── RecordsView ─────────────────────────────────────────────────────────────
 function RecordsView({ onOpenRecord }) {
-  const entityNodes = NODES.filter(n => n.type === 'entity')
+  const entityNodes = RD.nodes.filter(n => n.type === 'entity')
   const [nodeFilter, setNodeFilter] = useState(entityNodes[0]?.id || 'account')
   const [dropOpen, setDropOpen]     = useState(false)
   const [search, setSearch]         = useState('')
 
-  const selectedNodeObj  = NODES.find(n => n.id === nodeFilter) || entityNodes[0]
+  const selectedNodeObj  = RD.nodes.find(n => n.id === nodeFilter) || entityNodes[0]
   const records          = generateRecords(selectedNodeObj)
   const filteredRecords  = search ? records.filter(r => JSON.stringify(r).toLowerCase().includes(search.toLowerCase())) : records
 
@@ -683,19 +762,19 @@ function RecordDetailView({ record, node, onBack, onNavigate }) {
 
   function navigateTo(recId, nodeId) {
     if (!onNavigate) return
-    const targetNode = NODES.find(n => n.id === nodeId)
+    const targetNode = RD.nodes.find(n => n.id === nodeId)
     if (!targetNode) return
     setTab('Overview'); setHoverNode(null); setExpandedProp(null); setInspectedNode(null)
     onNavigate(buildRecordFromId(recId, targetNode), targetNode)
   }
 
   function buildSecondHop(parentRec, parentNodeObj, parentSeed) {
-    const outE = EDGES.filter(e => e.s === parentNodeObj.id).slice(0,2)
-    const inE  = EDGES.filter(e => e.t === parentNodeObj.id).slice(0,1)
+    const outE = RD.edges.filter(e => e.s === parentNodeObj.id).slice(0,2)
+    const inE  = RD.edges.filter(e => e.t === parentNodeObj.id).slice(0,1)
     return [...outE, ...inE].slice(0,2).map((e, ci) => {
       const isOut = e.s === parentNodeObj.id
       const grandId = isOut ? e.t : e.s
-      const grand = NODES.find(n => n.id === grandId)
+      const grand = RD.nodes.find(n => n.id === grandId)
       if (!grand || grand.id === node.id) return null
       const seed = parentSeed + ci*41 + 17
       const gp = generateProps(grand)
@@ -736,7 +815,7 @@ function RecordDetailView({ record, node, onBack, onNavigate }) {
   function buildHops(flat) {
     const hops = []
     flat.forEach((f,i) => {
-      const parentNodeObj = NODES.find(n => n.id === f.rr.nodeId)
+      const parentNodeObj = RD.nodes.find(n => n.id === f.rr.nodeId)
       if (!parentNodeObj) return
       const kids = buildSecondHop(f.rr, parentNodeObj, f.rr.id.length*31+i*13)
       const arcSpan = Math.PI/7
@@ -776,7 +855,7 @@ function RecordDetailView({ record, node, onBack, onNavigate }) {
           })}
           {/* 2-hop nodes */}
           {hops.map((h,i) => {
-            const nObj = NODES.find(n => n.id === h.rr.nodeId)
+            const nObj = RD.nodes.find(n => n.id === h.rr.nodeId)
             const col  = colorForNode(nObj)
             const isInsp = inspectedNode?.id === h.rr.id
             const isHov  = hoverNode === h.rr.id
@@ -794,7 +873,7 @@ function RecordDetailView({ record, node, onBack, onNavigate }) {
           </g>
           {/* 1-hop nodes */}
           {flat.map((f,i) => {
-            const otherCol = colorForNode(NODES.find(n => n.id === f.rr.nodeId))
+            const otherCol = colorForNode(RD.nodes.find(n => n.id === f.rr.nodeId))
             const isInsp = inspectedNode?.id === f.rr.id
             const isHov  = hoverNode === f.rr.id
             return <g key={'n'+i} style={{cursor:'pointer'}} onClick={()=>{ if(graphDrag.current?.moved) return; setInspectedNode(f.rr) }} onMouseEnter={()=>setHoverNode(f.rr.id)} onMouseLeave={()=>setHoverNode(null)}>
@@ -816,7 +895,7 @@ function RecordDetailView({ record, node, onBack, onNavigate }) {
     if (inspectedNode === null) {
       insp = { isCentre:true, headerId:record.id, headerLabel: record[Object.keys(record).find(k=>k==='name'||k==='company_name'||k==='title')]||node.label, headerNode:node, edgeBadge:null, status:record.status, propsList:provenance.map(pv=>({name:pv.prop.name,value:pv.value,pii:pv.prop.pii,pk:pv.prop.pk,computed:pv.prop.computed,type:pv.prop.type,source:pv.source,age:pv.age,conf:pv.conf})), relatedCount:totalRelated, completeness:record._completeness, confidence:record._confidence, sourceLabel:record._source, updatedAgo:record._updatedAgo, createdAgo:record._createdAgo, targetRecordId:record.id, targetNodeId:node.id }
     } else {
-      const nObj = NODES.find(n => n.id === inspectedNode.nodeId)||node
+      const nObj = RD.nodes.find(n => n.id === inspectedNode.nodeId)||node
       const inspProps = generateProps(nObj)
       const inspSeed  = inspectedNode.id.length*13 + inspectedNode.id.charCodeAt(inspectedNode.id.length-1)*7
       insp = { isCentre:false, headerId:inspectedNode.id, headerLabel:inspectedNode.keyValue, headerNode:nObj, edgeBadge:{ dir:inspectedNode.isOut?'out':'in', label:inspectedNode.edgeLabel, kind:inspectedNode.kind, fromLabel:node.label, toLabel:nObj.label }, status:['active','active','review','active','flagged'][Math.abs(inspSeed)%5], propsList:inspProps.map((p,idx)=>({ name:p.name, value:generateValueForProp(p,inspSeed+idx*11), pii:p.pii, pk:p.pk, computed:p.computed, type:p.type, source:['Salesforce CRM','NetSuite ERP','HubSpot Marketing','Manual / Admin'][(inspSeed+idx)%4], age:['2m','18m','1h','4h','12h','1d'][(inspSeed+idx)%6], conf:0.78+((Math.abs(inspSeed+idx)%20)/100) })), relatedCount:1+(Math.abs(inspSeed)%5), completeness:78+(Math.abs(inspSeed)%22), confidence:82+(Math.abs(inspSeed)%17), sourceLabel:['Salesforce CRM','NetSuite ERP','HubSpot Marketing','Manual / Admin'][Math.abs(inspSeed)%4], updatedAgo:['2m ago','14m ago','1h ago','4h ago','1d ago','3d ago'][Math.abs(inspSeed)%6], createdAgo:['12d ago','34d ago','2mo ago','6mo ago','1y ago','2y ago'][Math.abs(inspSeed)%6], targetRecordId:inspectedNode.id, targetNodeId:inspectedNode.nodeId }
@@ -1289,7 +1368,7 @@ function buildRecordGraph(record, node, W, H) {
 
   // Cross-links: schema edges between any two placed records not already linked.
   const linked = new Set(edges.map(e => [e.from, e.to].sort().join('|')))
-  const schemaEdge = (a, b) => EDGES.find(e => (e.s === a && e.t === b) || (e.s === b && e.t === a))
+  const schemaEdge = (a, b) => RD.edges.find(e => (e.s === a && e.t === b) || (e.s === b && e.t === a))
   let cross = 0
   for (let a = 0; a < nodes.length && cross < 9; a++) {
     for (let b = a + 1; b < nodes.length && cross < 9; b++) {
@@ -1689,8 +1768,8 @@ function RecordSidePane({ gnode, fieldProv, onOpenProv, focusRel, onFocusEdge, o
   const seenNames = new Set()
   ;[
     ...generateProps(nd).map(p => ({ name: p.name, value: String(rec[p.name] ?? '—'), type: p.type, pk: p.pk, origin: 'field', computed: p.computed, sourceSys: p.source })),
-    ...extractedFields(nd),
-    ...metaFields(rec, nd, src),
+    // Agent-extracted + source-document metadata only apply to unstructured records.
+    ...(unstructured ? [...extractedFields(nd), ...metaFields(rec, nd, src)] : []),
   ].forEach(it => { if (!seenNames.has(it.name)) { seenNames.add(it.name); items.push(it) } })
 
   const glyph = it => {
@@ -2310,7 +2389,8 @@ function DocumentViewer({ gnode, prov, onClose, onBack }) {
 }
 
 // ── Page ─────────────────────────────────────────────────────────────────────
-export default function RecordsPage({ disableDetail }) {
+export default function RecordsPage({ disableDetail, dataset }) {
+  RD = dataset === 'lowes' ? LOWES_RD : DEFAULT_RD
   const [selectedRecord, setSelectedRecord] = useState(null)
   const [selectedNode,   setSelectedNode]   = useState(null)
 

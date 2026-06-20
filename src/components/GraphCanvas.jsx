@@ -5,13 +5,65 @@ import CreateAgentPage, { ModelIcon, MODELS } from './CreateAgentModal'
 import BuildWithAIModal from './BuildWithAIModal'
 import { ToolGlyph } from './AddToolPanel'
 import { LinkSourceFlow } from './LinkSourceFlow'
-import GraphStage, { SIDEBAR_NODES, GRAPH_EDGES, ListGlyph, colorForNode, AddNodeFlow, NewEdgeFlow, generateProps, generateRules, PropertiesPane } from './GraphStage'
+import GraphStage, { SIDEBAR_NODES, GRAPH_EDGES, LOWES_DATA, ListGlyph, colorForNode, AddNodeFlow, NewEdgeFlow, generateProps, generateRules, PropertiesPane } from './GraphStage'
 // Make node schema available to LinkSourceFlow.buildEditState (runs at module load time)
 if (typeof window !== 'undefined') { window.NODES = SIDEBAR_NODES; window.EDGES = GRAPH_EDGES; window.generateProps = generateProps; window.ListGlyph = ListGlyph; }
 import RecordsPage from './RecordsPage'
 import SkillLibrary from './SkillLibrary'
 import { AGENT_LIBRARY, AGENT_GROUP_ORDER } from '../data/agentLibrary'
 import { FeatureModeProvider, useFeatureMode } from '../featureMode'
+
+// ── Active dataset holder ────────────────────────────────────────────────────
+// The list/detail components below read the active graph's nodes/edges/sources
+// from GD. It defaults to the built-in Enterprise Context Graph; a caller can
+// supply a different dataset (e.g. the Lowe's graph) without changing the UI.
+const DEFAULT_GD = { sidebarNodes: SIDEBAR_NODES, edges: GRAPH_EDGES, sources: null, data: null }
+let GD = DEFAULT_GD
+
+// Each Lowe's source's pipeline `edit` spec — opens the standard wizard wired
+// to that source's objects → Lowe's nodes. Native fields only, no extraction.
+// [pipelineSystemId, [[objectName, nodeId], ...]]
+const LOWES_EDIT = {
+  azure_ad:   ['azuread_lw',    [['Azure Users','person'],['Azure Groups','team'],['Org Units','department']]],
+  outlook:    ['outlook_lw',    [['Messages','message'],['Conversations','conversation']]],
+  teams:      ['teams_lw',      [['Channel Messages','message'],['Channels','conversation'],['Online Meetings','meeting']]],
+  calendar:   ['calendar_lw',   [['Calendar Events','meeting']]],
+  sharepoint: ['sharepoint_lw', [['Documents','document'],['Site Pages','page']]],
+  onedrive:   ['onedrive_lw',   [['Files','document']]],
+  servicenow: ['servicenow_lw', [['Incidents','workitem'],['Requests','workitem']]],
+  jira:       ['jira_lw',       [['Issues','workitem'],['Projects','project']]],
+  confluence: ['confluence_lw', [['Pages','page'],['Labels','topic']]],
+}
+function lowesEditSpec(sourceId) {
+  const e = LOWES_EDIT[sourceId]; if (!e) return null
+  const [system, objs] = e
+  const tableNode = {}; objs.forEach(([o, n]) => { tableNode[o] = n })
+  return { system, node: objs[0][1], tables: objs.map(o => o[0]), tableNode, settings: { refresh: true } }
+}
+
+// Build the Sources-tab rows for a custom dataset from its source nodes and the
+// entities each one populates — matches the existing SOURCES row shape.
+function buildDatasetSources(data) {
+  const byId = {}; data.nodes.forEach(n => { byId[n.id] = n })
+  const srcNodes = data.nodes.filter(n => n.type === 'source')
+  const freqByType = { azure_ad: 'Hourly', outlook: 'Streaming', teams: 'Streaming', calendar: '15 min', sharepoint: 'Hourly', onedrive: 'Hourly', servicenow: '15 min', jira: 'Streaming', confluence: 'Hourly' }
+  return srcNodes.map(s => {
+    const targets = data.edges.filter(e => e.s === s.id && e.kind === 'source').map(e => byId[e.t]?.label).filter(Boolean)
+    return {
+      name: s.label, slug: s.id,
+      objects: targets.join(' · '),
+      conn: s.desc, status: 'Connected', freq: freqByType[s.id] || 'Hourly',
+      lastSync: s.fresh || 'Just now', owner: 'Ron Vijay', modified: 'Just now',
+      edit: lowesEditSpec(s.id),
+    }
+  })
+}
+const LOWES_GD = {
+  sidebarNodes: [...LOWES_DATA.nodes].filter(n => n.type === 'entity').sort((a, b) => a.label.localeCompare(b.label)),
+  edges: LOWES_DATA.edges,
+  sources: buildDatasetSources(LOWES_DATA),
+  data: LOWES_DATA,
+}
 
 const TABS = ['Graph', 'Nodes', 'Edges', 'Sources', 'Agents', 'Records', 'Governance']
 // Tabs shown only in Full production mode (hidden in MVP).
@@ -163,7 +215,13 @@ export default function GraphCanvas(props) {
   )
 }
 
-function GraphCanvasInner({ title = 'New graph', onBack, onAgentAI }) {
+function GraphCanvasInner({ title = 'New graph', onBack, onAgentAI, dataset }) {
+  // Select the active dataset for this render pass (children read GD below).
+  GD = dataset === 'lowes' ? LOWES_GD : DEFAULT_GD
+  // The source pipeline editor resolves nodes/properties from window.NODES — keep
+  // it in sync with the active graph so its mapping aligns to the Lowe's nodes.
+  if (typeof window !== 'undefined') { window.NODES = GD.sidebarNodes; window.EDGES = GD.edges }
+  useEffect(() => () => { if (typeof window !== 'undefined') { window.NODES = SIDEBAR_NODES; window.EDGES = GRAPH_EDGES } }, [])
   const { mode, setMode } = useFeatureMode()
   const [tab, setTab] = useState('Graph')
   // If we drop into MVP while on a Full-only tab, fall back to Graph.
@@ -243,9 +301,9 @@ function GraphCanvasInner({ title = 'New graph', onBack, onAgentAI }) {
       {nodeDetail ? (
         <NodeDetailPage node={nodeDetail} onBack={() => setNodeDetail(null)} onCanvas={() => { setNodeDetail(null); setTab('Graph') }} />
       ) : tab === 'Graph' ? (
-        <GraphStage />
+        <GraphStage data={GD.data} />
       ) : tab === 'Nodes' ? (
-        <NodesList onOpen={id => setNodeDetail(SIDEBAR_NODES.find(n => n.id === id))} />
+        <NodesList onOpen={id => setNodeDetail(GD.sidebarNodes.find(n => n.id === id))} />
       ) : tab === 'Edges' ? (
         <EdgesList />
       ) : tab === 'Sources' ? (
@@ -253,7 +311,7 @@ function GraphCanvasInner({ title = 'New graph', onBack, onAgentAI }) {
       ) : tab === 'Agents' && agents.length > 0 ? (
         <AgentsList agents={agents} onAction={onAgentAction} onRemove={i => setAgents(a => a.filter((_, j) => j !== i))} />
       ) : tab === 'Records' ? (
-        <RecordsPage disableDetail />
+        <RecordsPage disableDetail dataset={dataset === 'lowes' ? 'lowes' : undefined} />
       ) : tab === 'Governance' ? (
         <GovernanceRoles />
       ) : (
@@ -712,8 +770,8 @@ const StatusPill = ({ on }) => (
 )
 
 function nodeEdgesFor(node) {
-  const byId = {}; SIDEBAR_NODES.forEach(n => { byId[n.id] = n })
-  return GRAPH_EDGES
+  const byId = {}; GD.sidebarNodes.forEach(n => { byId[n.id] = n })
+  return GD.edges
     .map((e, i) => {
       if (e.s !== node.id && e.t !== node.id) return null
       const out = e.s === node.id
@@ -1027,7 +1085,7 @@ function NodesList({ onOpen }) {
   const [addOpen, setAddOpen] = useState(false)
   const NODES = useMemo(() => {
     const fcat = NODE_FILTERS[filter]
-    let rows = SIDEBAR_NODES
+    let rows = GD.sidebarNodes
       .filter(n => !fcat || n.cat === fcat)
       .filter(n => n.label.toLowerCase().includes(search.toLowerCase()))
     return [...rows].sort(NODE_SORTERS[sort])
@@ -1215,8 +1273,8 @@ function EdgesList() {
     if (seed % 2 === 0) base.push({ name: 'weight', type: 'float' })
     return base
   }
-  const byId = useMemo(() => { const m = {}; SIDEBAR_NODES.forEach(n => { m[n.id] = n }); return m }, [])
-  const allEdges = useMemo(() => GRAPH_EDGES
+  const byId = useMemo(() => { const m = {}; GD.sidebarNodes.forEach(n => { m[n.id] = n }); return m }, [])
+  const allEdges = useMemo(() => GD.edges
     .map((e, i) => {
       const from = byId[e.s], to = byId[e.t]
       if (!from || !to) return null
@@ -1854,7 +1912,7 @@ function SourcesList({ onConnect, onEdit }) {
   const [search, setSearch] = useState('')
   const rows = useMemo(() => {
     const q = search.toLowerCase()
-    let r = SOURCES
+    let r = (GD.sources || SOURCES)
       .filter(s => filter === 'All status' || s.status === filter)
       .filter(s => !q || s.name.toLowerCase().includes(q) || s.conn.toLowerCase().includes(q))
     return [...r].sort(SOURCE_SORTERS[sort])

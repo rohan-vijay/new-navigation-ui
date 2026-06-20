@@ -229,6 +229,153 @@ const _ECG = buildECG();
 const NODES = _ECG.nodes;
 const EDGES = _ECG.edges;
 
+// ─── LOWE'S CONTEXT GRAPH ────────────────────────────────────────────────────
+// One "uber" enterprise context graph for enterprise search. Project is the
+// central node. Only structured metadata + native relationships — no agent /
+// LLM extraction from document content. Sources: Azure AD, Outlook, Teams,
+// Calendar, SharePoint, OneDrive, ServiceNow, Jira, Confluence.
+function buildLowes() {
+  // [id, label, glyph, state, x, y, size, instances, desc]
+  const E = [
+    ["project",      "Project",      "project",      "core", 0,    0,    42, 4200,   "The central node — an initiative that ties people, content, work and conversations together. Assembled from a Teams team, SharePoint site, Jira project and Confluence space."],
+    ["person",       "Person",       "person",       "core", -250, -70, 32, 38000,  "An employee or contractor. The identity backbone — every action, authorship and membership resolves to a Person."],
+    ["team",         "Group / Team", "team",         "core", -270, 130, 26, 5600,   "A Microsoft 365 group, Teams team or distribution list. Bundles people for membership and access."],
+    ["department",   "Department",   "organization", "core", -470, 30,  24, 320,    "An org-chart unit from Azure AD. Gives people structural context and rolls up reporting lines."],
+    ["workitem",     "Work Item",    "task",         "core", 250,  -60, 30, 86000,  "A unit of tracked work — a Jira issue/epic or a ServiceNow ticket/request."],
+    ["document",     "Document",     "document",     "core", 220,  170, 26, 240000, "A file in SharePoint or OneDrive (Word, Excel, PDF, slides)."],
+    ["page",         "Page",         "file",         "core", 400,  90,  24, 64000,  "A Confluence page or SharePoint wiki page — living, linked knowledge."],
+    ["message",      "Message",      "message",      "core", 80,   270, 24, 1900000,"An email (Outlook) or a Teams chat/channel message."],
+    ["conversation", "Conversation", "chat",         "core", 290,  300, 24, 210000, "A thread that groups messages — an Outlook conversation, a Teams channel, or a chat."],
+    ["meeting",      "Meeting",      "event",        "core", -70,  -250,24, 120000, "A calendar event / Teams meeting with attendees, and optionally a transcript and chat."],
+    ["topic",        "Topic",        "tag",          "signal", 440, -190, 22, 1800, "A subject or skill tag derived from structured metadata (Jira components, SharePoint terms, hashtags). Connects content and expertise."],
+  ]
+  const SRCS = [
+    ["azure_ad",   "Azure AD",   "People, org chart, groups"],
+    ["outlook",    "Outlook",    "Email + conversations"],
+    ["teams",      "Teams",      "Chat, channels, meetings"],
+    ["calendar",   "Calendar",   "Meetings + attendance"],
+    ["sharepoint", "SharePoint", "Sites, documents, pages"],
+    ["onedrive",   "OneDrive",   "Personal documents"],
+    ["servicenow", "ServiceNow", "Tickets + requests"],
+    ["jira",       "Jira",       "Issues, epics, projects"],
+    ["confluence", "Confluence", "Spaces + pages"],
+  ]
+  const fmtK = n => n >= 1000000 ? (n/1000000).toFixed(1).replace(/\.0$/,"")+"M" : n >= 1000 ? (n/1000).toFixed(n>=10000?0:1).replace(/\.0$/,"")+"K" : String(n)
+  const nodes = []
+  E.forEach((e, i) => {
+    const [id, label, glyph, state, x, y, size, inst, desc] = e
+    const seed = label.length*7 + i*13
+    nodes.push({
+      id, label, glyph, type:"entity", state, cat: state==="signal"?"derived":"core",
+      x, y, size, instances: fmtK(inst), instancesN: inst, props: 8 + (seed%14), edges: 0,
+      fill: 80 + (seed%18), conf: 88 + (seed%11), fresh: ["6m","12m","24m","1h","4h","1d"][seed%6],
+      pii: id==="person"?4:0, change: ["LOW","MEDIUM","HIGH"][seed%3], desc,
+    })
+  })
+  SRCS.forEach((s, i) => {
+    const [id, label, desc] = s
+    const a = (i/SRCS.length)*Math.PI*2 - Math.PI/2
+    const seed = label.length*5 + i*11
+    nodes.push({
+      id, label, glyph:"database", type:"source", state:"core", cat:"source",
+      x: Math.round(Math.cos(a)*840), y: Math.round(Math.sin(a)*620), size:24,
+      instances:"—", instancesN:0, props: 10 + (seed%18), edges:0,
+      fresh: ["2m","5m","12m","1h"][seed%4], pii: id==="azure_ad"?6:0, change:"LOW", desc,
+    })
+  })
+  // [s, t, label, kind]  — the full relationship model.
+  const ER = [
+    // People & Org
+    ["person","department","IN_DEPARTMENT","direct"],
+    ["person","team","MEMBER_OF","direct"],
+    ["person","person","REPORTS_TO","direct"],
+    ["person","person","COLLABORATES_WITH","inferred"],
+    ["person","topic","EXPERT_IN","inferred"],
+    // Project context (Project central)
+    ["person","project","WORKS_ON","direct"],
+    ["person","project","LEADS","direct"],
+    ["project","project","SUBPROJECT_OF","inferred"],
+    ["document","project","PART_OF","direct"],
+    ["page","project","PART_OF","direct"],
+    ["workitem","project","PART_OF","direct"],
+    ["meeting","project","PART_OF","inferred"],
+    ["conversation","project","PART_OF","inferred"],
+    ["team","project","PART_OF","inferred"],
+    // Authorship & work
+    ["person","document","CREATED","direct"],
+    ["person","document","MODIFIED","direct"],
+    ["person","page","CREATED","direct"],
+    ["person","document","OWNS","direct"],
+    ["person","workitem","ASSIGNED_TO","direct"],
+    ["person","workitem","REQUESTED","direct"],
+    // Communication
+    ["person","message","SENT","direct"],
+    ["person","message","RECEIVED","direct"],
+    ["message","conversation","IN_THREAD","direct"],
+    ["message","message","REPLY_TO","direct"],
+    ["message","person","MENTIONS","inferred"],
+    ["person","meeting","ORGANIZED","direct"],
+    ["person","meeting","ATTENDED","direct"],
+    ["person","conversation","PARTICIPATED_IN","direct"],
+    ["meeting","conversation","HAS_CHAT","direct"],
+    // Activity & recency
+    ["person","document","VIEWED","inferred"],
+    ["person","document","EDITED","inferred"],
+    ["person","page","COMMENTED","inferred"],
+    ["person","document","SHARED","inferred"],
+    ["person","document","SEARCHED_CLICKED","inferred"],
+    // Linking
+    ["workitem","workitem","CHILD_OF","direct"],
+    ["page","page","CHILD_OF","direct"],
+    ["document","page","LINKS_TO","inferred"],
+    ["document","message","ATTACHED_TO","direct"],
+    ["document","workitem","DOCUMENTS","inferred"],
+    ["workitem","workitem","RELATES_TO","inferred"],
+    ["workitem","workitem","DEPENDS_ON","inferred"],
+    ["document","topic","ABOUT","inferred"],
+    ["page","topic","ABOUT","inferred"],
+    // Sources → entities
+    ["azure_ad","person","SOURCES","source"],
+    ["azure_ad","team","SOURCES","source"],
+    ["azure_ad","department","SOURCES","source"],
+    ["outlook","message","SOURCES","source"],
+    ["outlook","conversation","SOURCES","source"],
+    ["teams","message","SOURCES","source"],
+    ["teams","conversation","SOURCES","source"],
+    ["teams","meeting","SOURCES","source"],
+    ["calendar","meeting","SOURCES","source"],
+    ["sharepoint","document","SOURCES","source"],
+    ["sharepoint","page","SOURCES","source"],
+    ["onedrive","document","SOURCES","source"],
+    ["servicenow","workitem","SOURCES","source"],
+    ["jira","workitem","SOURCES","source"],
+    ["jira","project","SOURCES","source"],
+    ["confluence","page","SOURCES","source"],
+    ["confluence","topic","SOURCES","source"],
+  ]
+  // Real property schemas — structured metadata only. Used by the node detail
+  // and by the source pipeline editor's Map step (via generateProps → _userProps).
+  const P = (name, type, o) => Object.assign({ name, type, required:false, indexed:false, pii:false, pk:false, fill:92, conf:96, source:"primary" }, o)
+  const PROPS = {
+    project:      [P("project_id","uuid",{pk:1,required:1,indexed:1,source:"Jira"}),P("name","string",{required:1,indexed:1,source:"Jira"}),P("key","string",{indexed:1,source:"Jira"}),P("status","enum",{indexed:1,source:"Jira"}),P("lead_id","uuid",{indexed:1,source:"Azure AD"}),P("business_unit","string",{source:"ServiceNow"}),P("start_date","date",{source:"Jira"}),P("surfaces","string[]",{source:"computed"}),P("created_at","timestamp",{required:1,source:"Jira"})],
+    person:       [P("person_id","uuid",{pk:1,required:1,indexed:1,source:"Azure AD"}),P("name","string",{required:1,indexed:1,source:"Azure AD"}),P("email","string",{indexed:1,pii:1,source:"Azure AD"}),P("job_title","string",{source:"Azure AD"}),P("department","string",{indexed:1,source:"Azure AD"}),P("manager_id","uuid",{indexed:1,source:"Azure AD"}),P("office","string",{source:"Azure AD"}),P("employee_id","string",{pii:1,source:"Azure AD"}),P("created_at","timestamp",{required:1,source:"Azure AD"})],
+    team:         [P("team_id","uuid",{pk:1,required:1,indexed:1,source:"Azure AD"}),P("name","string",{required:1,indexed:1,source:"Azure AD"}),P("email","string",{indexed:1,source:"Azure AD"}),P("visibility","enum",{source:"Azure AD"}),P("owner_id","uuid",{indexed:1,source:"Azure AD"}),P("member_count","int",{source:"Azure AD"})],
+    department:   [P("department_id","uuid",{pk:1,required:1,indexed:1,source:"Azure AD"}),P("name","string",{required:1,indexed:1,source:"Azure AD"}),P("parent_department","string",{source:"Azure AD"}),P("cost_center","string",{source:"Azure AD"}),P("headcount","int",{source:"Azure AD"})],
+    workitem:     [P("workitem_id","uuid",{pk:1,required:1,indexed:1,source:"Jira"}),P("key","string",{indexed:1,source:"Jira"}),P("summary","string",{required:1,indexed:1,source:"Jira"}),P("type","enum",{indexed:1,source:"Jira"}),P("status","enum",{indexed:1,source:"Jira"}),P("priority","enum",{indexed:1,source:"Jira"}),P("assignee_id","uuid",{indexed:1,source:"Jira"}),P("reporter_id","uuid",{source:"Jira"}),P("due_date","date",{source:"Jira"})],
+    document:     [P("document_id","uuid",{pk:1,required:1,indexed:1,source:"SharePoint"}),P("title","string",{required:1,indexed:1,source:"SharePoint"}),P("file_type","enum",{indexed:1,source:"SharePoint"}),P("site","string",{source:"SharePoint"}),P("owner_id","uuid",{indexed:1,source:"SharePoint"}),P("modified_at","timestamp",{indexed:1,source:"SharePoint"}),P("size_kb","int",{source:"SharePoint"}),P("version","string",{source:"SharePoint"})],
+    page:         [P("page_id","uuid",{pk:1,required:1,indexed:1,source:"Confluence"}),P("title","string",{required:1,indexed:1,source:"Confluence"}),P("space","string",{indexed:1,source:"Confluence"}),P("author_id","uuid",{indexed:1,source:"Confluence"}),P("updated_at","timestamp",{indexed:1,source:"Confluence"}),P("labels","string[]",{source:"Confluence"}),P("parent_page","string",{source:"Confluence"})],
+    message:      [P("message_id","uuid",{pk:1,required:1,indexed:1,source:"Outlook"}),P("subject","string",{indexed:1,source:"Outlook"}),P("sender_id","uuid",{indexed:1,pii:1,source:"Outlook"}),P("sent_at","timestamp",{indexed:1,source:"Outlook"}),P("conversation_id","uuid",{indexed:1,source:"Outlook"}),P("has_attachments","bool",{source:"Outlook"}),P("channel","string",{source:"Teams"})],
+    conversation: [P("conversation_id","uuid",{pk:1,required:1,indexed:1,source:"Outlook"}),P("topic","string",{indexed:1,source:"Outlook"}),P("type","enum",{indexed:1,source:"Teams"}),P("participant_count","int",{source:"Teams"}),P("message_count","int",{source:"Teams"}),P("last_activity_at","timestamp",{indexed:1,source:"Teams"})],
+    meeting:      [P("meeting_id","uuid",{pk:1,required:1,indexed:1,source:"Calendar"}),P("subject","string",{required:1,indexed:1,source:"Calendar"}),P("organizer_id","uuid",{indexed:1,source:"Calendar"}),P("start_time","timestamp",{indexed:1,source:"Calendar"}),P("end_time","timestamp",{source:"Calendar"}),P("attendee_count","int",{source:"Calendar"}),P("is_online","bool",{source:"Teams"}),P("has_transcript","bool",{source:"Teams"})],
+    topic:        [P("topic_id","uuid",{pk:1,required:1,indexed:1,source:"Confluence"}),P("name","string",{required:1,indexed:1,source:"Confluence"}),P("source","enum",{source:"computed"}),P("synonyms","string[]",{source:"computed"})],
+  }
+  const ids = {}; nodes.forEach(n => { ids[n.id] = n; if (PROPS[n.id]) { n._userProps = PROPS[n.id]; n.props = PROPS[n.id].length } })
+  const edges = ER.filter(e => ids[e[0]] && ids[e[1]]).map(e => ({ s:e[0], t:e[1], label:e[2], kind:e[3] }))
+  edges.forEach(e => { if (ids[e.s]) ids[e.s].edges++; if (ids[e.t] && e.t !== e.s) ids[e.t].edges++ })
+  return { nodes, edges }
+}
+const LOWES_DATA = buildLowes()
+
 const SIDEBAR_NODES = [...NODES].filter(n => n.type !== "agent" && n.type !== "source").sort((a, b) => a.label.localeCompare(b.label));
 
 // ---------- HELPERS ---------------------------------------------------------
@@ -1413,21 +1560,22 @@ const TABS = ["Graph", "Nodes", "Edges", "Knowledge", "Sources", "Records", "Vio
 
 
 // ── Sidebar (node list) ──
-function Sidebar({ open, onToggle, filter, setFilter, query, setQuery, selected, onSelect, hover, setHover, savedView, setSavedView }) {
+function Sidebar({ open, onToggle, filter, setFilter, query, setQuery, selected, onSelect, hover, setHover, savedView, setSavedView, nodeList }) {
+  const list = nodeList || SIDEBAR_NODES;
   const filtered = useMemo(() => {
-    return SIDEBAR_NODES.filter(n => {
+    return list.filter(n => {
       if (filter !== "all" && (n.cat === "support" ? "secondary" : n.cat) !== filter) return false;
       if (query && !n.label.toLowerCase().includes(query.toLowerCase())) return false;
       return true;
     });
-  }, [filter, query]);
+  }, [filter, query, list]);
 
   const counts = useMemo(() => ({
-    all: SIDEBAR_NODES.length,
-    entity: SIDEBAR_NODES.filter(n => n.type === "entity").length,
-    agent:  SIDEBAR_NODES.filter(n => n.type === "agent").length,
-    source: SIDEBAR_NODES.filter(n => n.type === "source").length,
-  }), []);
+    all: list.length,
+    entity: list.filter(n => n.type === "entity").length,
+    agent:  list.filter(n => n.type === "agent").length,
+    source: list.filter(n => n.type === "source").length,
+  }), [list]);
 
   return (
     <aside className={"sb" + (open ? "" : " closed")}>
@@ -1480,15 +1628,22 @@ function Sidebar({ open, onToggle, filter, setFilter, query, setQuery, selected,
 
 
 // ── Stage 1 host: provides graph state + view/edit toggle, renders the canvas ──
-export { SIDEBAR_NODES, EDGES as GRAPH_EDGES, ListGlyph, colorForNode, NodeShape, ZoomControls, Minimap, AddNodeFlow, NewEdgeFlow, generateProps, generateRules }
+export { SIDEBAR_NODES, EDGES as GRAPH_EDGES, LOWES_DATA, ListGlyph, colorForNode, NodeShape, ZoomControls, Minimap, AddNodeFlow, NewEdgeFlow, generateProps, generateRules }
 
-export default function GraphStage() {
+export default function GraphStage({ data }) {
+  // Optional `data` ({ nodes, edges }) lets a caller render a different graph
+  // (e.g. the Lowe's context graph) without touching the default dataset.
+  const SRC_NODES = data?.nodes || NODES
+  const SRC_EDGES = data?.edges || EDGES
   // Agents aren't part of the graph here — drop them and any edges touching them.
-  const BASE_NODES = useMemo(() => NODES.filter(n => n.type !== "agent" && n.type !== "source"), [])
+  const BASE_NODES = useMemo(() => SRC_NODES.filter(n => n.type !== "agent" && n.type !== "source"), [SRC_NODES])
   const BASE_EDGES = useMemo(() => {
     const ok = {}; BASE_NODES.forEach(n => { ok[n.id] = true })
-    return EDGES.filter(e => ok[e.s] && ok[e.t])
-  }, [BASE_NODES])
+    return SRC_EDGES.filter(e => ok[e.s] && ok[e.t])
+  }, [BASE_NODES, SRC_EDGES])
+  // When a custom dataset is supplied, the sidebar lists its nodes (otherwise
+  // it falls back to the default SIDEBAR_NODES inside <Sidebar>).
+  const sidebarList = useMemo(() => data ? [...BASE_NODES].sort((a, b) => a.label.localeCompare(b.label)) : null, [data, BASE_NODES])
   const [nodes, setNodes] = useState(BASE_NODES)
   const [edges, setEdges] = useState(BASE_EDGES)
   const [selected, setSelected] = useState(null)
@@ -1612,6 +1767,7 @@ export default function GraphStage() {
         selected={selected} onSelect={setSelected}
         hover={hover} setHover={setHover}
         savedView={null} setSavedView={() => {}}
+        nodeList={sidebarList}
       />
       <main style={{ position: 'relative', flex: 1, minWidth: 0, height: '100%', display: 'flex', flexDirection: 'column', minHeight: 0, background: '#fbf9f3' }}>
         <Canvas
