@@ -493,6 +493,27 @@ const FAVICON_OVERRIDES = {
   productusage:   _fav('unifyapps.com'),
   support:        _fav('unifyapps.com'),
   unifyapps:      _fav('unifyapps.com'),
+  // Lowe's sources
+  azure_ad:       _fav('azure.microsoft.com'),
+  outlook:        _fav('outlook.com'),
+  teams:          _fav('teams.microsoft.com'),
+  calendar:       _fav('outlook.com'),
+  sharepoint:     _fav('sharepoint.com'),
+  onedrive:       _fav('onedrive.live.com'),
+  servicenow:     _fav('servicenow.com'),
+  jira:           _fav('atlassian.com'),
+  confluence:     _fav('atlassian.com'),
+  // Nike retail sources
+  sap_erp:         _fav('sap.com'),
+  commerce_cloud:  _fav('salesforce.com'),
+  retail_pos:      _fav('ncr.com'),
+  snowflake_cdp:   _fav('snowflake.com'),
+  o9_planning:     _fav('o9solutions.com'),
+  manhattan_wms:   _fav('manh.com'),
+  adobe_analytics: _fav('adobe.com'),
+  paid_media:      _fav('meta.com'),
+  marketing_cloud: _fav('salesforce.com'),
+  market_signals:  _fav('nielsen.com'),
 }
 function SourceIcon({ slug, name, size = 20 }) {
   const [failed, setFailed] = useState(false)

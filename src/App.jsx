@@ -17,6 +17,7 @@ import { AgentCanvas } from './components/CreateAgentModal'
 import ContextGraphsPage from './components/ContextGraphsPage'
 import RecordsPage from './components/RecordsPage'
 import GraphCanvas from './components/GraphCanvas'
+import AgentChat from './components/AgentChat'
 import BuildWithAIModal from './components/BuildWithAIModal'
 import ScratchSkillModal from './components/ScratchSkillModal'
 
@@ -147,6 +148,7 @@ export default function App() {
 
   const handleNavigate = (label) => {
     if (label === 'Skills') { setView('skills'); setActiveNav('agents'); setSkillsTab('Skills') }
+    else if (label === 'Agents' || label === 'Copilot') { setView('agent-chat'); setActiveNav('agents') }
     else if (label === 'Loops') { setView('loops'); setActiveNav('agents') }
     else if (label === 'Enterprise Context Graph') { setView('context-graphs'); setActiveNav('ontology') }
     else if (label === 'Records') { setView('records'); setActiveNav('ontology') }
@@ -200,6 +202,7 @@ export default function App() {
 
           {/* ── Loops ── */}
           {view === 'loops' && <LoopsPage />}
+          {view === 'agent-chat' && <AgentChat onBack={() => { setView('context-graphs'); setActiveNav('ontology') }} />}
 
           {/* AI FDE — RIGHT dock (default) */}
           <div style={{
