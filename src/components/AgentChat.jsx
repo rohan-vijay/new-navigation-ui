@@ -4,6 +4,30 @@ import { NIKE_DATA, ListGlyph } from './GraphStage'
 // ── Node lookup (for rendering graph chips in the reasoning trace) ──
 const NODE_BY_ID = (() => { const m = {}; NIKE_DATA.nodes.forEach(n => { m[n.id] = n }); return m })()
 
+// Synthesize a record's field values from the node's property schema — lets the
+// "View record" action show a real record inspector for a cited source.
+function genFieldVal(p, ref) {
+  if (p.pk) return ref
+  let h = 0; const key = ref + ':' + p.name; for (let i = 0; i < key.length; i++) h = (h * 31 + key.charCodeAt(i)) >>> 0
+  const v = Math.abs(h), n = p.name, t = p.type
+  if (/(_id$|^id$)/.test(n)) return n.replace(/_id$/, '').slice(0, 3).toUpperCase() + '-' + (1000 + v % 8999)
+  if (/name|title|subject/.test(n)) return ref
+  if (/sell_through|accuracy|impact/.test(n) || t === 'float') return (0.5 + (v % 50) / 100).toFixed(2)
+  if (t === 'int') return String(1 + v % 900)
+  if (t === 'decimal') return '$' + (1000 + v % 9000).toLocaleString()
+  if (t === 'date') return '2026-06-' + String(1 + v % 28).padStart(2, '0')
+  if (t === 'timestamp') return '2026-06-' + String(1 + v % 28).padStart(2, '0') + 'T' + String(v % 24).padStart(2, '0') + ':00Z'
+  if (t === 'bool') return v % 2 ? 'true' : 'false'
+  if (t === 'enum') return ['Active', 'Rising', 'High', 'Standard', 'Live'][v % 5]
+  if (t === 'string[]') return ['football, kits', 'running, seasonal'][v % 2]
+  if (t === 'uuid') return 'UID-' + (10000 + v % 89999)
+  return '—'
+}
+function recordFields(source) {
+  const n = NODE_BY_ID[source.node]
+  return (n?._userProps || []).slice(0, 7).map(p => ({ name: p.name, value: genFieldVal(p, source.ref), pk: !!p.pk }))
+}
+
 // ── Agents ──────────────────────────────────────────────────────────────────
 const AGENTS = [
   { id: 'demand',  name: 'Retail Demand Agent', color: '#16341f', tagline: 'Explains demand spikes across product, store, media & supply.',
@@ -360,6 +384,8 @@ export default function AgentChat({ onBack }) {
 
 function SourcePanel({ panel, onClose }) {
   const refs = useRef({})
+  const [openRec, setOpenRec] = useState(null)
+  useEffect(() => { setOpenRec(null) }, [panel])
   useEffect(() => {
     const el = refs.current[panel.focus]
     if (el) { el.scrollIntoView({ block: 'nearest' }); el.style.boxShadow = 'inset 3px 0 0 #16341f'; setTimeout(() => { if (el) el.style.boxShadow = 'none' }, 1400) }
@@ -386,14 +412,35 @@ function SourcePanel({ panel, onClose }) {
               </div>
               <div style={{ fontSize: 12.5, color: '#5b5547', lineHeight: 1.5 }}>{s.detail}</div>
               <div style={{ marginTop: 9, display: 'flex', gap: 6 }}>
-                <button style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 11.5, color: '#3a3a36', background: '#faf8f3', border: '1px solid #e7e0d2', borderRadius: 7, padding: '4px 9px', cursor: 'pointer' }}>
+                <button onClick={() => setOpenRec(o => o === s.n ? null : s.n)} style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 11.5, color: '#3a3a36', background: '#faf8f3', border: '1px solid #e7e0d2', borderRadius: 7, padding: '4px 9px', cursor: 'pointer' }}>
                   <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#7a6f5c" strokeWidth="2"><circle cx="6" cy="6" r="2.2" /><circle cx="18" cy="9" r="2.2" /><circle cx="9" cy="18" r="2.2" /><path d="M8 7l8 1M8 8l1 8" /></svg>
                   Open in graph
                 </button>
-                <button style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 11.5, color: '#3a3a36', background: '#faf8f3', border: '1px solid #e7e0d2', borderRadius: 7, padding: '4px 9px', cursor: 'pointer' }}>
-                  View record
+                <button onClick={() => setOpenRec(o => o === s.n ? null : s.n)} style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 11.5, fontWeight: openRec === s.n ? 600 : 400, color: openRec === s.n ? '#16341f' : '#3a3a36', background: openRec === s.n ? '#eef4ee' : '#faf8f3', border: '1px solid ' + (openRec === s.n ? '#d6e6d8' : '#e7e0d2'), borderRadius: 7, padding: '4px 9px', cursor: 'pointer' }}>
+                  {openRec === s.n ? 'Hide record' : 'View record'}
                 </button>
               </div>
+              {openRec === s.n && (
+                <div style={{ marginTop: 10, paddingTop: 10, borderTop: '1px solid #f0eee7', animation: 'fadeStep .2s ease' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
+                    {n && <ListGlyph node={n} size={14} />}
+                    <span style={{ fontFamily: 'var(--mono)', fontSize: 11.5, fontWeight: 600, color: '#1a1a1a' }}>{s.ref}</span>
+                    <span style={{ fontSize: 11.5, color: '#9a948a' }}>· {n?.label}</span>
+                  </div>
+                  <div style={{ border: '1px solid #ececea', borderRadius: 8, overflow: 'hidden' }}>
+                    {recordFields(s).map((f, fi) => (
+                      <div key={f.name} style={{ display: 'grid', gridTemplateColumns: '1fr 1.1fr', borderTop: fi ? '1px solid #f4f2ec' : 'none', background: '#fff' }}>
+                        <div style={{ padding: '5px 9px', fontFamily: 'var(--mono)', fontSize: 10.5, color: '#8a857c', display: 'flex', alignItems: 'center', gap: 5 }}>
+                          {f.pk && <span style={{ fontFamily: 'var(--mono)', fontSize: 8, fontWeight: 700, background: '#1a1a1a', color: '#fff', borderRadius: 3, padding: '0 3px' }}>PK</span>}
+                          {f.name}
+                        </div>
+                        <div style={{ padding: '5px 9px', fontFamily: 'var(--mono)', fontSize: 10.5, color: '#3a3a36', borderLeft: '1px solid #f4f2ec', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{f.value}</div>
+                      </div>
+                    ))}
+                  </div>
+                  <div style={{ marginTop: 7, fontSize: 10.5, color: '#a89e88' }}>Record from the Nike Retail Context Graph</div>
+                </div>
+              )}
             </div>
           )
         })}

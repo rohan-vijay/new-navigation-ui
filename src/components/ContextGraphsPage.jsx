@@ -5,16 +5,16 @@ import { NewGraphFlow } from './NewGraphFlow'
 // sample Enterprise Context Graphs
 const GRAPHS = [
   { id: 'ecg', name: 'Enterprise Context Graph', version: 'v1.0.0', status: 'Live', nodes: 47, edges: 60, sources: 13, lastSync: '2 min ago', sharedType: 'org', shared: 'Everyone', owner: 'James Carter', ownerInit: 'J', modified: '2 hours ago', isECG: true },
-  { id: 'lowes', name: "Lowe's Context Graph", version: 'v1.0.0', status: 'Live', nodes: 11, edges: 43, sources: 9, lastSync: '5 min ago', sharedType: 'org', shared: 'Everyone', owner: 'Ron Vijay', ownerInit: 'R', modified: 'Just now', isLowes: true },
-  { id: 'nike', name: 'Nike Retail Context Graph', version: 'v1.0.0', status: 'Live', nodes: 15, edges: 27, sources: 10, lastSync: '3 min ago', sharedType: 'org', shared: 'Everyone', owner: 'Ron Vijay', ownerInit: 'R', modified: 'Just now', isNike: true },
-  { name: 'Customer Graph',          version: 'v3.2.0', status: 'Live',     nodes: 42850, edges: 183202, sources: 12, lastSync: '2 min ago',  sharedType: 'org',     shared: 'Everyone',        owner: 'James Carter',    ownerInit: 'J', modified: '2 hours ago' },
+  { id: 'lowes', name: "Lowe's Context Graph", version: 'v1.0.0', status: 'Live', nodes: 11, edges: 43, sources: 9, lastSync: '5 min ago', sharedType: 'org', shared: 'Everyone', owner: 'Ethan Brooks', ownerInit: 'E', modified: 'Just now', isLowes: true },
+  { id: 'nike', name: 'Nike Retail Context Graph', version: 'v1.0.0', status: 'Live', nodes: 15, edges: 27, sources: 10, lastSync: '3 min ago', sharedType: 'org', shared: 'Everyone', owner: 'Mason Reed', ownerInit: 'M', modified: 'Just now', isNike: true },
+  { name: 'Customer Graph',          version: 'v3.2.0', status: 'Live',     nodes: 42850, edges: 183202, sources: 12, lastSync: '2 min ago',  sharedType: 'org',     shared: 'Everyone',        owner: 'Ava Mitchell',    ownerInit: 'A', modified: '2 hours ago' },
   { name: 'Product Graph', version: 'v2.1.0', status: 'Live',     nodes: 18430, edges: 64120,  sources: 6,  lastSync: '18 min ago', sharedType: 'team',    shared: 'Data Team',       owner: 'Emily Rodriguez', ownerInit: 'E', modified: '5 hours ago' },
   { name: 'Revenue Graph',    version: 'v0.9.0', status: 'Draft',    nodes: 9820,  edges: 41760,  sources: 9,  lastSync: '1 hour ago', sharedType: 'team',    shared: 'RevOps Team',     owner: 'Olivia Bennett',  ownerInit: 'O', modified: 'Yesterday' },
   { name: 'Supply Chain Graph',  version: 'v4.0.1', status: 'Live',     nodes: 31200, edges: 128940, sources: 14, lastSync: '4 hours ago',sharedType: 'org',     shared: 'Everyone',        owner: 'Michael Brooks',  ownerInit: 'M', modified: '2 days ago' },
-  { name: 'Marketing Graph', version: 'v1.5.2', status: 'Archived', nodes: 7640,  edges: 22980,  sources: 8,  lastSync: '6 hours ago',sharedType: 'users',   shared: '10 Users',        owner: 'Olivia Bennett',  ownerInit: 'O', modified: '3 days ago' },
-  { name: 'Support Graph',     version: 'v2.0.0', status: 'Live',     nodes: 5310,  edges: 16470,  sources: 4,  lastSync: '1 day ago',  sharedType: 'team',    shared: 'Support Team',    owner: 'Emily Rodriguez', ownerInit: 'E', modified: '4 days ago' },
+  { name: 'Marketing Graph', version: 'v1.5.2', status: 'Archived', nodes: 7640,  edges: 22980,  sources: 8,  lastSync: '6 hours ago',sharedType: 'users',   shared: '10 Users',        owner: 'Noah Parker',     ownerInit: 'N', modified: '3 days ago' },
+  { name: 'Support Graph',     version: 'v2.0.0', status: 'Live',     nodes: 5310,  edges: 16470,  sources: 4,  lastSync: '1 day ago',  sharedType: 'team',    shared: 'Support Team',    owner: 'Sophia Turner',   ownerInit: 'S', modified: '4 days ago' },
   { name: 'Employee Graph',    version: 'v0.4.0', status: 'Draft',    nodes: 2940,  edges: 8120,   sources: 3,  lastSync: '1 day ago',  sharedType: 'private', shared: 'Only me',         owner: 'David Sullivan',  ownerInit: 'D', modified: '1 week ago' },
-  { name: 'Finance Graph',  version: 'v1.2.0', status: 'Archived', nodes: 12760, edges: 53400,  sources: 7,  lastSync: '2 days ago', sharedType: 'teams',   shared: '2 Users, 4 Teams',owner: 'David Sullivan',  ownerInit: 'D', modified: '2 weeks ago' },
+  { name: 'Finance Graph',  version: 'v1.2.0', status: 'Archived', nodes: 12760, edges: 53400,  sources: 7,  lastSync: '2 days ago', sharedType: 'teams',   shared: '2 Users, 4 Teams',owner: 'William Hayes',   ownerInit: 'W', modified: '2 weeks ago' },
 ]
 
 const GRAPH_COLS = [

@@ -59,7 +59,7 @@ const nikeEditSpec = id => makeEditSpec(NIKE_EDIT, id)
 // Build the Sources-tab rows for a custom dataset from its source nodes and the
 // entities each one populates — matches the existing SOURCES row shape.
 function buildDatasetSources(data, opts = {}) {
-  const { editFn, freqMap = {}, owner = 'Ron Vijay' } = opts
+  const { editFn, freqMap = {}, owner = 'Ethan Brooks' } = opts
   const byId = {}; data.nodes.forEach(n => { byId[n.id] = n })
   const srcNodes = data.nodes.filter(n => n.type === 'source')
   return srcNodes.map(s => {
