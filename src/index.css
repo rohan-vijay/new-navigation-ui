@@ -27,7 +27,7 @@
   --serif: 'Lora', Georgia, 'Times New Roman', serif;
   --mono: 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, monospace;
 
-  --green-frame: #0e2614;   /* dark green outer canvas — matches sidebar/header */
+  --green-frame: #F3F1EB;   /* dark green outer canvas — matches sidebar/header */
   --green-sidebar: #0e2614;
   --green-btn: #16341f;     /* dark green New graph / Publish button */
 }
