@@ -7,6 +7,7 @@ import SkillCreate from './components/SkillCreate'
 import SkillDetail from './components/SkillDetail'
 import SkillLibrary from './components/SkillLibrary'
 import SkillGroupDetail from './components/SkillGroupDetail'
+import LoopsPage from './components/LoopsPage'
 import { findSkill } from './data/skills'
 import { GROUPS } from './components/SkillsPage'
 import AIPanel from './components/AIPanel'
@@ -146,6 +147,7 @@ export default function App() {
 
   const handleNavigate = (label) => {
     if (label === 'Skills') { setView('skills'); setActiveNav('agents'); setSkillsTab('Skills') }
+    else if (label === 'Loops') { setView('loops'); setActiveNav('agents') }
     else if (label === 'Enterprise Context Graph') { setView('context-graphs'); setActiveNav('ontology') }
     else if (label === 'Records') { setView('records'); setActiveNav('ontology') }
   }
@@ -157,7 +159,7 @@ export default function App() {
       overflow: 'hidden', background: 'var(--green-frame)',
     }}>
       <Sidebar onNavigate={handleNavigate} activeId={activeNav} onSelectNav={setActiveNav}
-        activeChild={view === 'skills' ? 'Skills' : null}
+        activeChild={view === 'skills' ? 'Skills' : view === 'loops' ? 'Loops' : null}
         showFde={leftSession} fdeActive={aiOpen && aiSide === 'left'}
         onToggleFde={() => setAiOpen(o => !o)} />
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, overflow: 'hidden' }}>
@@ -185,7 +187,7 @@ export default function App() {
             <AgentCanvas draft={agentDraft} onBack={exitAgentBuild} onCreate={exitAgentBuild} />
           )}
           {view === 'blank-canvas' && (
-            <GraphCanvas title={selectedGraph?.name || 'New graph'} dataset={selectedGraph?.isLowes ? 'lowes' : undefined} onBack={() => setView('context-graphs')} onAgentAI={startAgentBuild} />
+            <GraphCanvas title={selectedGraph?.name || 'New graph'} dataset={selectedGraph?.isLowes ? 'lowes' : selectedGraph?.isNike ? 'nike' : undefined} onBack={() => setView('context-graphs')} onAgentAI={startAgentBuild} />
           )}
           {view === 'detail' && (
             <GraphDetailPage graph={selectedGraph} onBack={() => setView('graphs')} />
@@ -195,6 +197,9 @@ export default function App() {
           {view === 'skill-library' && <SkillLibrary onBack={() => { setView('skills'); setActiveNav('agents') }} onImport={() => {}} />}
           {view === 'skill-group-detail' && selectedGroup && <SkillGroupDetail group={selectedGroup} onBack={() => { setView('skills'); setActiveNav('agents'); setSkillsTab('Skill Groups') }} onOpenSkill={s => { setSelectedSkill(s); setView('skill-detail') }} onCreate={() => setScratchOpen(true)} onBuildAI={() => setBuildPrompt('right')} onLibrary={() => setView('skill-library')} onImportZip={d => openEditor(d)} />}
           {view === 'skill-detail' && selectedSkill && <SkillDetail skill={selectedSkill} onBack={() => { setView('skills'); setActiveNav('agents') }} onTest={() => startTest(selectedSkill)} />}
+
+          {/* ── Loops ── */}
+          {view === 'loops' && <LoopsPage />}
 
           {/* AI FDE — RIGHT dock (default) */}
           <div style={{

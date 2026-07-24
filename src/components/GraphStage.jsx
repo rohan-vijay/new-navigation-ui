@@ -376,6 +376,148 @@ function buildLowes() {
 }
 const LOWES_DATA = buildLowes()
 
+// ─── NIKE RETAIL CONTEXT GRAPH ───────────────────────────────────────────────
+// A demand ↔ supply ↔ media graph anchored on Product (Style) and Store/Location
+// so a Product×Location sales spike can be attributed — demand-driven (Event),
+// media-driven (Campaign/Media Spend), or supply-constrained (Inventory).
+function buildNike() {
+  // [id, label, glyph, state, x, y, size, instances, desc]
+  const E = [
+    ["product",       "Product / Style",   "tag",       "core",   -140, 0,    38, 32000,   "A Nike style/line (e.g. USMNT Home Jersey 2026). Co-central — everything demand, supply and media attaches here."],
+    ["store",         "Store / Location",  "location",  "core",   160,  20,   36, 1100,    "A physical store or DC (Nike Seattle, Nike NYC). Co-central anchor for where demand shows up."],
+    ["sku",           "SKU / Variant",     "coupon",    "core",   -330, -80,  26, 480000,  "A size/color variant of a product — the unit that actually sells and is stocked."],
+    ["category",      "Category",          "folder",    "core",   -340, 90,   24, 40,      "Product division: Football, Running, Basketball, Sportswear, Training."],
+    ["team",          "Team / Athlete",    "team",      "core",   -200, -220, 26, 900,     "The team or athlete a product is tied to (USMNT, a player) — the bridge to real-world events."],
+    ["sale",          "Sales / Transaction","receipt",  "core",   0,    170,  26, 42000000,"A purchase, online or in-store, of a SKU at a store via a channel."],
+    ["channel",       "Channel",           "channel",   "core",   -20,  310,  24, 8,       "Where it sold: Nike.com, Nike App, Nike Store, Wholesale (Foot Locker)."],
+    ["demand_signal", "Demand Signal",     "trend",     "signal", 30,   -140, 30, 1200000, "Derived demand at Product×Location×Time — sell-through, search interest, add-to-cart. The node that gets attributed."],
+    ["region",        "Region / Market",   "map",       "core",   350,  110,  24, 24,      "Metro/market rollup of stores (Pacific NW, Northeast, EMEA)."],
+    ["inventory",     "Inventory Position","archive",   "core",   360,  -80,  26, 3800000, "On-hand / available stock for a SKU at a store or DC, with weeks-of-supply."],
+    ["shipment",      "Replenishment",     "order",     "core",   530,  -20,  24, 120000,  "Inbound supply / replenishment order to a store or DC, with ETA."],
+    ["forecast",      "Demand Forecast",   "metric",    "signal", 260,  -250, 24, 64000,   "Planned demand/supply vs actual for a product in a region — surfaces gaps."],
+    ["campaign",      "Campaign",          "campaign",  "core",   -70,  -340, 26, 240,     "A marketing campaign (e.g. the World Cup push) that promotes products and ties to events."],
+    ["media_spend",   "Media Spend",       "target",    "core",   150,  -320, 24, 18000,   "Paid spend by channel and geo (Meta, Google, TikTok, TV) — the media lever behind a spike."],
+    ["event",         "Event",             "star",      "core",   -330, -290, 26, 320,     "External moment that breaks the pattern — a World Cup match, athlete moment, weather, trend."],
+  ]
+  const SRCS = [
+    ["sap_erp",          "SAP ERP",           "Orders, inventory, supply"],
+    ["commerce_cloud",   "Commerce Cloud",    "Nike Digital sales + catalog"],
+    ["retail_pos",       "Retail POS",        "In-store transactions"],
+    ["snowflake_cdp",    "Snowflake CDP",     "Unified demand + sales"],
+    ["o9_planning",      "o9 Planning",       "Demand + supply forecast"],
+    ["manhattan_wms",    "Manhattan WMS",     "Inventory + shipments"],
+    ["adobe_analytics",  "Adobe Analytics",   "Digital behavior signals"],
+    ["paid_media",       "Paid Media",        "Meta / Google / TikTok spend"],
+    ["marketing_cloud",  "Marketing Cloud",   "Campaigns + audiences"],
+    ["market_signals",   "Market Signals",    "Events, trends, weather"],
+  ]
+  const fmtK = n => n >= 1000000 ? (n/1000000).toFixed(1).replace(/\.0$/,"")+"M" : n >= 1000 ? (n/1000).toFixed(n>=10000?0:1).replace(/\.0$/,"")+"K" : String(n)
+  const nodes = []
+  E.forEach((e, i) => {
+    const [id, label, glyph, state, x, y, size, inst, desc] = e
+    const seed = label.length*7 + i*13
+    nodes.push({
+      id, label, glyph, type:"entity", state, cat: state==="signal"?"derived":"core",
+      x, y, size, instances: fmtK(inst), instancesN: inst, props: 8 + (seed%14), edges: 0,
+      fill: 80 + (seed%18), conf: 88 + (seed%11), fresh: ["6m","12m","24m","1h","4h","1d"][seed%6],
+      pii: 0, change: ["LOW","MEDIUM","HIGH"][seed%3], desc,
+    })
+  })
+  SRCS.forEach((s, i) => {
+    const [id, label, desc] = s
+    const a = (i/SRCS.length)*Math.PI*2 - Math.PI/2
+    const seed = label.length*5 + i*11
+    nodes.push({
+      id, label, glyph:"database", type:"source", state:"core", cat:"source",
+      x: Math.round(Math.cos(a)*880), y: Math.round(Math.sin(a)*640), size:24,
+      instances:"—", instancesN:0, props: 10 + (seed%18), edges:0,
+      fresh: ["2m","5m","12m","1h"][seed%4], pii:0, change:"LOW", desc,
+    })
+  })
+  // [s, t, label, kind]
+  const ER = [
+    // Catalog
+    ["sku","product","VARIANT_OF","direct"],
+    ["product","category","IN_CATEGORY","direct"],
+    ["product","team","FEATURES","direct"],
+    // Demand
+    ["sale","sku","OF_SKU","direct"],
+    ["sale","store","AT_STORE","direct"],
+    ["sale","channel","VIA_CHANNEL","direct"],
+    ["product","store","SOLD_AT","direct"],
+    ["store","demand_signal","HAS_DEMAND","direct"],
+    ["product","demand_signal","FOR_PRODUCT","direct"],
+    // Retail
+    ["store","region","IN_REGION","direct"],
+    ["demand_signal","region","IN_REGION","inferred"],
+    // Supply
+    ["inventory","sku","OF_SKU","direct"],
+    ["inventory","store","AT_STORE","direct"],
+    ["shipment","inventory","REPLENISHES","direct"],
+    ["shipment","store","INBOUND_TO","direct"],
+    ["forecast","product","FORECASTS","direct"],
+    ["forecast","region","FOR_REGION","inferred"],
+    ["demand_signal","inventory","CONSTRAINED_BY","inferred"],
+    // Media & marketing
+    ["campaign","product","PROMOTES","direct"],
+    ["campaign","team","TIES_TO","inferred"],
+    ["media_spend","campaign","PART_OF","direct"],
+    ["media_spend","region","TARGETS","direct"],
+    ["demand_signal","campaign","INFLUENCED_BY","inferred"],
+    // External context
+    ["event","team","ABOUT","direct"],
+    ["event","region","IN_REGION","inferred"],
+    ["demand_signal","event","DRIVEN_BY","inferred"],
+    ["campaign","event","AROUND","inferred"],
+    // Sources → entities
+    ["sap_erp","sale","SOURCES","source"],
+    ["sap_erp","inventory","SOURCES","source"],
+    ["sap_erp","shipment","SOURCES","source"],
+    ["commerce_cloud","sale","SOURCES","source"],
+    ["commerce_cloud","channel","SOURCES","source"],
+    ["commerce_cloud","product","SOURCES","source"],
+    ["retail_pos","sale","SOURCES","source"],
+    ["retail_pos","store","SOURCES","source"],
+    ["snowflake_cdp","demand_signal","SOURCES","source"],
+    ["snowflake_cdp","sale","SOURCES","source"],
+    ["o9_planning","forecast","SOURCES","source"],
+    ["o9_planning","shipment","SOURCES","source"],
+    ["manhattan_wms","inventory","SOURCES","source"],
+    ["manhattan_wms","shipment","SOURCES","source"],
+    ["adobe_analytics","demand_signal","SOURCES","source"],
+    ["adobe_analytics","channel","SOURCES","source"],
+    ["paid_media","media_spend","SOURCES","source"],
+    ["paid_media","campaign","SOURCES","source"],
+    ["marketing_cloud","campaign","SOURCES","source"],
+    ["marketing_cloud","media_spend","SOURCES","source"],
+    ["market_signals","event","SOURCES","source"],
+    ["market_signals","team","SOURCES","source"],
+  ]
+  const P = (name, type, o) => Object.assign({ name, type, required:false, indexed:false, pii:false, pk:false, fill:92, conf:96, source:"primary" }, o)
+  const PROPS = {
+    product:       [P("product_id","uuid",{pk:1,required:1,indexed:1,source:"Commerce Cloud"}),P("name","string",{required:1,indexed:1,source:"Commerce Cloud"}),P("style_code","string",{indexed:1,source:"SAP ERP"}),P("category","string",{indexed:1,source:"Commerce Cloud"}),P("gender","enum",{source:"Commerce Cloud"}),P("franchise","string",{source:"Commerce Cloud"}),P("retail_price","decimal",{source:"SAP ERP"}),P("launch_date","date",{source:"Commerce Cloud"}),P("status","enum",{indexed:1,source:"Commerce Cloud"})],
+    store:         [P("store_id","uuid",{pk:1,required:1,indexed:1,source:"Retail POS"}),P("name","string",{required:1,indexed:1,source:"Retail POS"}),P("city","string",{indexed:1,source:"Retail POS"}),P("region","string",{indexed:1,source:"Retail POS"}),P("format","enum",{source:"Retail POS"}),P("doors","int",{source:"SAP ERP"})],
+    sku:           [P("sku_id","uuid",{pk:1,required:1,indexed:1,source:"SAP ERP"}),P("product_id","uuid",{indexed:1,source:"SAP ERP"}),P("size","string",{indexed:1,source:"SAP ERP"}),P("color","string",{indexed:1,source:"Commerce Cloud"}),P("upc","string",{source:"SAP ERP"}),P("status","enum",{source:"SAP ERP"})],
+    category:      [P("category_id","uuid",{pk:1,required:1,indexed:1,source:"Commerce Cloud"}),P("name","string",{required:1,indexed:1,source:"Commerce Cloud"}),P("division","string",{source:"Commerce Cloud"}),P("parent","string",{source:"Commerce Cloud"})],
+    team:          [P("team_id","uuid",{pk:1,required:1,indexed:1,source:"Market Signals"}),P("name","string",{required:1,indexed:1,source:"Market Signals"}),P("sport","enum",{indexed:1,source:"Market Signals"}),P("league","string",{source:"Market Signals"}),P("type","enum",{source:"Market Signals"})],
+    sale:          [P("sale_id","uuid",{pk:1,required:1,indexed:1,source:"SAP ERP"}),P("sku_id","uuid",{indexed:1,source:"SAP ERP"}),P("store_id","uuid",{indexed:1,source:"Retail POS"}),P("channel","string",{indexed:1,source:"Commerce Cloud"}),P("quantity","int",{source:"SAP ERP"}),P("net_amount","decimal",{source:"SAP ERP"}),P("sold_at","timestamp",{indexed:1,source:"SAP ERP"})],
+    channel:       [P("channel_id","uuid",{pk:1,required:1,indexed:1,source:"Commerce Cloud"}),P("name","string",{required:1,indexed:1,source:"Commerce Cloud"}),P("type","enum",{indexed:1,source:"Commerce Cloud"}),P("region","string",{source:"Commerce Cloud"})],
+    demand_signal: [P("signal_id","uuid",{pk:1,required:1,indexed:1,source:"Snowflake CDP"}),P("product_id","uuid",{indexed:1,source:"Snowflake CDP"}),P("store_id","uuid",{indexed:1,source:"Snowflake CDP"}),P("sell_through_rate","float",{indexed:1,source:"Snowflake CDP"}),P("search_index","int",{source:"Adobe Analytics"}),P("add_to_cart","int",{source:"Adobe Analytics"}),P("period","date",{indexed:1,source:"Snowflake CDP"}),P("trend","enum",{source:"Snowflake CDP"})],
+    region:        [P("region_id","uuid",{pk:1,required:1,indexed:1,source:"Retail POS"}),P("name","string",{required:1,indexed:1,source:"Retail POS"}),P("market","string",{source:"Retail POS"}),P("country","string",{source:"Retail POS"})],
+    inventory:     [P("inventory_id","uuid",{pk:1,required:1,indexed:1,source:"Manhattan WMS"}),P("sku_id","uuid",{indexed:1,source:"Manhattan WMS"}),P("store_id","uuid",{indexed:1,source:"Manhattan WMS"}),P("on_hand","int",{indexed:1,source:"Manhattan WMS"}),P("available","int",{source:"Manhattan WMS"}),P("weeks_of_supply","float",{indexed:1,source:"o9 Planning"}),P("updated_at","timestamp",{source:"Manhattan WMS"})],
+    shipment:      [P("shipment_id","uuid",{pk:1,required:1,indexed:1,source:"Manhattan WMS"}),P("sku_id","uuid",{indexed:1,source:"Manhattan WMS"}),P("dest_store","uuid",{indexed:1,source:"Manhattan WMS"}),P("quantity","int",{source:"Manhattan WMS"}),P("status","enum",{indexed:1,source:"Manhattan WMS"}),P("eta","date",{source:"o9 Planning"})],
+    forecast:      [P("forecast_id","uuid",{pk:1,required:1,indexed:1,source:"o9 Planning"}),P("product_id","uuid",{indexed:1,source:"o9 Planning"}),P("region","string",{indexed:1,source:"o9 Planning"}),P("forecast_units","int",{source:"o9 Planning"}),P("actual_units","int",{source:"Snowflake CDP"}),P("period","date",{indexed:1,source:"o9 Planning"}),P("accuracy","float",{source:"o9 Planning"})],
+    campaign:      [P("campaign_id","uuid",{pk:1,required:1,indexed:1,source:"Marketing Cloud"}),P("name","string",{required:1,indexed:1,source:"Marketing Cloud"}),P("objective","enum",{source:"Marketing Cloud"}),P("start_date","date",{indexed:1,source:"Marketing Cloud"}),P("end_date","date",{source:"Marketing Cloud"}),P("budget","decimal",{source:"Marketing Cloud"}),P("region","string",{indexed:1,source:"Marketing Cloud"})],
+    media_spend:   [P("spend_id","uuid",{pk:1,required:1,indexed:1,source:"Paid Media"}),P("campaign_id","uuid",{indexed:1,source:"Paid Media"}),P("channel","enum",{indexed:1,source:"Paid Media"}),P("region","string",{indexed:1,source:"Paid Media"}),P("impressions","int",{source:"Paid Media"}),P("spend_usd","decimal",{indexed:1,source:"Paid Media"}),P("period","date",{source:"Paid Media"})],
+    event:         [P("event_id","uuid",{pk:1,required:1,indexed:1,source:"Market Signals"}),P("name","string",{required:1,indexed:1,source:"Market Signals"}),P("type","enum",{indexed:1,source:"Market Signals"}),P("region","string",{indexed:1,source:"Market Signals"}),P("start_date","date",{source:"Market Signals"}),P("impact_score","float",{source:"Market Signals"})],
+  }
+  const ids = {}; nodes.forEach(n => { ids[n.id] = n; if (PROPS[n.id]) { n._userProps = PROPS[n.id]; n.props = PROPS[n.id].length } })
+  const edges = ER.filter(e => ids[e[0]] && ids[e[1]]).map(e => ({ s:e[0], t:e[1], label:e[2], kind:e[3] }))
+  edges.forEach(e => { if (ids[e.s]) ids[e.s].edges++; if (ids[e.t] && e.t !== e.s) ids[e.t].edges++ })
+  return { nodes, edges }
+}
+const NIKE_DATA = buildNike()
+
 const SIDEBAR_NODES = [...NODES].filter(n => n.type !== "agent" && n.type !== "source").sort((a, b) => a.label.localeCompare(b.label));
 
 // ---------- HELPERS ---------------------------------------------------------
@@ -1628,7 +1770,7 @@ function Sidebar({ open, onToggle, filter, setFilter, query, setQuery, selected,
 
 
 // ── Stage 1 host: provides graph state + view/edit toggle, renders the canvas ──
-export { SIDEBAR_NODES, EDGES as GRAPH_EDGES, LOWES_DATA, ListGlyph, colorForNode, NodeShape, ZoomControls, Minimap, AddNodeFlow, NewEdgeFlow, generateProps, generateRules }
+export { SIDEBAR_NODES, EDGES as GRAPH_EDGES, LOWES_DATA, NIKE_DATA, ListGlyph, colorForNode, NodeShape, ZoomControls, Minimap, AddNodeFlow, NewEdgeFlow, generateProps, generateRules }
 
 export default function GraphStage({ data }) {
   // Optional `data` ({ nodes, edges }) lets a caller render a different graph

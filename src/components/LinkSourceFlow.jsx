@@ -641,6 +641,62 @@ function getObjectCols(obj) {
   });
 })();
 
+// ── Nike Retail Context Graph catalog ───────────────────────────────────────
+// Registers the 10 Nike retail sources as structured systems for the same
+// pipeline editor. Native fields only — no extraction.
+;(function registerNikeCatalog() {
+  const sys = (id, name, slug, color) => ({ id, cat: "Nike", domain: "", name, tag: "Nike", kind: "structured", status: "healthy", icon: name.slice(0, 2), slug, color, desc: name });
+  const nikeSystems = [
+    sys("sap_erp_nk",         "SAP ERP",         "sap", "#0FAAFF"),
+    sys("commerce_cloud_nk",  "Commerce Cloud",  "salesforce", "#00A1E0"),
+    sys("retail_pos_nk",      "Retail POS",      "", "#111111"),
+    sys("snowflake_cdp_nk",   "Snowflake CDP",   "snowflake", "#29B5E8"),
+    sys("o9_planning_nk",     "o9 Planning",     "", "#6C2BD9"),
+    sys("manhattan_wms_nk",   "Manhattan WMS",   "", "#E4002B"),
+    sys("adobe_analytics_nk", "Adobe Analytics", "", "#FA0F00"),
+    sys("paid_media_nk",      "Paid Media",      "", "#1877F2"),
+    sys("marketing_cloud_nk", "Marketing Cloud", "salesforce", "#00A1E0"),
+    sys("market_signals_nk",  "Market Signals",  "", "#16341f"),
+  ];
+  nikeSystems.forEach(s => { if (!SOURCE_SYSTEMS.find(x => x.id === s.id)) SOURCE_SYSTEMS.push(s); });
+  const ob = (name, cols) => ({ name, type: "Object", rows: "—", cols });
+  Object.assign(OBJECTS_BY_SYS, {
+    sap_erp_nk:         [ob("Sales Orders", 7), ob("Inventory", 6), ob("Deliveries", 6)],
+    commerce_cloud_nk:  [ob("Orders", 7), ob("Products", 8), ob("Channels", 4)],
+    retail_pos_nk:      [ob("Transactions", 7), ob("Stores", 6)],
+    snowflake_cdp_nk:   [ob("Demand Signals", 8), ob("Sales Facts", 6)],
+    o9_planning_nk:     [ob("Forecasts", 7), ob("Replenishment", 6)],
+    manhattan_wms_nk:   [ob("Inventory Positions", 7), ob("Shipments", 6)],
+    adobe_analytics_nk: [ob("Behavior Signals", 6), ob("Channels", 4)],
+    paid_media_nk:      [ob("Ad Spend", 7), ob("Campaigns", 6)],
+    marketing_cloud_nk: [ob("Campaigns", 7), ob("Journeys", 6)],
+    market_signals_nk:  [ob("Events", 6), ob("Teams", 5)],
+  });
+  const C2 = (col, type, sample) => ({ col, type, sample });
+  Object.assign(OBJECT_COLS_BY_NAME, {
+    "sales orders":       [C2("order_id","uuid","SO-88213"),C2("material","string","DV1120-100"),C2("plant","string","Store-Seattle"),C2("quantity","int","6"),C2("net_value","decimal","540.00"),C2("channel","string","Retail"),C2("created_on","timestamp","2026-06-12T09:00:00Z")],
+    "inventory":          [C2("material","string","DV1120-100"),C2("plant","string","DC-Memphis"),C2("on_hand","int","1240"),C2("available","int","980"),C2("safety_stock","int","200"),C2("updated_on","timestamp","2026-06-12T06:00:00Z")],
+    "deliveries":         [C2("delivery_id","uuid","DL-4471"),C2("material","string","DV1120-100"),C2("ship_to","string","Store-Seattle"),C2("quantity","int","300"),C2("status","string","In transit"),C2("eta","date","2026-06-15")],
+    "orders":             [C2("order_no","uuid","NDO-77213"),C2("product_id","uuid","prod_812"),C2("store_id","uuid","str_09"),C2("channel","string","Nike.com"),C2("quantity","int","2"),C2("total","decimal","180.00"),C2("placed_at","timestamp","2026-06-12T11:20:00Z")],
+    "products":           [C2("product_id","uuid","prod_812"),C2("name","string","USMNT Home Jersey 2026"),C2("style_code","string","DV1120-100"),C2("category","string","Football"),C2("gender","string","Men"),C2("franchise","string","National Team"),C2("price","decimal","90.00"),C2("launch_date","date","2026-03-01")],
+    "channels":           [C2("channel_id","uuid","ch_1"),C2("name","string","Nike.com"),C2("type","string","Digital"),C2("region","string","North America")],
+    "transactions":       [C2("txn_id","uuid","POS-661204"),C2("sku","string","DV1120-100-M"),C2("store","string","Nike Seattle"),C2("qty","int","1"),C2("amount","decimal","90.00"),C2("tender","string","Card"),C2("ts","timestamp","2026-06-12T15:44:00Z")],
+    "stores":             [C2("store_id","uuid","str_09"),C2("name","string","Nike Seattle"),C2("city","string","Seattle"),C2("region","string","Pacific Northwest"),C2("format","string","Flagship"),C2("doors","int","1")],
+    "demand signals":     [C2("signal_id","uuid","DS-33120"),C2("product_id","uuid","prod_812"),C2("store_id","uuid","str_09"),C2("sell_through","float","0.82"),C2("search_index","int","148"),C2("add_to_cart","int","5400"),C2("period","date","2026-06-12"),C2("trend","string","Surging")],
+    "sales facts":        [C2("fact_id","uuid","SF-9921"),C2("sku","string","DV1120-100-M"),C2("store_id","uuid","str_09"),C2("units","int","1240"),C2("revenue","decimal","111600.00"),C2("date","date","2026-06-12")],
+    "forecasts":          [C2("forecast_id","uuid","FC-4410"),C2("product_id","uuid","prod_812"),C2("region","string","Pacific Northwest"),C2("forecast_units","int","5200"),C2("actual_units","int","6100"),C2("period","date","2026-06-12"),C2("accuracy","float","0.86")],
+    "replenishment":      [C2("repl_id","uuid","RP-2210"),C2("sku","string","DV1120-100-M"),C2("dest_store","string","Nike Seattle"),C2("quantity","int","300"),C2("status","string","Approved"),C2("eta","date","2026-06-15")],
+    "inventory positions":[C2("position_id","uuid","IP-7781"),C2("sku","string","DV1120-100-M"),C2("location","string","Nike Seattle"),C2("on_hand","int","42"),C2("available","int","30"),C2("weeks_of_supply","float","1.2"),C2("updated_at","timestamp","2026-06-12T06:00:00Z")],
+    "shipments":          [C2("shipment_id","uuid","SH-5540"),C2("sku","string","DV1120-100-M"),C2("dest","string","Nike Seattle"),C2("quantity","int","300"),C2("status","string","In transit"),C2("eta","date","2026-06-15")],
+    "behavior signals":   [C2("signal_id","uuid","BS-1180"),C2("product_id","uuid","prod_812"),C2("search_index","int","148"),C2("add_to_cart","int","5400"),C2("wishlist","int","2100"),C2("period","date","2026-06-12")],
+    "ad spend":           [C2("line_id","uuid","AD-9912"),C2("campaign_id","uuid","cmp_44"),C2("channel","string","Meta"),C2("region","string","Pacific Northwest"),C2("impressions","int","2400000"),C2("spend","decimal","48000.00"),C2("period","date","2026-06-12")],
+    "campaigns":          [C2("campaign_id","uuid","cmp_44"),C2("name","string","World Cup 2026 Push"),C2("objective","string","Conversion"),C2("start_date","date","2026-06-01"),C2("end_date","date","2026-07-19"),C2("budget","decimal","2400000.00"),C2("region","string","North America")],
+    "journeys":           [C2("journey_id","uuid","JR-330"),C2("campaign_id","uuid","cmp_44"),C2("channel","string","Email"),C2("region","string","Pacific Northwest"),C2("sends","int","840000"),C2("spend","decimal","12000.00")],
+    "events":             [C2("event_id","uuid","EV-771"),C2("name","string","World Cup — USMNT advances"),C2("type","string","Sporting"),C2("region","string","North America"),C2("start_date","date","2026-06-11"),C2("impact_score","float","0.9")],
+    "teams":              [C2("team_id","uuid","TM-12"),C2("name","string","USMNT"),C2("sport","string","Soccer"),C2("league","string","FIFA"),C2("type","string","National Team")],
+  });
+})();
+
 // ─── PRIMITIVE COMPONENTS ─────────────────────────────────────────────────────
 
 function useOutsideClick(ref, open, onClose) {
@@ -2690,6 +2746,18 @@ function autoMatchProp(srcName, props) {
 // Keyword aliases first, then fuzzy, then a deterministic *varied* fallback so
 // objects don't all collapse onto "Account".
 const NODE_ALIASES = [
+  // Nike Retail Context Graph objects → nodes. Only match when the target label
+  // exists in the active graph, so other graphs fall through.
+  [/product|^style/, "Product / Style"], [/^sku|variant/, "SKU / Variant"],
+  [/store|^location|^door/, "Store / Location"], [/region|market/, "Region / Market"],
+  [/demand|behaviou?r|sell.?through/, "Demand Signal"],
+  [/inventory|stock|position/, "Inventory Position"],
+  [/replenish|shipment|deliver/, "Replenishment"],
+  [/forecast|^plan/, "Demand Forecast"],
+  [/ad.?spend|^media|journey|spend/, "Media Spend"],
+  [/sales|^order|transaction|^txn|sales.?fact/, "Sales / Transaction"],
+  [/^campaign/, "Campaign"], [/^event/, "Event"], [/team|athlete/, "Team / Athlete"],
+  [/category|division/, "Category"], [/^channel/, "Channel"],
   // Lowe's Context Graph objects → nodes. These resolve first, but only match
   // when the target label exists in the active graph, so the default graph
   // (which has none of these labels) falls through to the generic aliases below.

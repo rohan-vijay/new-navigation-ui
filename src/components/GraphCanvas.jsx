@@ -5,7 +5,7 @@ import CreateAgentPage, { ModelIcon, MODELS } from './CreateAgentModal'
 import BuildWithAIModal from './BuildWithAIModal'
 import { ToolGlyph } from './AddToolPanel'
 import { LinkSourceFlow } from './LinkSourceFlow'
-import GraphStage, { SIDEBAR_NODES, GRAPH_EDGES, LOWES_DATA, ListGlyph, colorForNode, AddNodeFlow, NewEdgeFlow, generateProps, generateRules, PropertiesPane } from './GraphStage'
+import GraphStage, { SIDEBAR_NODES, GRAPH_EDGES, LOWES_DATA, NIKE_DATA, ListGlyph, colorForNode, AddNodeFlow, NewEdgeFlow, generateProps, generateRules, PropertiesPane } from './GraphStage'
 // Make node schema available to LinkSourceFlow.buildEditState (runs at module load time)
 if (typeof window !== 'undefined') { window.NODES = SIDEBAR_NODES; window.EDGES = GRAPH_EDGES; window.generateProps = generateProps; window.ListGlyph = ListGlyph; }
 import RecordsPage from './RecordsPage'
@@ -34,35 +34,58 @@ const LOWES_EDIT = {
   jira:       ['jira_lw',       [['Issues','workitem'],['Projects','project']]],
   confluence: ['confluence_lw', [['Pages','page'],['Labels','topic']]],
 }
-function lowesEditSpec(sourceId) {
-  const e = LOWES_EDIT[sourceId]; if (!e) return null
+// Nike retail sources → their objects → nodes (native fields, no extraction).
+const NIKE_EDIT = {
+  sap_erp:         ['sap_erp_nk',         [['Sales Orders','sale'],['Inventory','inventory'],['Deliveries','shipment']]],
+  commerce_cloud:  ['commerce_cloud_nk',  [['Orders','sale'],['Products','product'],['Channels','channel']]],
+  retail_pos:      ['retail_pos_nk',      [['Transactions','sale'],['Stores','store']]],
+  snowflake_cdp:   ['snowflake_cdp_nk',   [['Demand Signals','demand_signal'],['Sales Facts','sale']]],
+  o9_planning:     ['o9_planning_nk',     [['Forecasts','forecast'],['Replenishment','shipment']]],
+  manhattan_wms:   ['manhattan_wms_nk',   [['Inventory Positions','inventory'],['Shipments','shipment']]],
+  adobe_analytics: ['adobe_analytics_nk', [['Behavior Signals','demand_signal'],['Channels','channel']]],
+  paid_media:      ['paid_media_nk',      [['Ad Spend','media_spend'],['Campaigns','campaign']]],
+  marketing_cloud: ['marketing_cloud_nk', [['Campaigns','campaign'],['Journeys','media_spend']]],
+  market_signals:  ['market_signals_nk',  [['Events','event'],['Teams','team']]],
+}
+function makeEditSpec(map, sourceId) {
+  const e = map[sourceId]; if (!e) return null
   const [system, objs] = e
   const tableNode = {}; objs.forEach(([o, n]) => { tableNode[o] = n })
   return { system, node: objs[0][1], tables: objs.map(o => o[0]), tableNode, settings: { refresh: true } }
 }
+const lowesEditSpec = id => makeEditSpec(LOWES_EDIT, id)
+const nikeEditSpec = id => makeEditSpec(NIKE_EDIT, id)
 
 // Build the Sources-tab rows for a custom dataset from its source nodes and the
 // entities each one populates — matches the existing SOURCES row shape.
-function buildDatasetSources(data) {
+function buildDatasetSources(data, opts = {}) {
+  const { editFn, freqMap = {}, owner = 'Ron Vijay' } = opts
   const byId = {}; data.nodes.forEach(n => { byId[n.id] = n })
   const srcNodes = data.nodes.filter(n => n.type === 'source')
-  const freqByType = { azure_ad: 'Hourly', outlook: 'Streaming', teams: 'Streaming', calendar: '15 min', sharepoint: 'Hourly', onedrive: 'Hourly', servicenow: '15 min', jira: 'Streaming', confluence: 'Hourly' }
   return srcNodes.map(s => {
     const targets = data.edges.filter(e => e.s === s.id && e.kind === 'source').map(e => byId[e.t]?.label).filter(Boolean)
     return {
       name: s.label, slug: s.id,
       objects: targets.join(' · '),
-      conn: s.desc, status: 'Connected', freq: freqByType[s.id] || 'Hourly',
-      lastSync: s.fresh || 'Just now', owner: 'Ron Vijay', modified: 'Just now',
-      edit: lowesEditSpec(s.id),
+      conn: s.desc, status: 'Connected', freq: freqMap[s.id] || 'Hourly',
+      lastSync: s.fresh || 'Just now', owner, modified: 'Just now',
+      edit: editFn ? editFn(s.id) : null,
     }
   })
 }
+const LOWES_FREQ = { azure_ad: 'Hourly', outlook: 'Streaming', teams: 'Streaming', calendar: '15 min', sharepoint: 'Hourly', onedrive: 'Hourly', servicenow: '15 min', jira: 'Streaming', confluence: 'Hourly' }
+const NIKE_FREQ = { sap_erp: 'Hourly', commerce_cloud: 'Streaming', retail_pos: 'Streaming', snowflake_cdp: 'Hourly', o9_planning: 'Daily', manhattan_wms: '15 min', adobe_analytics: 'Streaming', paid_media: 'Hourly', marketing_cloud: 'Hourly', market_signals: 'Hourly' }
 const LOWES_GD = {
   sidebarNodes: [...LOWES_DATA.nodes].filter(n => n.type === 'entity').sort((a, b) => a.label.localeCompare(b.label)),
   edges: LOWES_DATA.edges,
-  sources: buildDatasetSources(LOWES_DATA),
+  sources: buildDatasetSources(LOWES_DATA, { editFn: lowesEditSpec, freqMap: LOWES_FREQ }),
   data: LOWES_DATA,
+}
+const NIKE_GD = {
+  sidebarNodes: [...NIKE_DATA.nodes].filter(n => n.type === 'entity').sort((a, b) => a.label.localeCompare(b.label)),
+  edges: NIKE_DATA.edges,
+  sources: buildDatasetSources(NIKE_DATA, { editFn: nikeEditSpec, freqMap: NIKE_FREQ }),
+  data: NIKE_DATA,
 }
 
 const TABS = ['Graph', 'Nodes', 'Edges', 'Sources', 'Agents', 'Records', 'Governance']
@@ -217,7 +240,7 @@ export default function GraphCanvas(props) {
 
 function GraphCanvasInner({ title = 'New graph', onBack, onAgentAI, dataset }) {
   // Select the active dataset for this render pass (children read GD below).
-  GD = dataset === 'lowes' ? LOWES_GD : DEFAULT_GD
+  GD = dataset === 'lowes' ? LOWES_GD : dataset === 'nike' ? NIKE_GD : DEFAULT_GD
   // The source pipeline editor resolves nodes/properties from window.NODES — keep
   // it in sync with the active graph so its mapping aligns to the Lowe's nodes.
   if (typeof window !== 'undefined') { window.NODES = GD.sidebarNodes; window.EDGES = GD.edges }
@@ -311,7 +334,7 @@ function GraphCanvasInner({ title = 'New graph', onBack, onAgentAI, dataset }) {
       ) : tab === 'Agents' && agents.length > 0 ? (
         <AgentsList agents={agents} onAction={onAgentAction} onRemove={i => setAgents(a => a.filter((_, j) => j !== i))} />
       ) : tab === 'Records' ? (
-        <RecordsPage disableDetail dataset={dataset === 'lowes' ? 'lowes' : undefined} />
+        <RecordsPage disableDetail dataset={dataset === 'lowes' ? 'lowes' : dataset === 'nike' ? 'nike' : undefined} />
       ) : tab === 'Governance' ? (
         <GovernanceRoles />
       ) : (

@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
-import { NodeShape, ListGlyph, ZoomControls, Minimap, colorForNode as canvasColorForNode } from './GraphStage'
+import { NodeShape, ListGlyph, ZoomControls, Minimap, colorForNode as canvasColorForNode, NIKE_DATA } from './GraphStage'
 
 // ── Color palette (New UI tokens) ──────────────────────────────────────────
 const C = {
@@ -306,13 +306,20 @@ const LOWES_PROPS = {
 }
 const DEFAULT_RD = { nodes: NODES, edges: EDGES, props: PROPS_BY_NODE }
 const LOWES_RD = { nodes: LOWES_NODES, edges: LOWES_EDGES, props: LOWES_PROPS }
+// Nike records dataset is derived directly from the graph dataset (nodes carry
+// _userProps + x/y), so the two never drift.
+const NIKE_ENTITY_NODES = NIKE_DATA.nodes.filter(n => n.type === 'entity')
+const NIKE_ENTITY_IDS = new Set(NIKE_ENTITY_NODES.map(n => n.id))
+const NIKE_PROPS = {}; NIKE_ENTITY_NODES.forEach(n => { if (n._userProps) NIKE_PROPS[n.id] = n._userProps })
+const NIKE_RD = { nodes: NIKE_ENTITY_NODES, edges: NIKE_DATA.edges.filter(e => NIKE_ENTITY_IDS.has(e.s) && NIKE_ENTITY_IDS.has(e.t)), props: NIKE_PROPS }
 let RD = DEFAULT_RD
 
 // Source systems shown in record-level provenance — dataset-aware so the Lowe's
 // graph never attributes values to CRM systems (Salesforce/NetSuite/HubSpot).
 const CRM_SOURCE_LABELS = ['Salesforce CRM', 'NetSuite ERP', 'HubSpot Marketing', 'Manual / Admin']
 const LOWES_SOURCE_LABELS = ['Azure AD', 'Outlook', 'Teams', 'Calendar', 'SharePoint', 'OneDrive', 'ServiceNow', 'Jira', 'Confluence']
-const recordSourcePool = () => (RD === LOWES_RD ? LOWES_SOURCE_LABELS : CRM_SOURCE_LABELS)
+const NIKE_SOURCE_LABELS = ['SAP ERP', 'Commerce Cloud', 'Retail POS', 'Snowflake CDP', 'o9 Planning', 'Manhattan WMS', 'Adobe Analytics', 'Paid Media', 'Marketing Cloud', 'Market Signals']
+const recordSourcePool = () => (RD === LOWES_RD ? LOWES_SOURCE_LABELS : RD === NIKE_RD ? NIKE_SOURCE_LABELS : CRM_SOURCE_LABELS)
 const pickSource = seed => { const p = recordSourcePool(); return p[Math.abs(seed) % p.length] }
 
 // ── Colour helpers ──────────────────────────────────────────────────────────
@@ -349,11 +356,50 @@ const LOWES_NAMES = {
   team: ['Store Systems','Fulfillment Platform','Loyalty Engineering','Supply Chain Tech','Pro Desk Squad'],
   department: ['Digital Commerce','Store Technology','Supply Chain','Merchandising Systems','Enterprise Data'],
 }
+const NIKE_NAMES = {
+  product: ['USMNT Home Jersey 2026','Air Max 90 OG','Mercurial Vapor 16','Pegasus 41','Tech Fleece Hoodie','LeBron XXII','Dri-FIT ADV Tee','Phantom GX 2','Brazil Home Jersey 2026'],
+  store: ['Nike Seattle','Nike NYC — 5th Ave','Nike Chicago','Nike LA — The Grove','Nike Miami','Nike Portland','Nike London','DC — Memphis'],
+  team: ['USMNT','Brazil National Team','FC Barcelona','Seattle Sounders','LeBron James','Kylian Mbappé','Team USA','Nike Football'],
+  region: ['Pacific Northwest','Northeast','Midwest','West','Southeast','EMEA','APAC'],
+  campaign: ['World Cup 2026 Push','Air Max Day','Back to School','Just Do It — Spring','Football Kits Launch','Member Days'],
+  event: ['World Cup — USMNT advances','Air Max Day','NBA Finals','Champions League Final','Marathon Season','Team USA reveal'],
+  channel: ['Nike.com','Nike App','Nike Store','Foot Locker'],
+  category: ['Football','Running','Basketball','Sportswear','Training'],
+}
+function nikeValue(p, v, nodeId) {
+  if (['name','title'].includes(p.name) && NIKE_NAMES[nodeId]) return NIKE_NAMES[nodeId][v % NIKE_NAMES[nodeId].length]
+  switch (p.name) {
+    case 'size': return ['S','M','L','XL','XXL','US 8','US 9','US 10','US 11'][v % 9]
+    case 'color': return ['Black/White','University Red','Royal Blue','Volt','Team Gold','Sail','Obsidian'][v % 7]
+    case 'city': return ['Seattle','New York','Chicago','Los Angeles','Miami','Portland','London'][v % 7]
+    case 'region': return ['Pacific Northwest','Northeast','Midwest','West','EMEA'][v % 5]
+    case 'market': return ['North America','EMEA','APAC','LATAM'][v % 4]
+    case 'country': return ['USA','UK','Germany','Japan','Brazil'][v % 5]
+    case 'sport': return ['Football','Basketball','Running','Soccer','Training'][v % 5]
+    case 'league': return ['FIFA','NBA','La Liga','MLS','—'][v % 5]
+    case 'trend': return ['Surging','Rising','Flat','Declining'][v % 4]
+    case 'format': return ['Flagship','Outlet','Standard','Distribution Center'][v % 4]
+    case 'objective': return ['Awareness','Conversion','Consideration','Retention'][v % 4]
+    case 'gender': return ['Men','Women','Unisex','Kids'][v % 4]
+    case 'division': return ['Football','Running','Basketball','Sportswear','Training'][v % 5]
+    case 'franchise': return ['Air Max','Mercurial','Pegasus','Tech Fleece','LeBron','Phantom'][v % 6]
+    case 'style_code': return 'DV' + (1000 + v % 8999) + '-' + (100 + v % 899)
+    case 'upc': return '19' + (10000000 + v % 89999999)
+    case 'type': return nodeId === 'event' ? ['Sporting','Cultural','Product','Seasonal'][v % 4] : ['National Team','Club','Athlete','Brand'][v % 4]
+    case 'status': return ['Active','Active','Live','Sell-through','Clearance'][v % 5]
+    case 'sell_through_rate': return (0.35 + (v % 62) / 100).toFixed(2)
+    case 'weeks_of_supply': return (1 + v % 11) + '.' + (v % 9)
+    case 'accuracy': return (0.72 + (v % 26) / 100).toFixed(2)
+    case 'impact_score': return (0.5 + (v % 50) / 100).toFixed(2)
+    default: return null
+  }
+}
 function generateValueForProp(p, seed, nodeId) {
   const v = Math.abs(seed * (p.name.charCodeAt(0) + 1))
   if (p.pk) return p.name.replace(/_id$/, '').toUpperCase().slice(0,3) + '-' + (10000 + v % 89999)
+  if (RD === NIKE_RD) { const nv = nikeValue(p, v, nodeId); if (nv != null) return nv }
   // Lowe's-specific labels for the name/title/subject/topic field of each node.
-  if (['name','title','subject','summary','topic'].includes(p.name) && LOWES_NAMES[nodeId] && !PERSON_NODES.has(nodeId)) {
+  if (RD === LOWES_RD && ['name','title','subject','summary','topic'].includes(p.name) && LOWES_NAMES[nodeId] && !PERSON_NODES.has(nodeId)) {
     return LOWES_NAMES[nodeId][v % LOWES_NAMES[nodeId].length]
   }
   if (p.name === 'key') return ['POS','FUL','LOY','SCM','PRO'][v % 5] + '-' + (100 + v % 8999)
@@ -2120,8 +2166,19 @@ function upstreamRef(rec, nd, sourceSys) {
     'ServiceNow': ['ServiceNow', `Record ${num}`],
     'Jira': ['Jira', `${nd.label === 'Project' ? 'PROJ' : 'WORK'}-${String(num).slice(-4)}`],
     'Confluence': ['Confluence', `Page ${num}`],
+    // Nike retail source systems
+    'SAP ERP': ['SAP ERP', `Doc ${num}`],
+    'Commerce Cloud': ['Commerce Cloud', `Order ${num}`],
+    'Retail POS': ['Retail POS', `Txn ${String(num).slice(-6)}`],
+    'Snowflake CDP': ['Snowflake CDP', `Row ${num}`],
+    'o9 Planning': ['o9 Planning', `Plan ${num}`],
+    'Manhattan WMS': ['Manhattan WMS', `Record ${num}`],
+    'Adobe Analytics': ['Adobe Analytics', `Segment ${num}`],
+    'Paid Media': ['Paid Media', `Line item ${num}`],
+    'Marketing Cloud': ['Marketing Cloud', `Journey ${num}`],
+    'Market Signals': ['Market Signals', `Signal ${num}`],
     'computed': ['Computed', `Derived on ${nd.label}`],
-    'primary': [RD === LOWES_RD ? 'Graph store' : 'Salesforce', `${nd.label} ${num}`],
+    'primary': [RD === LOWES_RD ? 'Graph store' : RD === NIKE_RD ? 'Graph store' : 'Salesforce', `${nd.label} ${num}`],
   }
   if (REF[sys]) { const [app, ref] = REF[sys]; return { app, ref } }
   // Unknown system: attribute to the named system itself — never fall back to a
@@ -2422,7 +2479,7 @@ function DocumentViewer({ gnode, prov, onClose, onBack }) {
 
 // ── Page ─────────────────────────────────────────────────────────────────────
 export default function RecordsPage({ disableDetail, dataset }) {
-  RD = dataset === 'lowes' ? LOWES_RD : DEFAULT_RD
+  RD = dataset === 'lowes' ? LOWES_RD : dataset === 'nike' ? NIKE_RD : DEFAULT_RD
   const [selectedRecord, setSelectedRecord] = useState(null)
   const [selectedNode,   setSelectedNode]   = useState(null)
 
