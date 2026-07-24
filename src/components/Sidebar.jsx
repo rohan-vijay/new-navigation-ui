@@ -10,7 +10,7 @@ const WORKSPACES = [
 ]
 
 const NAV = [
-  { id:'agents',     label:'AI Agents',           icon:'agents',     children:['Agents','Teams','Skills','Copilot','MCP Servers','A2A Servers','Deployments'] },
+  { id:'agents',     label:'AI Agents',           icon:'agents',     children:['Agents','Teams','Skills','Loops','Copilot','MCP Servers','A2A Servers','Deployments'] },
   { id:'apps',       label:'AI Applications',     icon:'apps',       children:['Applications','Design System','Custom Components','Template Components'] },
   { id:'workflows',  label:'AI Workflows',        icon:'workflows',  children:['Automations','API Gateway','Decision Tables','Automation Interfaces','Automation Templates'] },
   { id:'ontology',   label:'AI Ontology & Data',  icon:'ontology',   children:['Enterprise Context Graph','Records','Data Pipelines','Data Catalog & Lineage','Data Quality','Ontology','Event Streams','Campaigns','Segments'] },
@@ -75,7 +75,7 @@ export default function Sidebar({ onNavigate, activeId = 'agents', onSelectNav, 
         onClick={() => { if (!exp) { expand(); setFlyout(null) } }}
         style={{
         width:w, minWidth:w, flexShrink:0, height:'100vh',
-        background:'var(--green-sidebar)',
+        background:'#F3F1EB',
         display:'flex', flexDirection:'column',
         transition:'width .26s cubic-bezier(.4,0,.2,1), min-width .26s cubic-bezier(.4,0,.2,1)',
         overflow:'hidden', position:'relative', zIndex:200,
@@ -93,16 +93,16 @@ export default function Sidebar({ onNavigate, activeId = 'agents', onSelectNav, 
           }}>
           {exp ? (
             <>
-              <img src="/unify-logo-sand.png" alt="UnifyApps" style={{ height:32, objectFit:'contain', flex:1, objectPosition:'left' }} />
+              <img src="/unify-logo.png" alt="UnifyApps" style={{ height:32, objectFit:'contain', flex:1, objectPosition:'left' }} />
               <PanelIcon />
             </>
           ) : (
             /* collapsed: spiral symbol, swaps to panel-toggle icon on hover */
             <div style={{ width:36, height:36, display:'flex', alignItems:'center', justifyContent:'center' }}>
               {logoHover ? (
-                <PanelIcon size={18} color="rgba(255,255,255,0.55)" />
+                <PanelIcon size={18} color="rgba(0,0,0,0.5)" />
               ) : (
-                <img src="/unify-symbol-sand.png" alt="UnifyApps" style={{ width:36, height:36, objectFit:'contain' }} />
+                <img src="/unify-symbol.png" alt="UnifyApps" style={{ width:36, height:36, objectFit:'contain' }} />
               )}
             </div>
           )}
@@ -139,14 +139,14 @@ export default function Sidebar({ onNavigate, activeId = 'agents', onSelectNav, 
               style={{
                 display:'flex', alignItems:'center', height:38, borderRadius:8, marginTop:4,
                 padding: exp ? '0 8px' : '0', justifyContent: exp ? 'flex-start' : 'center', gap:10, cursor:'pointer',
-                background: fdeActive ? 'rgba(125,216,150,0.16)' : 'transparent', transition:'background .15s',
+                background: fdeActive ? '#dfe9df' : 'transparent', transition:'background .15s',
               }}
-              onMouseOver={e => { if (!fdeActive) e.currentTarget.style.background='rgba(255,255,255,0.05)' }}
+              onMouseOver={e => { if (!fdeActive) e.currentTarget.style.background='rgba(0,0,0,0.045)' }}
               onMouseOut={e => { if (!fdeActive) e.currentTarget.style.background='transparent' }}>
               <div style={{ width:24, height:24, flexShrink:0, display:'flex', alignItems:'center', justifyContent:'center' }}>
                 <FdeNavIcon />
               </div>
-              {exp && <span style={{ flex:1, fontSize:13, color:'#F8F3EC', fontWeight: fdeActive ? 500 : 400, whiteSpace:'nowrap' }}>AI FDE</span>}
+              {exp && <span style={{ flex:1, fontSize:13, color:'#2a2a26', fontWeight: fdeActive ? 500 : 400, whiteSpace:'nowrap' }}>AI FDE</span>}
             </div>
           )}
         </div>
@@ -157,19 +157,19 @@ export default function Sidebar({ onNavigate, activeId = 'agents', onSelectNav, 
           height:54, flexShrink:0,
           padding: exp ? '0 16px' : '0',
           justifyContent: exp ? 'flex-start' : 'center',
-          borderTop:'1px solid rgba(255,255,255,0.06)',
+          borderTop:'1px solid rgba(0,0,0,0.06)',
           cursor:'pointer',
         }}>
           <div style={{
             width:30, height:30, borderRadius:'50%', flexShrink:0,
-            background:'#2b4a36', border:'1px solid rgba(255,255,255,0.12)',
+            background:'#e7e3da', border:'1px solid rgba(0,0,0,0.1)',
             display:'flex', alignItems:'center', justifyContent:'center',
-            fontSize:12, fontWeight:600, color:'#e8f0ea',
+            fontSize:12, fontWeight:600, color:'#3a3a36',
           }}>A</div>
           {exp && (
             <div style={{ lineHeight:1.25 }}>
-              <div style={{ fontSize:13, color:'#F8F3EC', fontWeight:500 }}>Tushar Yadav</div>
-              <div style={{ fontSize:10.5, color:'rgba(255,255,255,0.4)', fontFamily:'var(--mono)' }}>QA</div>
+              <div style={{ fontSize:13, color:'#2a2a26', fontWeight:500 }}>Tushar Yadav</div>
+              <div style={{ fontSize:10.5, color:'#9a948a', fontFamily:'var(--mono)' }}>QA</div>
             </div>
           )}
         </div>
@@ -187,8 +187,8 @@ function FdeNavIcon() {
     <svg width="26" height="26" viewBox="0 0 29 29" fill="none" style={{ opacity: 0.9 }}>
       <defs>
         <linearGradient id="fdeWhiteGrad" x1="14" y1="1.4" x2="14" y2="27" gradientUnits="userSpaceOnUse">
-          <stop stopColor="#ffffff" stopOpacity="0.95" />
-          <stop offset="1" stopColor="#ffffff" stopOpacity="0.55" />
+          <stop stopColor="#16341f" stopOpacity="0.95" />
+          <stop offset="1" stopColor="#16341f" stopOpacity="0.55" />
         </linearGradient>
       </defs>
       <mask id="fdeCutout">
@@ -203,7 +203,7 @@ function FdeNavIcon() {
 function Row({ item, exp, active, accOpen, activeChild, onClick, onNavigate, onEnter, onLeave }) {
   const ref = useRef(null)
   const [hov, setHov] = useState(false)
-  const bg = active ? 'rgba(125,216,150,0.13)' : hov ? 'rgba(255,255,255,0.05)' : 'transparent'
+  const bg = active ? '#e8ece7' : hov ? 'rgba(0,0,0,0.045)' : 'transparent'
   return (
     <div>
       <div ref={ref}
@@ -232,14 +232,14 @@ function Row({ item, exp, active, accOpen, activeChild, onClick, onNavigate, onE
         {exp && (
           <>
             <span style={{ flex:1, fontSize:13, whiteSpace:'nowrap',
-              color: '#F8F3EC',
+              color: '#2a2a26',
               fontWeight: active ? 500 : 400 }}>
               {item.label}
             </span>
             {(item.children || item.workspaceSwitcher) && (
               <svg width="12" height="12" viewBox="0 0 12 12" fill="none"
                 style={{ transition:'transform .2s', transform: accOpen?'rotate(90deg)':'none', flexShrink:0 }}>
-                <path d="M4.5 3l3 3-3 3" stroke="rgba(255,255,255,0.35)" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
+                <path d="M4.5 3l3 3-3 3" stroke="rgba(0,0,0,0.3)" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
               </svg>
             )}
           </>
@@ -256,12 +256,12 @@ function Row({ item, exp, active, accOpen, activeChild, onClick, onNavigate, onE
               style={{
               height:30, display:'flex', alignItems:'center',
               paddingLeft:40, fontSize:12.5,
-              color: sel ? '#F8F3EC' : 'rgba(248,243,236,0.9)',
+              color: sel ? '#2a2a26' : 'rgba(40,40,38,0.75)',
               fontWeight: sel ? 500 : 400,
-              background: sel ? 'rgba(125,216,150,0.13)' : 'transparent',
+              background: sel ? '#e8ece7' : 'transparent',
               cursor:'pointer', borderRadius:6, transition:'color .12s,background .12s',
             }}
-              onMouseOver={e => { if(!sel) e.currentTarget.style.background='rgba(255,255,255,0.04)' }}
+              onMouseOver={e => { if(!sel) e.currentTarget.style.background='rgba(0,0,0,0.04)' }}
               onMouseOut={e => { if(!sel) e.currentTarget.style.background='transparent' }}
             >{c}</div>
           )})}
@@ -285,19 +285,19 @@ function Flyout({ item, top, left, onNavigate, onEnter, onLeave }) {
     <div onMouseEnter={onEnter} onMouseLeave={onLeave}
       style={{
         position:'fixed', left: left + 6, top:clamped, zIndex:1000,
-        background:'#0d2a14', borderRadius:16,
+        background:'#FFFFFF', borderRadius:16,
         boxShadow:'0 14px 40px rgba(0,0,0,0.5)', minWidth:230, padding:'20px 22px',
         opacity:vis?1:0, transform:vis?'translateX(0)':'translateX(-6px)',
         transition:'opacity .15s, transform .15s',
       }}>
-      <div style={{ fontSize:16, fontWeight:700, color:'#fff', marginBottom:18 }}>{item.label}</div>
+      <div style={{ fontSize:16, fontWeight:700, color:'#1a1a1a', marginBottom:18 }}>{item.label}</div>
       <div style={{ display:'flex', flexDirection:'column', gap:6 }}>
         {item.children.map(c => (
           <div key={c}
             onClick={e => { e.stopPropagation(); onNavigate?.(c) }}
-            style={{ height:28, display:'flex', alignItems:'center', fontSize:14.5, color:'#F8F3EC', cursor:'pointer', transition:'color .12s' }}
-            onMouseOver={e => e.currentTarget.style.color='#fff'}
-            onMouseOut={e => e.currentTarget.style.color='#F8F3EC'}
+            style={{ height:28, display:'flex', alignItems:'center', fontSize:14.5, color:'#2a2a26', cursor:'pointer', transition:'color .12s' }}
+            onMouseOver={e => e.currentTarget.style.color='#1a1a1a'}
+            onMouseOut={e => e.currentTarget.style.color='#2a2a26'}
           >{c}</div>
         ))}
       </div>
@@ -313,38 +313,38 @@ function WorkspaceFlyout({ top, left, vis, onEnter, onLeave }) {
     <div onMouseEnter={onEnter} onMouseLeave={onLeave}
       style={{
         position:'fixed', left: left + 6, top:clamped, zIndex:1000,
-        background:'#0d2a14', borderRadius:16,
+        background:'#FFFFFF', borderRadius:16,
         boxShadow:'0 14px 40px rgba(0,0,0,0.5)', minWidth:280, padding:'16px', overflow:'hidden',
         opacity:vis?1:0, transform:vis?'translateX(0)':'translateX(-6px)',
         transition:'opacity .15s, transform .15s',
       }}>
-      <div style={{ padding:'2px 4px 12px', fontFamily:'var(--mono)', fontSize:11, fontWeight:600, letterSpacing:1, color:'rgba(255,255,255,0.4)' }}>
+      <div style={{ padding:'2px 4px 12px', fontFamily:'var(--mono)', fontSize:11, fontWeight:600, letterSpacing:1, color:'#9a948a' }}>
         RECENT WORKSPACES
       </div>
       {WORKSPACES.map(w => (
         <div key={w.name} style={{
           display:'flex', alignItems:'center', gap:12, padding:'8px 10px', borderRadius:10, cursor:'pointer',
-          background: w.selected ? 'rgba(255,255,255,0.07)' : 'transparent', transition:'background .12s',
+          background: w.selected ? '#efece6' : 'transparent', transition:'background .12s',
         }}
-          onMouseOver={e => { if(!w.selected) e.currentTarget.style.background='rgba(255,255,255,0.04)' }}
+          onMouseOver={e => { if(!w.selected) e.currentTarget.style.background='rgba(0,0,0,0.04)' }}
           onMouseOut={e => { if(!w.selected) e.currentTarget.style.background='transparent' }}>
           <div style={{ width:22, height:22, flexShrink:0, display:'flex', alignItems:'center', justifyContent:'center' }}>
             {w.selected
-              ? <svg width="18" height="18" viewBox="0 0 20 20" fill="none"><path d="M10 3.5 3.5 8.5V16a1 1 0 0 0 1 1h3v-4h5v4h3a1 1 0 0 0 1-1V8.5L10 3.5Z" stroke="#7dd896" strokeWidth="1.5" strokeLinejoin="round"/></svg>
-              : <svg width="17" height="17" viewBox="0 0 18 18" fill="none"><rect x="2.5" y="2.5" width="5.5" height="5.5" rx="1.4" stroke="rgba(255,255,255,0.55)" strokeWidth="1.4"/><rect x="10" y="2.5" width="5.5" height="5.5" rx="1.4" stroke="rgba(255,255,255,0.55)" strokeWidth="1.4"/><rect x="2.5" y="10" width="5.5" height="5.5" rx="1.4" stroke="rgba(255,255,255,0.55)" strokeWidth="1.4"/><rect x="10" y="10" width="5.5" height="5.5" rx="1.4" stroke="rgba(255,255,255,0.55)" strokeWidth="1.4"/></svg>}
+              ? <svg width="18" height="18" viewBox="0 0 20 20" fill="none"><path d="M10 3.5 3.5 8.5V16a1 1 0 0 0 1 1h3v-4h5v4h3a1 1 0 0 0 1-1V8.5L10 3.5Z" stroke="#16341f" strokeWidth="1.5" strokeLinejoin="round"/></svg>
+              : <svg width="17" height="17" viewBox="0 0 18 18" fill="none"><rect x="2.5" y="2.5" width="5.5" height="5.5" rx="1.4" stroke="rgba(0,0,0,0.5)" strokeWidth="1.4"/><rect x="10" y="2.5" width="5.5" height="5.5" rx="1.4" stroke="rgba(0,0,0,0.5)" strokeWidth="1.4"/><rect x="2.5" y="10" width="5.5" height="5.5" rx="1.4" stroke="rgba(0,0,0,0.5)" strokeWidth="1.4"/><rect x="10" y="10" width="5.5" height="5.5" rx="1.4" stroke="rgba(0,0,0,0.5)" strokeWidth="1.4"/></svg>}
           </div>
-          <span style={{ fontSize:14.5, color: w.selected?'#fff':'#d6e3d9', fontWeight: w.selected?600:400, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>
+          <span style={{ fontSize:14.5, color: w.selected?'#1a1a1a':'#3a3a36', fontWeight: w.selected?600:400, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>
             {w.emoji && <span style={{ marginRight:6 }}>{w.emoji}</span>}{w.name}
           </span>
         </div>
       ))}
-      <div style={{ display:'flex', borderTop:'1px solid rgba(255,255,255,0.08)', marginTop:8, paddingTop:8 }}>
+      <div style={{ display:'flex', borderTop:'1px solid rgba(0,0,0,0.08)', marginTop:8, paddingTop:8 }}>
         <button style={wfBtn}>
-          <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M7 2v10M2 7h10" stroke="#d6e3d9" strokeWidth="1.5" strokeLinecap="round"/></svg>
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M7 2v10M2 7h10" stroke="#3a3a36" strokeWidth="1.5" strokeLinecap="round"/></svg>
           New Workspace
         </button>
         <button style={wfBtn}>
-          <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M8 2 2 5l6 3 6-3-6-3ZM2 8l6 3 6-3M2 11l6 3 6-3" stroke="#d6e3d9" strokeWidth="1.3" strokeLinejoin="round"/></svg>
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M8 2 2 5l6 3 6-3-6-3ZM2 8l6 3 6-3M2 11l6 3 6-3" stroke="#3a3a36" strokeWidth="1.3" strokeLinejoin="round"/></svg>
           Browse All
         </button>
       </div>
@@ -352,9 +352,9 @@ function WorkspaceFlyout({ top, left, vis, onEnter, onLeave }) {
   )
 }
 
-const wfBtn = { flex:1, display:'flex', alignItems:'center', justifyContent:'center', gap:8, padding:'9px 8px', background:'none', border:'none', cursor:'pointer', fontSize:14, color:'#d6e3d9', borderRadius:8 }
+const wfBtn = { flex:1, display:'flex', alignItems:'center', justifyContent:'center', gap:8, padding:'9px 8px', background:'none', border:'none', cursor:'pointer', fontSize:14, color:'#3a3a36', borderRadius:8 }
 
-function PanelIcon({ size = 16, color = 'rgba(255,255,255,0.4)' }) {
+function PanelIcon({ size = 16, color = '#9a948a' }) {
   return (
     <svg width={size} height={size} viewBox="0 0 16 16" fill="none">
       <rect x="1.5" y="2.5" width="13" height="11" rx="2" stroke={color} strokeWidth="1.3" />
@@ -364,7 +364,7 @@ function PanelIcon({ size = 16, color = 'rgba(255,255,255,0.4)' }) {
 }
 
 function NavIcon({ name, active }) {
-  const c = '#F8F3EC'
+  const c = '#2a2a26'
   const p = { stroke:c, strokeWidth:1.4, strokeLinecap:'round', strokeLinejoin:'round', fill:'none' }
   const I = {
     /* workspace / box — brand icon */

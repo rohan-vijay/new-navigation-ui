@@ -6,13 +6,13 @@ const NODE_BY_ID = (() => { const m = {}; NIKE_DATA.nodes.forEach(n => { m[n.id]
 
 // ── Agents ──────────────────────────────────────────────────────────────────
 const AGENTS = [
-  { id: 'demand',  name: 'Retail Demand Analyst', color: '#16341f', tagline: 'Explains demand spikes across product, store, media & supply.',
+  { id: 'demand',  name: 'Retail Demand Agent', color: '#16341f', tagline: 'Explains demand spikes across product, store, media & supply.',
     greeting: "I'm grounded in the Nike Retail Context Graph. I answer by running Cypher over the graph — ask me why a product is moving in a market and I'll trace it through demand, media and supply.",
     starters: ['seattle_ny', 'airmax_spike', 'pegasus_pnw'] },
-  { id: 'supply',  name: 'Supply Chain Copilot', color: '#3a6ea0', tagline: 'Spots stockout risk and replenishment gaps before they cost sales.',
+  { id: 'supply',  name: 'Supply Chain Agent', color: '#3a6ea0', tagline: 'Spots stockout risk and replenishment gaps before they cost sales.',
     greeting: "I watch inventory positions, weeks-of-supply and inbound replenishment across every door. I query the graph directly — ask me where you're about to lose sales.",
     starters: ['stockout_risk', 'seattle_ny', 'pegasus_pnw'] },
-  { id: 'merch',   name: 'Merch & Campaign Analyst', color: '#8a5a2b', tagline: 'Ties sell-through back to campaigns, media spend and events.',
+  { id: 'merch',   name: 'Merch & Campaign Agent', color: '#8a5a2b', tagline: 'Ties sell-through back to campaigns, media spend and events.',
     greeting: "I connect sell-through to the campaigns, paid media and cultural events behind it. I run Cypher across the graph — ask me what's actually driving a lift.",
     starters: ['campaign_roi', 'airmax_spike', 'seattle_ny'] },
 ]
@@ -58,11 +58,12 @@ RETURN s.name, i.weeks_of_supply, i.on_hand, sh.eta`,
     ],
     answer: [
       { kind: 'verdict', text: "Seattle's lead is real demand amplified by media — and New York isn't lower demand, it's supply-constrained." },
-      { kind: 'para', text: 'Both metros are riding the same World Cup lift[2] (impact 0.90), so the underlying pull is comparable. The divergence comes from two levers the graph makes explicit:' },
-      { kind: 'bullet', text: '**Media** — 8× more paid spend went to the Pacific Northwest ($48K vs $6K)[3], so Seattle demand is being actively amplified while New York is left to run on its own.' },
-      { kind: 'bullet', text: '**Supply** — Nike NYC is down to 1.2 weeks of supply[4] with replenishment still 3 days out[5]. It is turning away sales it would otherwise convert, which mechanically depresses its sell-through[1].' },
-      { kind: 'para', text: 'Decomposing the gap: roughly ~60% is media allocation, ~40% is the New York stockout. Critically, NY purchase intent is healthy — search index 132 vs Seattle 148[1] — so this is a fulfillment problem, not a want problem.' },
-      { kind: 'action', text: 'Recommend: (1) expedite SH-5540 into Nike NYC[5]; (2) rebalance ~$15K of Pacific NW spend to the Northeast[3] while the event window is open; (3) hold Seattle — it is converting cleanly.' },
+      { kind: 'para', text: 'The headline gap is real: this week Seattle moved 1,240 units at 0.89 sell-through versus New York\'s 610 units at 0.71[1]. But the two metros are riding the *same* World Cup lift[2] (impact 0.90 across both), so the underlying pull is comparable — which means the outcome gap is being manufactured downstream, by two levers the graph makes explicit.' },
+      { kind: 'bullet', text: '**Media** — 8× more paid spend went to the Pacific Northwest ($48K vs $6K)[3]. Seattle\'s demand is being actively amplified while New York is left to run on the organic event alone.' },
+      { kind: 'bullet', text: '**Supply** — Nike NYC is down to 1.2 weeks of supply[4] with replenishment still 3 days out[5]. It is physically turning away sales it would otherwise convert, which mechanically depresses its sell-through[1] and makes the demand look softer than it is.' },
+      { kind: 'para', text: 'Decomposing the gap: roughly ~60% is media allocation and ~40% is the New York stockout. The tell that this is fulfillment and not appetite is purchase intent — NY\'s search index is 132 against Seattle\'s 148[1], i.e. within striking distance. New York wants the jersey; it can\'t buy it and isn\'t being reminded to.' },
+      { kind: 'para', text: 'Left alone, this compounds: the stockout suppresses NY\'s numbers, which makes it look like a weaker market, which justifies sending *even less* media and inventory there — a doom loop that misreads a supply gap as a demand gap.' },
+      { kind: 'action', text: 'Recommend: (1) expedite SH-5540 into Nike NYC to break the stockout[5]; (2) rebalance ~$15K of Pacific NW spend to the Northeast[3] while the event window is open; (3) hold Seattle — it is converting cleanly and is near diminishing returns on spend.' },
     ],
     sources: [
       { n: 1, node: 'demand_signal', ref: 'SIG-587794', detail: 'Seattle 0.89 Rising · NYC 0.71 Flat · idx 148 vs 132' },
@@ -99,9 +100,12 @@ RETURN sum(m.spend_usd) AS spend, m.period`,
     ],
     answer: [
       { kind: 'verdict', text: 'Demand-driven, not media-driven — this is an organic Air Max Day lift.' },
-      { kind: 'para', text: 'The demand signal is surging (+42% add-to-cart, 0.81 sell-through)[1] but paid media is flat week-over-week[3]. The lift lines up with the Air Max Day event[2], a cultural moment rather than a funded push — the graph shows the spike arriving *before* any spend change.' },
-      { kind: 'para', text: "That's the good kind of demand: you're not paying for it. The risk is under-supplying a moment you didn't forecast." },
-      { kind: 'action', text: 'Recommend: (1) add incremental spend now to compound free momentum[3]; (2) pull Air Max 90 inventory forward before the event tail fades[1].' },
+      { kind: 'para', text: 'The demand signal is genuinely surging — add-to-cart is up 42% week-over-week to 5,400 and sell-through has climbed to 0.81 with a Surging trend[1]. The warehouse confirms this is a clean step-change, not noise: the prior two weeks sat at 3,800 and 3,700, so the jump is real and abrupt rather than a gradual drift.' },
+      { kind: 'para', text: 'What matters for attribution is the *sequencing*. Paid media on the Air Max Day campaign is flat at $9K with no step-up[3], and the graph shows the demand spike arriving **before** any spend moved. Semantic retrieval over knowledge surfaces the cause: the Air Max Day cultural moment[2] and a wave of sneaker-press coverage — an earned, organic driver, not a funded one.' },
+      { kind: 'bullet', text: '**Reads as organic** — demand moved first, media never scaled, and the driver is a cultural event rather than a campaign.' },
+      { kind: 'bullet', text: '**The exposure is supply, not spend** — because this wasn\'t planned, forecasts under-called it and inventory may not be positioned for the peak.' },
+      { kind: 'para', text: "This is the highest-margin kind of demand — you're not paying to acquire it. The failure mode isn\'t wasted spend, it\'s stocking out during a moment you didn\'t see coming and leaving the lift on the table." },
+      { kind: 'action', text: 'Recommend: (1) add incremental spend now to compound momentum you\'re currently getting for free[3]; (2) pull Air Max 90 inventory forward into high-velocity doors before the event tail fades[1]; (3) flag the forecast miss so planning widens the band on culturally-driven styles.' },
     ],
     sources: [
       { n: 1, node: 'demand_signal', ref: 'DS-33120', detail: 'add_to_cart +42% · sell-through 0.81 Surging' },
@@ -131,9 +135,12 @@ WHERE  style = 'DV1704-XXX' AND region = 'Pacific Northwest'`,
         result: `forecast 5,200 · actual 6,100 · running 17% ahead of plan` },
     ],
     answer: [
-      { kind: 'verdict', text: 'Seasonal running demand — the region is running 17% ahead of forecast.' },
-      { kind: 'para', text: 'Pegasus 41 is a running franchise and the Pacific NW is in marathon season[2], which is pulling sell-through to 0.76 and Rising[1]. Actuals are outrunning the o9 forecast by ~900 units[3], so the plan is under-calling this pocket of demand.' },
-      { kind: 'action', text: 'Recommend: (1) raise the regional forecast to actuals[3]; (2) pull replenishment forward into Seattle & Portland before the season peaks[1].' },
+      { kind: 'verdict', text: 'Seasonal running demand — the Pacific NW is running 17% ahead of forecast and the plan hasn\'t caught up.' },
+      { kind: 'para', text: 'Pegasus 41 is a core running franchise, and demand is concentrated exactly where you\'d expect a seasonal running story: Seattle and Portland doors, with sell-through at 0.76 and a Rising trend[1]. Semantic retrieval over the knowledge base ties this to marathon season in the region[2] — a recurring calendar driver, not a one-off spike.' },
+      { kind: 'para', text: 'The warehouse makes the gap concrete: actuals are 6,100 units against an o9 forecast of 5,200 — roughly 900 units, or 17%, ahead of plan[3]. Because the plan is under-calling demand, allocation and replenishment are being sized off a number that\'s already stale.' },
+      { kind: 'bullet', text: '**Predictable, not anomalous** — marathon season repeats every year, so this is forecastable signal the plan should already carry.' },
+      { kind: 'bullet', text: '**The risk is a self-inflicted stockout** — under-forecasting caps replenishment, so healthy demand quietly converts into lost sales in the two doors driving it.' },
+      { kind: 'action', text: 'Recommend: (1) raise the regional forecast to actuals and hold the higher number through the season[3]; (2) pull replenishment forward into Seattle & Portland before the peak[1]; (3) add a seasonal-running rule so Pegasus auto-lifts in this region next cycle.' },
     ],
     sources: [
       { n: 1, node: 'demand_signal', ref: 'DS-PNW-Peg', detail: 'sell-through 0.76 Rising · PNW' },
@@ -164,11 +171,13 @@ RETURN s.name, sh.eta`,
         result: `Nike NYC → ETA 3d · Nike Miami → ETA 6d · Nike Chicago → none open` },
     ],
     answer: [
-      { kind: 'verdict', text: 'Three doors at risk — Chicago is the most urgent because it has no inbound cover.' },
-      { kind: 'bullet', text: '**Nike Chicago** — 1.9 weeks, demand Rising[2], and no open replenishment[3]. Highest lost-sales risk.' },
-      { kind: 'bullet', text: '**Nike NYC** — thinnest at 1.2 weeks[1] but SH-5540 lands in 3 days[3]; it will squeeze but recover.' },
-      { kind: 'bullet', text: '**Nike Miami** — 1.6 weeks with replenishment 6 days out[3]; borderline, watch-list.' },
-      { kind: 'action', text: 'Recommend: open an expedite for Chicago today[3], confirm the NYC ETA holds, and keep Miami on watch. All three still have Rising demand[2] — none will self-correct.' },
+      { kind: 'verdict', text: 'Three doors at risk in the next two weeks — and Chicago, not the thinnest one, is the most urgent.' },
+      { kind: 'para', text: 'Three stores are under two weeks of supply on national-team kits[1], and the warehouse burn rates say none of them coast: at current sell-down they hit zero in roughly 8–11 days[2]. The ranking flips once you factor inbound cover — the thinnest door isn\'t the biggest problem, the uncovered one is.' },
+      { kind: 'bullet', text: '**Nike Chicago** — 1.9 weeks and ~9 days to zero[2], demand still Rising, and **no open replenishment**[3]. This is the real emergency: nothing is on the way.' },
+      { kind: 'bullet', text: '**Nike NYC** — thinnest at 1.2 weeks[1] and fastest burn (~8 days)[2], but SH-5540 lands in 3 days[3]; it will squeeze but recover if the ETA holds.' },
+      { kind: 'bullet', text: '**Nike Miami** — 1.6 weeks with replenishment 6 days out[3]; covered but tight — watch-list.' },
+      { kind: 'para', text: 'Demand is Rising at all three, so none of these will self-correct through cooling interest — every day short is a converted sale lost during the highest-intent window of the World Cup.' },
+      { kind: 'action', text: 'Recommend: (1) open an expedite into Chicago today — it has zero cover[3]; (2) confirm SH-5540\'s 3-day ETA into NYC and escalate if it slips[3]; (3) hold Miami on watch and reassess in 48 hours.' },
     ],
     sources: [
       { n: 1, node: 'inventory', ref: 'IP-7781', detail: 'Nike NYC 1.2 · Miami 1.6 · Chicago 1.9 weeks' },
@@ -197,10 +206,12 @@ RETURN s.name, i.weeks_of_supply`,
         result: `Nike NYC → 1.2 wks (demand exists, stock does not)` },
     ],
     answer: [
-      { kind: 'verdict', text: 'Converting where it lands — but the allocation is skewed and leaving demand on the table.' },
-      { kind: 'para', text: 'Where the Push spent heavily (Pacific NW, $48K)[1], sell-through is 0.89 vs 0.71 in the lightly-spent Northeast[2] — so the media is genuinely working, not just impressions. The problem is distribution: the Northeast has live demand but both thin spend[1] and thin inventory[3].' },
-      { kind: 'para', text: "Scaling spend into the Northeast right now would partly fund demand you can't fulfill (NYC at 1.2 weeks)[3] — so sequencing matters." },
-      { kind: 'action', text: 'Recommend: shift ~$15K to the Northeast, but stage it to land *after* SH-5540 replenishes NYC[3] — otherwise you pay for demand that stocks out.' },
+      { kind: 'verdict', text: 'Converting where it lands — but the allocation is skewed and quietly leaving demand on the table.' },
+      { kind: 'para', text: 'The Push is genuinely working, not just buying impressions. Where it spent heavily — Pacific NW at $48K against 2.4M impressions[1] — downstream sell-through is 0.89, versus 0.71 in the lightly-spent Northeast[2]. That 18-point spread lines up with spend, so the money is translating into conversion, not just reach.' },
+      { kind: 'para', text: 'The problem is distribution. The Northeast has live, comparable demand but is starved on two fronts at once: thin media[1] *and* thin inventory — Nike NYC is down to 1.2 weeks of supply[3]. So the campaign is under-serving a market that would respond, while over-indexing one that\'s already saturated.' },
+      { kind: 'bullet', text: '**Media is efficient where it runs** — the PNW spread proves the creative and targeting convert.' },
+      { kind: 'bullet', text: '**But naïvely reallocating backfires** — pushing spend into the Northeast today would partly fund demand you can\'t fulfill[3], turning paid clicks into stockouts and a poor experience.' },
+      { kind: 'action', text: 'Recommend: (1) shift ~$15K from PNW to the Northeast, but stage it to land **after** SH-5540 replenishes NYC[3]; (2) hold PNW spend flat — it\'s at diminishing returns; (3) set a supply-gated rule so spend only scales into a market once weeks-of-supply clears a threshold.' },
     ],
     sources: [
       { n: 1, node: 'media_spend', ref: 'AD-9912', detail: '$48K PNW / 2.4M impr vs $6K NE' },
@@ -242,9 +253,11 @@ export default function AgentChat({ onBack }) {
   const [agentId, setAgentId] = useState('demand')
   const [messages, setMessages] = useState([])
   const [input, setInput] = useState('')
+  const [srcPanel, setSrcPanel] = useState(null) // { sources, focus }
   const timers = useRef([])
   const scrollRef = useRef(null)
   const agent = AGENTS.find(a => a.id === agentId)
+  const openSources = (sources, focus) => setSrcPanel({ sources, focus })
 
   useEffect(() => () => timers.current.forEach(clearTimeout), [])
   useEffect(() => { const el = scrollRef.current; if (el) el.scrollTop = el.scrollHeight }, [messages])
@@ -267,7 +280,7 @@ export default function AgentChat({ onBack }) {
   }
 
   const send = () => { const t = input.trim(); if (!t) return; setInput(''); run(matchScript(t), t) }
-  const newChat = () => { timers.current.forEach(clearTimeout); timers.current = []; setMessages([]) }
+  const newChat = () => { timers.current.forEach(clearTimeout); timers.current = []; setMessages([]); setSrcPanel(null) }
 
   return (
     <div style={{ flex: 1, minWidth: 0, background: '#FEFDFB', borderRadius: 14, overflow: 'hidden', display: 'flex' }}>
@@ -319,7 +332,7 @@ export default function AgentChat({ onBack }) {
             ) : (
               messages.map(m => m.role === 'user'
                 ? <UserBubble key={m.id} text={m.text} />
-                : <AssistantMessage key={m.id} msg={m} agent={AGENTS.find(a => a.id === m.agentId)} />)
+                : <AssistantMessage key={m.id} msg={m} agent={AGENTS.find(a => a.id === m.agentId)} onOpenSources={openSources} />)
             )}
           </div>
         </div>
@@ -337,6 +350,53 @@ export default function AgentChat({ onBack }) {
           </div>
           <div style={{ maxWidth: 780, margin: '6px auto 0', textAlign: 'center', fontSize: 11, color: '#b5ad9c' }}>Answers run live as Cypher over the Nike Retail Context Graph.</div>
         </div>
+      </div>
+
+      {/* ── Sources pane (opens on demand) ── */}
+      {srcPanel && <SourcePanel panel={srcPanel} onClose={() => setSrcPanel(null)} />}
+    </div>
+  )
+}
+
+function SourcePanel({ panel, onClose }) {
+  const refs = useRef({})
+  useEffect(() => {
+    const el = refs.current[panel.focus]
+    if (el) { el.scrollIntoView({ block: 'nearest' }); el.style.boxShadow = 'inset 3px 0 0 #16341f'; setTimeout(() => { if (el) el.style.boxShadow = 'none' }, 1400) }
+  }, [panel])
+  return (
+    <div style={{ width: 340, flexShrink: 0, borderLeft: '1px solid #efece6', background: '#fbf9f3', display: 'flex', flexDirection: 'column', animation: 'fadeStep .2s ease' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '15px 16px 13px', borderBottom: '1px solid #efece6' }}>
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none"><circle cx="6" cy="6" r="2.4" stroke="#2f6f43" strokeWidth="1.6" /><circle cx="18" cy="9" r="2.4" stroke="#2f6f43" strokeWidth="1.6" /><circle cx="9" cy="18" r="2.4" stroke="#2f6f43" strokeWidth="1.6" /><path d="M7.9 7.4 16 8.6M7.4 8 8.6 16" stroke="#2f6f43" strokeWidth="1.4" strokeLinecap="round" /></svg>
+        <span style={{ fontFamily: 'var(--serif)', fontSize: 15.5, fontWeight: 500, color: '#1a1a1a', flex: 1 }}>Sources</span>
+        <span style={{ fontFamily: 'var(--mono)', fontSize: 11, color: '#a89e88' }}>{panel.sources.length} records</span>
+        <button onClick={onClose} title="Close" style={{ width: 26, height: 26, borderRadius: 7, border: '1px solid #e3ddd1', background: '#fff', cursor: 'pointer', color: '#6b6b66', fontSize: 15, marginLeft: 4 }}>×</button>
+      </div>
+      <div style={{ flex: 1, overflowY: 'auto', padding: 12 }}>
+        {panel.sources.map(s => {
+          const n = NODE_BY_ID[s.node]
+          return (
+            <div key={s.n} ref={el => { refs.current[s.n] = el }}
+              style={{ border: '1px solid #ececea', borderRadius: 10, background: '#fff', padding: '11px 12px', marginBottom: 10, transition: 'box-shadow .4s' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 7 }}>
+                <span style={{ fontFamily: 'var(--mono)', fontSize: 10.5, fontWeight: 700, color: '#2f6f43', background: '#eef4ee', border: '1px solid #d6e6d8', borderRadius: 5, width: 18, height: 18, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>{s.n}</span>
+                {n && <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 13, fontWeight: 600, color: '#1a1a1a' }}><ListGlyph node={n} size={15} />{n.label}</span>}
+                <span style={{ flex: 1 }} />
+                <span style={{ fontFamily: 'var(--mono)', fontSize: 11, color: '#3a6ea0' }}>{s.ref}</span>
+              </div>
+              <div style={{ fontSize: 12.5, color: '#5b5547', lineHeight: 1.5 }}>{s.detail}</div>
+              <div style={{ marginTop: 9, display: 'flex', gap: 6 }}>
+                <button style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 11.5, color: '#3a3a36', background: '#faf8f3', border: '1px solid #e7e0d2', borderRadius: 7, padding: '4px 9px', cursor: 'pointer' }}>
+                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#7a6f5c" strokeWidth="2"><circle cx="6" cy="6" r="2.2" /><circle cx="18" cy="9" r="2.2" /><circle cx="9" cy="18" r="2.2" /><path d="M8 7l8 1M8 8l1 8" /></svg>
+                  Open in graph
+                </button>
+                <button style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 11.5, color: '#3a3a36', background: '#faf8f3', border: '1px solid #e7e0d2', borderRadius: 7, padding: '4px 9px', cursor: 'pointer' }}>
+                  View record
+                </button>
+              </div>
+            </div>
+          )
+        })}
       </div>
     </div>
   )
@@ -458,7 +518,7 @@ function Rich({ text, onCite }) {
   return <>{nodes}</>
 }
 
-function AssistantMessage({ msg, agent }) {
+function AssistantMessage({ msg, agent, onOpenSources }) {
   const thinking = msg.phase === 'thinking'
   const done = msg.phase === 'done'
   const [open, setOpen] = useState(true)
@@ -466,9 +526,8 @@ function AssistantMessage({ msg, agent }) {
   // Auto-collapse the trace once the answer is generated.
   useEffect(() => { if (done && wasThinking.current) { setOpen(false); wasThinking.current = false } }, [done])
   const shown = msg.chain.slice(0, msg.reveal)
-  const srcRefs = useRef({})
-
-  const jumpToCite = n => { const el = srcRefs.current[n]; if (el) { el.scrollIntoView({ behavior: 'smooth', block: 'center' }); el.style.background = '#f3f7f3'; setTimeout(() => { el.style.background = 'transparent' }, 1200) } }
+  // Inline citation → open the sources pane focused on that record.
+  const jumpToCite = n => onOpenSources?.(msg.sources, n)
 
   return (
     <div style={{ display: 'flex', gap: 12, marginBottom: 24 }}>
@@ -491,7 +550,6 @@ function AssistantMessage({ msg, agent }) {
                 <span style={{ fontFamily: 'var(--mono)', fontSize: 10, color: '#b5ad9c', width: 14, flexShrink: 0 }}>{i + 1}</span>
                 <span style={{ fontFamily: 'var(--mono)', fontSize: 10, fontWeight: 700, letterSpacing: 0.3, textTransform: 'uppercase', color: k.color, background: k.bg, border: '1px solid ' + k.bd, borderRadius: 5, padding: '1px 6px', flexShrink: 0 }}>{k.label} · {k.tag}</span>
                 <span style={{ fontSize: 13, fontWeight: 500, color: '#3a3a36', flex: 1 }}>{st.title}</span>
-                {st.nodes?.map((nid, kk) => <NodeChip key={kk} id={nid} size={13} />)}
               </div>
               <div style={{ paddingLeft: 22 }}>
                 {st.kind === 'semantic'
@@ -518,20 +576,18 @@ function AssistantMessage({ msg, agent }) {
               return <p key={i} style={{ margin: '0 0 11px', fontSize: 14, color: '#3a3a36', lineHeight: 1.65 }}><Rich text={b.text} onCite={jumpToCite} /></p>
             })}
 
-            {/* Sources — resolve each [n] to the exact graph record */}
+            {/* Compact sources trigger — numbers open the pane on demand */}
             {msg.sources?.length > 0 && (
-              <div style={{ marginTop: 16, paddingTop: 12, borderTop: '1px solid #f0eee7' }}>
-                <div style={{ fontFamily: 'var(--mono)', fontSize: 10.5, letterSpacing: 0.5, textTransform: 'uppercase', color: '#9a948a', marginBottom: 8 }}>Sources · graph records</div>
-                <div style={{ display: 'grid', gap: 6 }}>
-                  {msg.sources.map(s => (
-                    <div key={s.n} ref={el => { srcRefs.current[s.n] = el }} style={{ display: 'flex', alignItems: 'center', gap: 9, padding: '6px 8px', borderRadius: 8, transition: 'background .4s' }}>
-                      <span style={{ fontFamily: 'var(--mono)', fontSize: 10, fontWeight: 700, color: '#2f6f43', background: '#eef4ee', border: '1px solid #d6e6d8', borderRadius: 4, width: 16, height: 16, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>{s.n}</span>
-                      <NodeChip id={s.node} size={13} />
-                      <span style={{ fontFamily: 'var(--mono)', fontSize: 11.5, color: '#3a6ea0', flexShrink: 0 }}>{s.ref}</span>
-                      <span style={{ fontSize: 12.5, color: '#8a857c', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s.detail}</span>
-                    </div>
-                  ))}
-                </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 16, paddingTop: 12, borderTop: '1px solid #f0eee7', flexWrap: 'wrap' }}>
+                <button onClick={() => onOpenSources?.(msg.sources, msg.sources[0].n)}
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontFamily: 'var(--sans)', fontSize: 12.5, fontWeight: 500, color: '#3a3a36', background: '#fff', border: '1px solid #e3ddd1', borderRadius: 8, padding: '5px 10px', cursor: 'pointer' }}>
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none"><circle cx="6" cy="6" r="2.2" stroke="#2f6f43" strokeWidth="1.7" /><circle cx="18" cy="9" r="2.2" stroke="#2f6f43" strokeWidth="1.7" /><circle cx="9" cy="18" r="2.2" stroke="#2f6f43" strokeWidth="1.7" /><path d="M8 7l8 1M8 8l1 8" stroke="#2f6f43" strokeWidth="1.4" /></svg>
+                  {msg.sources.length} sources
+                </button>
+                {msg.sources.map(s => (
+                  <button key={s.n} onClick={() => onOpenSources?.(msg.sources, s.n)} title={`${NODE_BY_ID[s.node]?.label} · ${s.ref}`}
+                    style={{ width: 22, height: 22, borderRadius: 6, fontFamily: 'var(--mono)', fontSize: 11, fontWeight: 700, color: '#2f6f43', background: '#eef4ee', border: '1px solid #d6e6d8', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{s.n}</button>
+                ))}
               </div>
             )}
           </div>
