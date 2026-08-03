@@ -697,6 +697,60 @@ function getObjectCols(obj) {
   });
 })();
 
+// ── Finance Context Graph catalog ────────────────────────────────────────────
+;(function registerFinanceCatalog() {
+  const sys = (id, name, slug, color) => ({ id, cat: "Finance", domain: "", name, tag: "Finance", kind: "structured", status: "healthy", icon: name.slice(0, 2), slug, color, desc: name });
+  const finSystems = [
+    sys("sap_s4hana_fin",      "SAP S/4HANA",     "sap", "#0FAAFF"),
+    sys("oracle_netsuite_fin", "Oracle NetSuite", "", "#1F7A3D"),
+    sys("workday_fin",         "Workday",         "workday", "#F38B00"),
+    sys("coupa_fin",           "Coupa",           "coupa", "#0073CF"),
+    sys("sap_concur_fin",      "SAP Concur",      "", "#0FAAFF"),
+    sys("anaplan_fin",         "Anaplan",         "anaplan", "#1A6BFF"),
+    sys("blackline_fin",       "BlackLine",       "blackline", "#111111"),
+    sys("kyriba_fin",          "Kyriba",          "kyriba", "#00A9E0"),
+    sys("bill_com_fin",        "BILL",            "", "#FF5A21"),
+    sys("snowflake_dw_fin",    "Snowflake",       "snowflake", "#29B5E8"),
+  ];
+  finSystems.forEach(s => { if (!SOURCE_SYSTEMS.find(x => x.id === s.id)) SOURCE_SYSTEMS.push(s); });
+  const ob = (name, cols) => ({ name, type: "Object", rows: "\u2014", cols });
+  Object.assign(OBJECTS_BY_SYS, {
+    sap_s4hana_fin:      [ob("Journal Entries", 8), ob("GL Accounts", 6), ob("Cost Centers", 5)],
+    oracle_netsuite_fin: [ob("NetSuite Journals", 7), ob("AR Invoices", 8), ob("Customer Master", 6)],
+    workday_fin:         [ob("Payroll Costs", 6), ob("Cost Centers", 5)],
+    coupa_fin:           [ob("Purchase Orders", 8), ob("Vendor Master", 7)],
+    sap_concur_fin:      [ob("Expense Reports", 7)],
+    anaplan_fin:         [ob("Budget Lines", 7), ob("Forecast Lines", 7)],
+    blackline_fin:       [ob("Close Tasks", 6), ob("Reconciliations", 6)],
+    kyriba_fin:          [ob("Cash Positions", 7), ob("Bank Transactions", 7)],
+    bill_com_fin:        [ob("AP Bills", 8), ob("Bill Payments", 6)],
+    snowflake_dw_fin:    [ob("Variance Signals", 8), ob("GL Facts", 6)],
+  });
+  const C3 = (col, type, sample) => ({ col, type, sample });
+  Object.assign(OBJECT_COLS_BY_NAME, {
+    "journal entries":   [C3("doc_no","uuid","JE-104482"),C3("gl_account","string","5410 Freight & Duty"),C3("company_code","string","ENT-04"),C3("cost_center","string","CC-Ops-12"),C3("amount","decimal","48200.00"),C3("currency","string","USD"),C3("posting_date","timestamp","2026-06-30T00:00:00Z"),C3("reference","string","INV-88213")],
+    "gl accounts":       [C3("account_no","string","5410"),C3("name","string","Freight & Duty"),C3("type","string","Expense"),C3("statement","string","P&L"),C3("currency","string","USD"),C3("status","string","Active")],
+    "cost centers":      [C3("cost_center_id","string","CC-Ops-12"),C3("name","string","Plant Operations"),C3("company_code","string","ENT-04"),C3("manager","string","J. Alvarez"),C3("function","string","Operations")],
+    "netsuite journals": [C3("tran_id","uuid","NSJ-58821"),C3("account","string","5410 Freight & Duty"),C3("subsidiary","string","ENT-07"),C3("amount","decimal","12800.00"),C3("currency","string","EUR"),C3("trandate","date","2026-06-28"),C3("memo","string","Freight accrual true-up")],
+    "ar invoices":       [C3("invoice_id","uuid","INV-77021"),C3("invoice_no","string","INV-2026-77021"),C3("customer","string","Meridian Foods"),C3("subsidiary","string","ENT-07"),C3("amount","decimal","64200.00"),C3("due_date","date","2026-07-30"),C3("aging","string","1-30"),C3("status","string","Open")],
+    "customer master":   [C3("customer_id","uuid","CUS-3310"),C3("name","string","Meridian Foods"),C3("country","string","USA"),C3("terms","string","Net 45"),C3("credit_limit","decimal","250000.00"),C3("dso_days","int","52")],
+    "payroll costs":     [C3("run_id","uuid","PR-2026-13"),C3("cost_center","string","CC-Ops-12"),C3("company","string","ENT-04"),C3("gross_pay","decimal","1840000.00"),C3("headcount","int","318"),C3("pay_period","date","2026-06-30")],
+    "purchase orders":   [C3("po_no","string","PO-448211"),C3("vendor","string","Fastenal"),C3("amount","decimal","96400.00"),C3("category","string","MRO"),C3("requester","string","D. Okafor"),C3("status","string","Approved"),C3("company","string","ENT-04"),C3("created_at","timestamp","2026-06-12T10:00:00Z")],
+    "vendor master":     [C3("vendor_id","uuid","VEN-1204"),C3("name","string","Fastenal"),C3("category","string","MRO"),C3("terms","string","Net 60"),C3("spend_ytd","decimal","2140000.00"),C3("price_change_pct","float","0.08"),C3("country","string","USA")],
+    "expense reports":   [C3("report_id","uuid","EXP-90211"),C3("employee","string","M. Chen"),C3("cost_center","string","CC-Sales-03"),C3("amount","decimal","4820.00"),C3("category","string","Travel"),C3("submitted","date","2026-06-20"),C3("status","string","Approved")],
+    "budget lines":      [C3("line_id","uuid","BUD-33108"),C3("account","string","5410 Freight & Duty"),C3("cost_center","string","CC-Ops-12"),C3("amount","decimal","410000.00"),C3("period","date","2026-06-01"),C3("version","string","Board Plan"),C3("entity","string","ENT-04")],
+    "forecast lines":    [C3("line_id","uuid","FC-8817"),C3("account","string","5410 Freight & Duty"),C3("entity","string","ENT-04"),C3("projected","decimal","445000.00"),C3("actual","decimal","482000.00"),C3("period","date","2026-06-01"),C3("cycle","string","Rolling 12")],
+    "close tasks":       [C3("task_id","uuid","CT-2081"),C3("period","string","JUN-2026"),C3("entity","string","ENT-04"),C3("task","string","Freight accrual review"),C3("owner","string","R. Whitfield"),C3("status","string","Complete")],
+    "reconciliations":   [C3("rec_id","uuid","REC-6612"),C3("account","string","1010 Cash \u2014 Operating"),C3("entity","string","ENT-04"),C3("balance","decimal","8140000.00"),C3("difference","decimal","0.00"),C3("status","string","Certified")],
+    "cash positions":    [C3("position_id","uuid","CP-118"),C3("entity","string","ENT-04"),C3("bank","string","J.P. Morgan"),C3("currency","string","USD"),C3("balance","decimal","8140000.00"),C3("as_of","timestamp","2026-06-30T06:00:00Z"),C3("restricted","bool","false")],
+    "bank transactions": [C3("txn_id","uuid","BT-90412"),C3("direction","string","Outflow"),C3("amount","decimal","96400.00"),C3("currency","string","USD"),C3("bank_account","string","JPM \u2014 Operating"),C3("value_date","date","2026-06-30"),C3("counterparty","string","Fastenal")],
+    "ap bills":          [C3("bill_id","uuid","BILL-55210"),C3("bill_no","string","B-2026-55210"),C3("vendor","string","DHL Supply Chain"),C3("po_no","string","PO-448211"),C3("amount","decimal","48200.00"),C3("due_date","date","2026-07-15"),C3("approval","string","Approved"),C3("cost_center","string","CC-Ops-12")],
+    "bill payments":     [C3("payment_id","uuid","PAY-71442"),C3("bill_no","string","B-2026-55210"),C3("amount","decimal","48200.00"),C3("method","string","ACH"),C3("scheduled","date","2026-07-14"),C3("status","string","Scheduled")],
+    "variance signals":  [C3("variance_id","uuid","VAR-2214"),C3("account","string","5410 Freight & Duty"),C3("entity","string","ENT-04"),C3("amount_usd","decimal","72000.00"),C3("pct_vs_budget","float","0.18"),C3("direction","string","Unfavorable"),C3("period","date","2026-06-01"),C3("driver_hint","string","Carrier rate increase")],
+    "gl facts":          [C3("fact_id","uuid","GLF-99120"),C3("account","string","5410"),C3("entity","string","ENT-04"),C3("actual","decimal","482000.00"),C3("budget","decimal","410000.00"),C3("period","date","2026-06-01")],
+  });
+})();
+
 // ─── PRIMITIVE COMPONENTS ─────────────────────────────────────────────────────
 
 function useOutsideClick(ref, open, onClose) {
@@ -2746,6 +2800,22 @@ function autoMatchProp(srcName, props) {
 // Keyword aliases first, then fuzzy, then a deterministic *varied* fallback so
 // objects don't all collapse onto "Account".
 const NODE_ALIASES = [
+  // Finance Context Graph objects \u2192 nodes (match only when those labels exist).
+  [/journal|payroll|reconciliation|gl fact|posting|accrual/, "Journal Entry"],
+  [/gl.?account|chart of accounts|ledger account/, "GL Account"],
+  [/cost.?center/, "Cost Center"],
+  [/vendor|supplier/, "Vendor"],
+  [/customer master/, "Customer"],
+  [/ar.?invoice|receivable/, "AR Invoice"],
+  [/ap.?bill|expense report|payable/, "AP Bill"],
+  [/bank transaction|bill payment|disbursement/, "Payment"],
+  [/purchase.?order/, "Purchase Order"],
+  [/budget/, "Budget Line"],
+  [/forecast/, "Forecast"],
+  [/variance|flux/, "Variance Signal"],
+  [/cash position|treasury|liquidity/, "Cash Position"],
+  [/close task|fiscal period|period/, "Fiscal Period"],
+  [/subsidiar|legal entity|company code/, "Legal Entity"],
   // Nike Retail Context Graph objects → nodes. Only match when the target label
   // exists in the active graph, so other graphs fall through.
   [/product|^style/, "Product / Style"], [/^sku|variant/, "SKU / Variant"],

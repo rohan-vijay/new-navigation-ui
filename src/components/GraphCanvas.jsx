@@ -5,7 +5,7 @@ import CreateAgentPage, { ModelIcon, MODELS } from './CreateAgentModal'
 import BuildWithAIModal from './BuildWithAIModal'
 import { ToolGlyph } from './AddToolPanel'
 import { LinkSourceFlow } from './LinkSourceFlow'
-import GraphStage, { SIDEBAR_NODES, GRAPH_EDGES, LOWES_DATA, NIKE_DATA, ListGlyph, colorForNode, AddNodeFlow, NewEdgeFlow, generateProps, generateRules, PropertiesPane } from './GraphStage'
+import GraphStage, { SIDEBAR_NODES, GRAPH_EDGES, LOWES_DATA, NIKE_DATA, FINANCE_DATA, ListGlyph, colorForNode, AddNodeFlow, NewEdgeFlow, generateProps, generateRules, PropertiesPane } from './GraphStage'
 // Make node schema available to LinkSourceFlow.buildEditState (runs at module load time)
 if (typeof window !== 'undefined') { window.NODES = SIDEBAR_NODES; window.EDGES = GRAPH_EDGES; window.generateProps = generateProps; window.ListGlyph = ListGlyph; }
 import RecordsPage from './RecordsPage'
@@ -53,8 +53,22 @@ function makeEditSpec(map, sourceId) {
   const tableNode = {}; objs.forEach(([o, n]) => { tableNode[o] = n })
   return { system, node: objs[0][1], tables: objs.map(o => o[0]), tableNode, settings: { refresh: true } }
 }
+// Finance sources → their objects → nodes (native fields, no extraction).
+const FINANCE_EDIT = {
+  sap_s4hana:      ['sap_s4hana_fin',      [['Journal Entries','journal'],['GL Accounts','gl_account'],['Cost Centers','cost_center']]],
+  oracle_netsuite: ['oracle_netsuite_fin', [['NetSuite Journals','journal'],['AR Invoices','ar_invoice'],['Customer Master','customer']]],
+  workday:         ['workday_fin',         [['Payroll Costs','journal'],['Cost Centers','cost_center']]],
+  coupa:           ['coupa_fin',           [['Purchase Orders','po'],['Vendor Master','vendor']]],
+  sap_concur:      ['sap_concur_fin',      [['Expense Reports','ap_bill']]],
+  anaplan:         ['anaplan_fin',         [['Budget Lines','budget'],['Forecast Lines','forecast']]],
+  blackline:       ['blackline_fin',       [['Close Tasks','period'],['Reconciliations','journal']]],
+  kyriba:          ['kyriba_fin',          [['Cash Positions','cash_position'],['Bank Transactions','payment']]],
+  bill_com:        ['bill_com_fin',        [['AP Bills','ap_bill'],['Bill Payments','payment']]],
+  snowflake_dw:    ['snowflake_dw_fin',    [['Variance Signals','variance'],['GL Facts','journal']]],
+}
 const lowesEditSpec = id => makeEditSpec(LOWES_EDIT, id)
 const nikeEditSpec = id => makeEditSpec(NIKE_EDIT, id)
+const financeEditSpec = id => makeEditSpec(FINANCE_EDIT, id)
 
 // Build the Sources-tab rows for a custom dataset from its source nodes and the
 // entities each one populates — matches the existing SOURCES row shape.
@@ -75,6 +89,7 @@ function buildDatasetSources(data, opts = {}) {
 }
 const LOWES_FREQ = { azure_ad: 'Hourly', outlook: 'Streaming', teams: 'Streaming', calendar: '15 min', sharepoint: 'Hourly', onedrive: 'Hourly', servicenow: '15 min', jira: 'Streaming', confluence: 'Hourly' }
 const NIKE_FREQ = { sap_erp: 'Hourly', commerce_cloud: 'Streaming', retail_pos: 'Streaming', snowflake_cdp: 'Hourly', o9_planning: 'Daily', manhattan_wms: '15 min', adobe_analytics: 'Streaming', paid_media: 'Hourly', marketing_cloud: 'Hourly', market_signals: 'Hourly' }
+const FINANCE_FREQ = { sap_s4hana: 'Hourly', oracle_netsuite: 'Hourly', workday: 'Daily', coupa: '15 min', sap_concur: 'Daily', anaplan: 'Daily', blackline: 'Hourly', kyriba: '15 min', bill_com: 'Hourly', snowflake_dw: 'Hourly' }
 const LOWES_GD = {
   sidebarNodes: [...LOWES_DATA.nodes].filter(n => n.type === 'entity').sort((a, b) => a.label.localeCompare(b.label)),
   edges: LOWES_DATA.edges,
@@ -86,6 +101,12 @@ const NIKE_GD = {
   edges: NIKE_DATA.edges,
   sources: buildDatasetSources(NIKE_DATA, { editFn: nikeEditSpec, freqMap: NIKE_FREQ }),
   data: NIKE_DATA,
+}
+const FINANCE_GD = {
+  sidebarNodes: [...FINANCE_DATA.nodes].filter(n => n.type === 'entity').sort((a, b) => a.label.localeCompare(b.label)),
+  edges: FINANCE_DATA.edges,
+  sources: buildDatasetSources(FINANCE_DATA, { editFn: financeEditSpec, freqMap: FINANCE_FREQ, owner: 'Grace Coleman' }),
+  data: FINANCE_DATA,
 }
 
 const TABS = ['Graph', 'Nodes', 'Edges', 'Sources', 'Agents', 'Records', 'Governance']
@@ -240,7 +261,7 @@ export default function GraphCanvas(props) {
 
 function GraphCanvasInner({ title = 'New graph', onBack, onAgentAI, dataset }) {
   // Select the active dataset for this render pass (children read GD below).
-  GD = dataset === 'lowes' ? LOWES_GD : dataset === 'nike' ? NIKE_GD : DEFAULT_GD
+  GD = dataset === 'lowes' ? LOWES_GD : dataset === 'nike' ? NIKE_GD : dataset === 'finance' ? FINANCE_GD : DEFAULT_GD
   // The source pipeline editor resolves nodes/properties from window.NODES — keep
   // it in sync with the active graph so its mapping aligns to the Lowe's nodes.
   if (typeof window !== 'undefined') { window.NODES = GD.sidebarNodes; window.EDGES = GD.edges }
@@ -334,7 +355,7 @@ function GraphCanvasInner({ title = 'New graph', onBack, onAgentAI, dataset }) {
       ) : tab === 'Agents' && agents.length > 0 ? (
         <AgentsList agents={agents} onAction={onAgentAction} onRemove={i => setAgents(a => a.filter((_, j) => j !== i))} />
       ) : tab === 'Records' ? (
-        <RecordsPage disableDetail dataset={dataset === 'lowes' ? 'lowes' : dataset === 'nike' ? 'nike' : undefined} />
+        <RecordsPage disableDetail dataset={dataset === 'lowes' ? 'lowes' : dataset === 'nike' ? 'nike' : dataset === 'finance' ? 'finance' : undefined} />
       ) : tab === 'Governance' ? (
         <GovernanceRoles />
       ) : (
@@ -514,6 +535,17 @@ const FAVICON_OVERRIDES = {
   paid_media:      _fav('meta.com'),
   marketing_cloud: _fav('salesforce.com'),
   market_signals:  _fav('nielsen.com'),
+  // Finance sources — real vendor logos
+  sap_s4hana:      _fav('sap.com'),
+  oracle_netsuite: '/logos/netsuite.svg',
+  workday:         _fav('workday.com'),
+  coupa:           _fav('coupa.com'),
+  sap_concur:      _fav('concur.com'),
+  anaplan:         _fav('anaplan.com'),
+  blackline:       _fav('blackline.com'),
+  kyriba:          _fav('kyriba.com'),
+  bill_com:        _fav('bill.com'),
+  snowflake_dw:    _fav('snowflake.com'),
 }
 function SourceIcon({ slug, name, size = 20 }) {
   const [failed, setFailed] = useState(false)

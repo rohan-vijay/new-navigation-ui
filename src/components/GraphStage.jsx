@@ -518,6 +518,148 @@ function buildNike() {
 }
 const NIKE_DATA = buildNike()
 
+// ─── FINANCE CONTEXT GRAPH ───────────────────────────────────────────────────
+// Industry-agnostic office-of-the-CFO graph anchored on GL Account × Legal
+// Entity × Period, so a P&L variance can be attributed to the journals, spend,
+// plans and cash movements behind it — across many operating companies and ERPs.
+function buildFinance() {
+  // [id, label, glyph, state, x, y, size, instances, desc]
+  const E = [
+    ["gl_account",   "GL Account",      "folder",       "core",   -140, 0,    36, 1800,   "A line in the chart of accounts (COGS — Freight, Salaries, FX Gain/Loss). Co-central — every number the CFO sees rolls up from here."],
+    ["entity",       "Legal Entity",    "organization", "core",   170,  10,   36, 24,     "An operating company or subsidiary — often with its own ERP, currency and close calendar. Co-central anchor for consolidation."],
+    ["variance",     "Variance Signal", "flag",         "signal", 10,   -160, 30, 1800,   "Derived actual-vs-plan movement at Account × Entity × Period — the node every “why did this number move” question lands on."],
+    ["journal",      "Journal Entry",   "note",         "core",   -330, -100, 28, 4200000,"A posted GL line — the atomic fact behind every balance, from any ERP."],
+    ["period",       "Fiscal Period",   "schedule",     "core",   340,  -130, 26, 96,     "A month/quarter with its close status per entity — the clock of the office of finance."],
+    ["cost_center",  "Cost Center",     "pie",          "core",   -380, 90,   24, 320,    "A department or plant that spend and payroll are charged to."],
+    ["budget",       "Budget Line",     "metric",       "core",   -190, -300, 24, 26000,  "Approved plan at Account × Cost Center × Period."],
+    ["forecast",     "Forecast",        "trend",        "signal", 140,  -310, 24, 14000,  "The latest FP&A projection for an account or entity — what the variance is judged against."],
+    ["customer",     "Customer",        "account",      "core",   -540, 0,    24, 12000,  "A billed customer — the source of receivables and revenue."],
+    ["ar_invoice",   "AR Invoice",      "invoice",      "core",   -340, 230,  26, 480000, "A receivable — issued, aging or paid."],
+    ["payment",      "Payment",         "payment",      "core",   -60,  330,  26, 940000, "Cash in or out — settles invoices and bills, moves cash positions."],
+    ["ap_bill",      "AP Bill",         "receipt",      "core",   210,  270,  26, 620000, "A payable from a vendor — matched to its PO and charged to a cost center."],
+    ["po",           "Purchase Order",  "order",        "core",   440,  180,  24, 210000, "Committed spend before it hits the P&L — the earliest warning of cost."],
+    ["vendor",       "Vendor",          "briefcase",    "core",   540,  30,   26, 8400,   "A supplier — spend, terms and price changes concentrate here."],
+    ["cash_position","Cash Position",   "card",         "core",   430,  -270, 24, 140,    "Bank balance by entity and currency — where liquidity actually sits."],
+  ]
+  const SRCS = [
+    ["sap_s4hana",      "SAP S/4HANA",     "Group ERP — GL, AP, AR"],
+    ["oracle_netsuite", "Oracle NetSuite", "Operating-company ERP"],
+    ["workday",         "Workday",         "Payroll + headcount cost"],
+    ["coupa",           "Coupa",           "Procurement + POs"],
+    ["sap_concur",      "SAP Concur",      "Travel & expense"],
+    ["anaplan",         "Anaplan",         "Budgets + forecasts"],
+    ["blackline",       "BlackLine",       "Close + reconciliations"],
+    ["kyriba",          "Kyriba",          "Treasury + cash"],
+    ["bill_com",        "BILL",            "AP automation"],
+    ["snowflake_dw",    "Snowflake",       "Finance data warehouse"],
+  ]
+  const fmtK = n => n >= 1000000 ? (n/1000000).toFixed(1).replace(/\.0$/,"")+"M" : n >= 1000 ? (n/1000).toFixed(n>=10000?0:1).replace(/\.0$/,"")+"K" : String(n)
+  const nodes = []
+  E.forEach((e, i) => {
+    const [id, label, glyph, state, x, y, size, inst, desc] = e
+    const seed = label.length*7 + i*13
+    nodes.push({
+      id, label, glyph, type:"entity", state, cat: state==="signal"?"derived":"core",
+      x, y, size, instances: fmtK(inst), instancesN: inst, props: 8 + (seed%14), edges: 0,
+      fill: 80 + (seed%18), conf: 88 + (seed%11), fresh: ["6m","12m","24m","1h","4h","1d"][seed%6],
+      pii: 0, change: ["LOW","MEDIUM","HIGH"][seed%3], desc,
+    })
+  })
+  SRCS.forEach((s, i) => {
+    const [id, label, desc] = s
+    const a = (i/SRCS.length)*Math.PI*2 - Math.PI/2
+    const seed = label.length*5 + i*11
+    nodes.push({
+      id, label, glyph:"database", type:"source", state:"core", cat:"source",
+      x: Math.round(Math.cos(a)*880), y: Math.round(Math.sin(a)*640), size:24,
+      instances:"—", instancesN:0, props: 10 + (seed%18), edges:0,
+      fresh: ["2m","5m","12m","1h"][seed%4], pii:0, change:"LOW", desc,
+    })
+  })
+  // [s, t, label, kind]
+  const ER = [
+    // The ledger spine
+    ["journal","gl_account","POSTED_TO","direct"],
+    ["journal","entity","BOOKED_IN","direct"],
+    ["journal","period","IN_PERIOD","direct"],
+    ["journal","cost_center","CHARGED_TO","direct"],
+    ["cost_center","entity","BELONGS_TO","direct"],
+    ["entity","period","CLOSES","direct"],
+    // Receivables
+    ["ar_invoice","customer","BILLED_TO","direct"],
+    ["ar_invoice","entity","BOOKED_IN","direct"],
+    ["payment","ar_invoice","SETTLES","direct"],
+    ["ar_invoice","journal","POSTS_AS","inferred"],
+    // Payables & committed spend
+    ["po","vendor","ISSUED_TO","direct"],
+    ["ap_bill","vendor","FROM_VENDOR","direct"],
+    ["ap_bill","po","FULFILLS","direct"],
+    ["payment","ap_bill","PAYS","direct"],
+    ["ap_bill","cost_center","CHARGED_TO","direct"],
+    ["ap_bill","journal","POSTS_AS","inferred"],
+    // Plan
+    ["budget","gl_account","FOR_ACCOUNT","direct"],
+    ["budget","cost_center","FOR_COST_CENTER","inferred"],
+    ["forecast","gl_account","PROJECTS","direct"],
+    ["forecast","entity","FOR_ENTITY","inferred"],
+    // Variance — the “why” anchor
+    ["variance","gl_account","ON_ACCOUNT","direct"],
+    ["variance","entity","IN_ENTITY","direct"],
+    ["variance","period","IN_PERIOD","inferred"],
+    ["variance","budget","VS_BUDGET","direct"],
+    ["variance","forecast","VS_FORECAST","inferred"],
+    ["variance","journal","DRIVEN_BY","inferred"],
+    // Cash
+    ["cash_position","entity","HELD_BY","direct"],
+    ["payment","cash_position","MOVES","inferred"],
+    ["forecast","cash_position","PROJECTS","inferred"],
+    // Sources → entities
+    ["sap_s4hana","journal","SOURCES","source"],
+    ["sap_s4hana","gl_account","SOURCES","source"],
+    ["sap_s4hana","cost_center","SOURCES","source"],
+    ["oracle_netsuite","journal","SOURCES","source"],
+    ["oracle_netsuite","ar_invoice","SOURCES","source"],
+    ["oracle_netsuite","customer","SOURCES","source"],
+    ["workday","cost_center","SOURCES","source"],
+    ["workday","journal","SOURCES","source"],
+    ["coupa","po","SOURCES","source"],
+    ["coupa","vendor","SOURCES","source"],
+    ["sap_concur","ap_bill","SOURCES","source"],
+    ["anaplan","budget","SOURCES","source"],
+    ["anaplan","forecast","SOURCES","source"],
+    ["blackline","period","SOURCES","source"],
+    ["blackline","journal","SOURCES","source"],
+    ["kyriba","cash_position","SOURCES","source"],
+    ["kyriba","payment","SOURCES","source"],
+    ["bill_com","ap_bill","SOURCES","source"],
+    ["bill_com","payment","SOURCES","source"],
+    ["snowflake_dw","variance","SOURCES","source"],
+  ]
+  const P = (name, type, o) => Object.assign({ name, type, required:false, indexed:false, pii:false, pk:false, fill:92, conf:96, source:"primary" }, o)
+  const PROPS = {
+    gl_account:   [P("account_id","uuid",{pk:1,required:1,indexed:1,source:"SAP S/4HANA"}),P("name","string",{required:1,indexed:1,source:"SAP S/4HANA"}),P("account_no","string",{indexed:1,source:"SAP S/4HANA"}),P("type","enum",{indexed:1,source:"SAP S/4HANA"}),P("statement","enum",{source:"SAP S/4HANA"}),P("currency","enum",{source:"SAP S/4HANA"}),P("parent_account","string",{source:"SAP S/4HANA"}),P("status","enum",{source:"SAP S/4HANA"})],
+    entity:       [P("entity_id","uuid",{pk:1,required:1,indexed:1,source:"SAP S/4HANA"}),P("name","string",{required:1,indexed:1,source:"SAP S/4HANA"}),P("country","string",{indexed:1,source:"SAP S/4HANA"}),P("functional_currency","enum",{source:"SAP S/4HANA"}),P("erp_system","enum",{indexed:1,source:"computed"}),P("ownership_pct","float",{source:"SAP S/4HANA"}),P("close_status","enum",{indexed:1,source:"BlackLine"})],
+    variance:     [P("variance_id","uuid",{pk:1,required:1,indexed:1,source:"Snowflake"}),P("name","string",{required:1,indexed:1,source:"Snowflake"}),P("account_id","uuid",{indexed:1,source:"Snowflake"}),P("entity_id","uuid",{indexed:1,source:"Snowflake"}),P("amount_usd","decimal",{indexed:1,source:"Snowflake"}),P("pct_vs_budget","float",{indexed:1,source:"Snowflake"}),P("direction","enum",{source:"Snowflake"}),P("period","date",{indexed:1,source:"Snowflake"})],
+    journal:      [P("journal_id","uuid",{pk:1,required:1,indexed:1,source:"SAP S/4HANA"}),P("description","string",{required:1,indexed:1,source:"SAP S/4HANA"}),P("account_id","uuid",{indexed:1,source:"SAP S/4HANA"}),P("entity_id","uuid",{indexed:1,source:"SAP S/4HANA"}),P("amount","decimal",{indexed:1,source:"SAP S/4HANA"}),P("currency","enum",{source:"SAP S/4HANA"}),P("posted_at","timestamp",{indexed:1,source:"SAP S/4HANA"}),P("source_doc","string",{source:"SAP S/4HANA"})],
+    period:       [P("period_id","uuid",{pk:1,required:1,indexed:1,source:"BlackLine"}),P("name","string",{required:1,indexed:1,source:"BlackLine"}),P("fiscal_year","int",{indexed:1,source:"BlackLine"}),P("status","enum",{indexed:1,source:"BlackLine"}),P("close_day","int",{source:"BlackLine"}),P("recs_complete","float",{source:"BlackLine"})],
+    cost_center:  [P("cost_center_id","uuid",{pk:1,required:1,indexed:1,source:"SAP S/4HANA"}),P("name","string",{required:1,indexed:1,source:"SAP S/4HANA"}),P("entity_id","uuid",{indexed:1,source:"SAP S/4HANA"}),P("manager","string",{source:"Workday"}),P("headcount","int",{source:"Workday"}),P("function","enum",{source:"SAP S/4HANA"})],
+    budget:       [P("budget_id","uuid",{pk:1,required:1,indexed:1,source:"Anaplan"}),P("name","string",{required:1,indexed:1,source:"Anaplan"}),P("account_id","uuid",{indexed:1,source:"Anaplan"}),P("cost_center_id","uuid",{indexed:1,source:"Anaplan"}),P("amount_usd","decimal",{indexed:1,source:"Anaplan"}),P("period","date",{indexed:1,source:"Anaplan"}),P("version","enum",{source:"Anaplan"})],
+    forecast:     [P("forecast_id","uuid",{pk:1,required:1,indexed:1,source:"Anaplan"}),P("name","string",{required:1,indexed:1,source:"Anaplan"}),P("account_id","uuid",{indexed:1,source:"Anaplan"}),P("entity_id","uuid",{indexed:1,source:"Anaplan"}),P("projected_usd","decimal",{source:"Anaplan"}),P("actual_usd","decimal",{source:"Snowflake"}),P("period","date",{indexed:1,source:"Anaplan"}),P("accuracy","float",{source:"Anaplan"})],
+    customer:     [P("customer_id","uuid",{pk:1,required:1,indexed:1,source:"Oracle NetSuite"}),P("name","string",{required:1,indexed:1,source:"Oracle NetSuite"}),P("country","string",{source:"Oracle NetSuite"}),P("payment_terms","enum",{indexed:1,source:"Oracle NetSuite"}),P("credit_limit","decimal",{source:"Oracle NetSuite"}),P("dso_days","int",{indexed:1,source:"Snowflake"})],
+    ar_invoice:   [P("invoice_id","uuid",{pk:1,required:1,indexed:1,source:"Oracle NetSuite"}),P("invoice_no","string",{indexed:1,source:"Oracle NetSuite"}),P("customer_id","uuid",{indexed:1,source:"Oracle NetSuite"}),P("entity_id","uuid",{indexed:1,source:"Oracle NetSuite"}),P("amount","decimal",{indexed:1,source:"Oracle NetSuite"}),P("due_date","date",{indexed:1,source:"Oracle NetSuite"}),P("aging_bucket","enum",{indexed:1,source:"Snowflake"}),P("status","enum",{source:"Oracle NetSuite"})],
+    payment:      [P("payment_id","uuid",{pk:1,required:1,indexed:1,source:"Kyriba"}),P("reference","string",{indexed:1,source:"Kyriba"}),P("direction","enum",{indexed:1,source:"Kyriba"}),P("amount","decimal",{indexed:1,source:"Kyriba"}),P("currency","enum",{source:"Kyriba"}),P("bank_account","string",{source:"Kyriba"}),P("value_date","date",{indexed:1,source:"Kyriba"}),P("status","enum",{source:"Kyriba"})],
+    ap_bill:      [P("bill_id","uuid",{pk:1,required:1,indexed:1,source:"BILL"}),P("bill_no","string",{indexed:1,source:"BILL"}),P("vendor_id","uuid",{indexed:1,source:"BILL"}),P("po_id","uuid",{indexed:1,source:"Coupa"}),P("amount","decimal",{indexed:1,source:"BILL"}),P("due_date","date",{indexed:1,source:"BILL"}),P("approval_status","enum",{source:"BILL"}),P("cost_center_id","uuid",{source:"Coupa"})],
+    po:           [P("po_id","uuid",{pk:1,required:1,indexed:1,source:"Coupa"}),P("po_no","string",{indexed:1,source:"Coupa"}),P("vendor_id","uuid",{indexed:1,source:"Coupa"}),P("amount","decimal",{indexed:1,source:"Coupa"}),P("category","enum",{indexed:1,source:"Coupa"}),P("requester","string",{source:"Coupa"}),P("status","enum",{indexed:1,source:"Coupa"}),P("created_at","timestamp",{source:"Coupa"})],
+    vendor:       [P("vendor_id","uuid",{pk:1,required:1,indexed:1,source:"Coupa"}),P("name","string",{required:1,indexed:1,source:"Coupa"}),P("category","enum",{indexed:1,source:"Coupa"}),P("payment_terms","enum",{source:"Coupa"}),P("spend_ytd","decimal",{indexed:1,source:"Snowflake"}),P("price_change_pct","float",{indexed:1,source:"Snowflake"}),P("country","string",{source:"Coupa"})],
+    cash_position:[P("position_id","uuid",{pk:1,required:1,indexed:1,source:"Kyriba"}),P("entity_id","uuid",{indexed:1,source:"Kyriba"}),P("bank","string",{indexed:1,source:"Kyriba"}),P("currency","enum",{indexed:1,source:"Kyriba"}),P("balance","decimal",{indexed:1,source:"Kyriba"}),P("as_of","timestamp",{indexed:1,source:"Kyriba"}),P("restricted","bool",{source:"Kyriba"})],
+  }
+  const ids = {}; nodes.forEach(n => { ids[n.id] = n; if (PROPS[n.id]) { n._userProps = PROPS[n.id]; n.props = PROPS[n.id].length } })
+  const edges = ER.filter(e => ids[e[0]] && ids[e[1]]).map(e => ({ s:e[0], t:e[1], label:e[2], kind:e[3] }))
+  edges.forEach(e => { if (ids[e.s]) ids[e.s].edges++; if (ids[e.t] && e.t !== e.s) ids[e.t].edges++ })
+  return { nodes, edges }
+}
+const FINANCE_DATA = buildFinance()
+
 const SIDEBAR_NODES = [...NODES].filter(n => n.type !== "agent" && n.type !== "source").sort((a, b) => a.label.localeCompare(b.label));
 
 // ---------- HELPERS ---------------------------------------------------------
@@ -1770,7 +1912,7 @@ function Sidebar({ open, onToggle, filter, setFilter, query, setQuery, selected,
 
 
 // ── Stage 1 host: provides graph state + view/edit toggle, renders the canvas ──
-export { SIDEBAR_NODES, EDGES as GRAPH_EDGES, LOWES_DATA, NIKE_DATA, ListGlyph, colorForNode, NodeShape, ZoomControls, Minimap, AddNodeFlow, NewEdgeFlow, generateProps, generateRules }
+export { SIDEBAR_NODES, EDGES as GRAPH_EDGES, LOWES_DATA, NIKE_DATA, FINANCE_DATA, ListGlyph, colorForNode, NodeShape, ZoomControls, Minimap, AddNodeFlow, NewEdgeFlow, generateProps, generateRules }
 
 export default function GraphStage({ data }) {
   // Optional `data` ({ nodes, edges }) lets a caller render a different graph

@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
-import { NodeShape, ListGlyph, ZoomControls, Minimap, colorForNode as canvasColorForNode, NIKE_DATA } from './GraphStage'
+import { NodeShape, ListGlyph, ZoomControls, Minimap, colorForNode as canvasColorForNode, NIKE_DATA, FINANCE_DATA } from './GraphStage'
 
 // ── Color palette (New UI tokens) ──────────────────────────────────────────
 const C = {
@@ -312,6 +312,10 @@ const NIKE_ENTITY_NODES = NIKE_DATA.nodes.filter(n => n.type === 'entity')
 const NIKE_ENTITY_IDS = new Set(NIKE_ENTITY_NODES.map(n => n.id))
 const NIKE_PROPS = {}; NIKE_ENTITY_NODES.forEach(n => { if (n._userProps) NIKE_PROPS[n.id] = n._userProps })
 const NIKE_RD = { nodes: NIKE_ENTITY_NODES, edges: NIKE_DATA.edges.filter(e => NIKE_ENTITY_IDS.has(e.s) && NIKE_ENTITY_IDS.has(e.t)), props: NIKE_PROPS }
+const FIN_ENTITY_NODES = FINANCE_DATA.nodes.filter(n => n.type === 'entity')
+const FIN_ENTITY_IDS = new Set(FIN_ENTITY_NODES.map(n => n.id))
+const FIN_PROPS = {}; FIN_ENTITY_NODES.forEach(n => { if (n._userProps) FIN_PROPS[n.id] = n._userProps })
+const FINANCE_RD = { nodes: FIN_ENTITY_NODES, edges: FINANCE_DATA.edges.filter(e => FIN_ENTITY_IDS.has(e.s) && FIN_ENTITY_IDS.has(e.t)), props: FIN_PROPS }
 let RD = DEFAULT_RD
 
 // Source systems shown in record-level provenance — dataset-aware so the Lowe's
@@ -319,7 +323,8 @@ let RD = DEFAULT_RD
 const CRM_SOURCE_LABELS = ['Salesforce CRM', 'NetSuite ERP', 'HubSpot Marketing', 'Manual / Admin']
 const LOWES_SOURCE_LABELS = ['Azure AD', 'Outlook', 'Teams', 'Calendar', 'SharePoint', 'OneDrive', 'ServiceNow', 'Jira', 'Confluence']
 const NIKE_SOURCE_LABELS = ['SAP ERP', 'Commerce Cloud', 'Retail POS', 'Snowflake CDP', 'o9 Planning', 'Manhattan WMS', 'Adobe Analytics', 'Paid Media', 'Marketing Cloud', 'Market Signals']
-const recordSourcePool = () => (RD === LOWES_RD ? LOWES_SOURCE_LABELS : RD === NIKE_RD ? NIKE_SOURCE_LABELS : CRM_SOURCE_LABELS)
+const FINANCE_SOURCE_LABELS = ['SAP S/4HANA', 'Oracle NetSuite', 'Workday', 'Coupa', 'SAP Concur', 'Anaplan', 'BlackLine', 'Kyriba', 'BILL', 'Snowflake']
+const recordSourcePool = () => (RD === LOWES_RD ? LOWES_SOURCE_LABELS : RD === NIKE_RD ? NIKE_SOURCE_LABELS : RD === FINANCE_RD ? FINANCE_SOURCE_LABELS : CRM_SOURCE_LABELS)
 const pickSource = seed => { const p = recordSourcePool(); return p[Math.abs(seed) % p.length] }
 
 // ── Colour helpers ──────────────────────────────────────────────────────────
@@ -366,6 +371,53 @@ const NIKE_NAMES = {
   channel: ['Nike.com','Nike App','Nike Store','Foot Locker'],
   category: ['Football','Running','Basketball','Sportswear','Training'],
 }
+const FINANCE_NAMES = {
+  gl_account: ['Freight & Duty','Raw Materials \u2014 Steel','Salaries \u2014 Operations','Maintenance & Repairs','FX Gain/Loss','Warranty Reserve','Travel & Entertainment','Professional Fees','Utilities \u2014 Plants'],
+  entity: ['Precision Systems GmbH','Apex Packaging LLC','Northline Automation Inc','Coastal Processing Co','Everline Conveyor Ltd','Summit Equipment SA'],
+  cost_center: ['Plant Operations','Field Service','Sales \u2014 Americas','Engineering','Corporate G&A','Supply Chain','Quality'],
+  vendor: ['Fastenal','Grainger','DHL Supply Chain','Ryder Logistics','Siemens Industrial','Parker Hannifin','ArcelorMittal'],
+  customer: ['Meridian Foods','Vantage Beverage Group','Halston Distribution','Corewell Manufacturing','Pacific Provisions'],
+  journal: ['Freight accrual true-up','FX revaluation \u2014 EUR entities','Payroll allocation \u2014 June','Warranty reserve adjustment','Carrier rate increase \u2014 Q2','Intercompany elimination','Steel price variance capitalization'],
+  budget: ['Freight & Duty \u2014 Ops \u2014 FY26','Salaries \u2014 Engineering \u2014 FY26','MRO Spend \u2014 Plants \u2014 FY26','T&E \u2014 Sales \u2014 FY26'],
+  forecast: ['Freight & Duty \u2014 Rolling 12','Revenue \u2014 Americas \u2014 Rolling 12','Cash \u2014 13-week','EBITDA \u2014 Group \u2014 Rolling 12'],
+  variance: ['Freight & Duty +18% vs budget','Steel input cost +11% vs plan','T&E \u2014 Sales +9% vs budget','FX loss \u2014 EUR entities','Warranty claims +14% vs plan'],
+  period: ['JUN-2026','MAY-2026','APR-2026','Q2-2026','Q1-2026','MAR-2026'],
+}
+function financeValue(p, v, nodeId) {
+  if (['name','title','description'].includes(p.name) && FINANCE_NAMES[nodeId]) return FINANCE_NAMES[nodeId][v % FINANCE_NAMES[nodeId].length]
+  switch (p.name) {
+    case 'account_no': return String(4000 + (v % 3000))
+    case 'type': return nodeId === 'gl_account' ? ['Expense','Expense','Revenue','Asset','Liability'][v % 5] : null
+    case 'statement': return ['P&L','P&L','Balance Sheet'][v % 3]
+    case 'functional_currency': case 'currency': return ['USD','EUR','USD','GBP','CAD'][v % 5]
+    case 'erp_system': return ['SAP S/4HANA','Oracle NetSuite','Oracle NetSuite','SAP S/4HANA'][v % 4]
+    case 'close_status': return ['Closed','Closed','In progress','Open'][v % 4]
+    case 'ownership_pct': return [100, 100, 100, 80, 65][v % 5] + '%'
+    case 'direction': return nodeId === 'payment' ? ['Inflow','Outflow'][v % 2] : ['Unfavorable','Favorable'][v % 2]
+    case 'pct_vs_budget': return ((5 + v % 22) / 100).toFixed(2)
+    case 'aging_bucket': return ['Current','1-30','31-60','61-90','90+'][v % 5]
+    case 'payment_terms': return ['Net 30','Net 45','Net 60','2/10 Net 30'][v % 4]
+    case 'dso_days': return String(32 + v % 48)
+    case 'fiscal_year': return String(2026)
+    case 'close_day': return 'Day ' + (3 + v % 8)
+    case 'recs_complete': return (0.72 + (v % 28) / 100).toFixed(2)
+    case 'function': return ['Operations','Sales','Engineering','G&A','Supply Chain'][v % 5]
+    case 'manager': return ['J. Alvarez','R. Whitfield','M. Chen','D. Okafor','S. Lindqvist'][v % 5]
+    case 'requester': return ['D. Okafor','M. Chen','A. Romano','K. Patel'][v % 4]
+    case 'category': return ['MRO','Raw Materials','Logistics','Professional Services','IT & Software','Travel'][v % 6]
+    case 'version': return ['Board Plan','Working Plan','Stretch'][v % 3]
+    case 'bank': case 'bank_account': return ['J.P. Morgan','Bank of America','Citi','Wells Fargo'][v % 4]
+    case 'restricted': return v % 4 === 0 ? 'true' : 'false'
+    case 'approval_status': return ['Approved','Approved','Pending','On hold'][v % 4]
+    case 'source_doc': return ['INV-' + (10000 + v % 89999), 'PO-' + (100000 + v % 899999), 'EXP-' + (10000 + v % 89999)][v % 3]
+    case 'spend_ytd': case 'credit_limit': return (100000 + (v % 90) * 25000).toLocaleString('en-US', { minimumFractionDigits: 2 })
+    case 'price_change_pct': return ((v % 15) / 100).toFixed(2)
+    case 'country': return ['USA','Germany','USA','Canada','France'][v % 5]
+    case 'status': return nodeId === 'ar_invoice' ? ['Open','Open','Paid','Overdue'][v % 4] : nodeId === 'po' ? ['Approved','Open','Received','Closed'][v % 4] : nodeId === 'period' ? ['Closed','In progress','Open'][v % 3] : ['Active','Active','Posted','Pending'][v % 4]
+    case 'accuracy': return (0.78 + (v % 20) / 100).toFixed(2)
+    default: return null
+  }
+}
 function nikeValue(p, v, nodeId) {
   if (['name','title'].includes(p.name) && NIKE_NAMES[nodeId]) return NIKE_NAMES[nodeId][v % NIKE_NAMES[nodeId].length]
   switch (p.name) {
@@ -398,6 +450,7 @@ function generateValueForProp(p, seed, nodeId) {
   const v = Math.abs(seed * (p.name.charCodeAt(0) + 1))
   if (p.pk) return p.name.replace(/_id$/, '').toUpperCase().slice(0,3) + '-' + (10000 + v % 89999)
   if (RD === NIKE_RD) { const nv = nikeValue(p, v, nodeId); if (nv != null) return nv }
+  if (RD === FINANCE_RD) { const fv = financeValue(p, v, nodeId); if (fv != null) return fv }
   // Lowe's-specific labels for the name/title/subject/topic field of each node.
   if (RD === LOWES_RD && ['name','title','subject','summary','topic'].includes(p.name) && LOWES_NAMES[nodeId] && !PERSON_NODES.has(nodeId)) {
     return LOWES_NAMES[nodeId][v % LOWES_NAMES[nodeId].length]
@@ -2178,6 +2231,17 @@ function upstreamRef(rec, nd, sourceSys) {
     'Marketing Cloud': ['Marketing Cloud', `Journey ${num}`],
     'Market Signals': ['Market Signals', `Signal ${num}`],
     'computed': ['Computed', `Derived on ${nd.label}`],
+    // Finance source systems
+    'SAP S/4HANA': ['SAP S/4HANA', `FI document ${num}`],
+    'Oracle NetSuite': ['NetSuite', `Transaction NSJ-${String(num).slice(-5)}`],
+    'Workday': ['Workday', `Payroll run PR-${String(num).slice(-4)}`],
+    'Coupa': ['Coupa', `PO-${String(num).slice(-6)}`],
+    'SAP Concur': ['SAP Concur', `Expense report EXP-${String(num).slice(-5)}`],
+    'Anaplan': ['Anaplan', `Plan line ${String(num).slice(-5)}`],
+    'BlackLine': ['BlackLine', `Task CT-${String(num).slice(-4)}`],
+    'Kyriba': ['Kyriba', `Bank statement line ${String(num).slice(-5)}`],
+    'BILL': ['BILL', `Bill B-2026-${String(num).slice(-5)}`],
+    'Snowflake': ['Snowflake', `FIN_MART row ${num}`],
     'primary': [RD === LOWES_RD ? 'Graph store' : RD === NIKE_RD ? 'Graph store' : 'Salesforce', `${nd.label} ${num}`],
   }
   if (REF[sys]) { const [app, ref] = REF[sys]; return { app, ref } }
@@ -2479,7 +2543,7 @@ function DocumentViewer({ gnode, prov, onClose, onBack }) {
 
 // ── Page ─────────────────────────────────────────────────────────────────────
 export default function RecordsPage({ disableDetail, dataset }) {
-  RD = dataset === 'lowes' ? LOWES_RD : dataset === 'nike' ? NIKE_RD : DEFAULT_RD
+  RD = dataset === 'lowes' ? LOWES_RD : dataset === 'nike' ? NIKE_RD : dataset === 'finance' ? FINANCE_RD : DEFAULT_RD
   const [selectedRecord, setSelectedRecord] = useState(null)
   const [selectedNode,   setSelectedNode]   = useState(null)
 
