@@ -15,7 +15,6 @@ import StatusBar from './components/StatusBar'
 import { BuildContext, useBuildDraft, useAgentDraft } from './components/aiBuild'
 import { AgentCanvas } from './components/CreateAgentModal'
 import ContextGraphsPage from './components/ContextGraphsPage'
-import ChargePointGraphPage from './components/ChargePointGraphPage'
 import RecordsPage from './components/RecordsPage'
 import GraphCanvas from './components/GraphCanvas'
 import AgentChat from './components/AgentChat'
@@ -184,16 +183,13 @@ export default function App() {
           )}
           {view === 'records' && <RecordsPage />}
           {view === 'context-graphs' && (
-            <ContextGraphsPage onCreate={() => { setSelectedGraph(null); setView('blank-canvas') }} onOpenGraph={g => { setSelectedGraph(g); setView(g.isCP ? 'chargepoint' : 'blank-canvas') }} />
-          )}
-          {view === 'chargepoint' && (
-            <ChargePointGraphPage onBack={() => setView('context-graphs')} />
+            <ContextGraphsPage onCreate={() => { setSelectedGraph(null); setView('blank-canvas') }} onOpenGraph={g => { setSelectedGraph(g); setView('blank-canvas') }} />
           )}
           {view === 'agent-create' && (
             <AgentCanvas draft={agentDraft} onBack={exitAgentBuild} onCreate={exitAgentBuild} />
           )}
           {view === 'blank-canvas' && (
-            <GraphCanvas title={selectedGraph?.name || 'New graph'} dataset={selectedGraph?.isLowes ? 'lowes' : selectedGraph?.isNike ? 'nike' : selectedGraph?.isFinance ? 'finance' : undefined} onBack={() => setView('context-graphs')} onAgentAI={startAgentBuild} />
+            <GraphCanvas title={selectedGraph?.name || 'New graph'} dataset={selectedGraph?.isLowes ? 'lowes' : selectedGraph?.isNike ? 'nike' : selectedGraph?.isFinance ? 'finance' : selectedGraph?.isCP ? 'chargepoint' : undefined} onBack={() => setView('context-graphs')} onAgentAI={startAgentBuild} />
           )}
           {view === 'detail' && (
             <GraphDetailPage graph={selectedGraph} onBack={() => setView('graphs')} />

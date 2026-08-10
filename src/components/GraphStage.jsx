@@ -660,6 +660,162 @@ function buildFinance() {
 }
 const FINANCE_DATA = buildFinance()
 
+// ─── CHARGEPOINT NETWORK CONTEXT GRAPH ───────────────────────────────────────
+// The EV-charging operating graph anchored on Charging Station × Charging
+// Session, so an uptime dip can be traced to the ports, faults, parts, tariffs
+// and truck rolls behind it — across the network, service and commerce loops.
+function buildChargePoint() {
+  // [id, label, glyph, state, x, y, size, instances, desc]
+  const E = [
+    ["cp_station",   "Charging Station", "location",     "core",   -140, 0,    36, 312441,   "A physical charger (CT4000, Express Plus) at a site. Co-central — uptime, sessions and service all hang off it."],
+    ["cp_session",   "Charging Session", "trigger",      "core",   180,  10,   36, 512000000,"One plug-in → charge → unplug event with kWh, cost and stop reason. Co-central anchor — the atomic fact of the business."],
+    ["cp_failrisk",  "Failure Risk",     "risk",         "signal", 10,   -170, 30, 588102,   "Derived per-port failure probability from telemetry drift and fault history — the node every “why is uptime down” question lands on."],
+    ["cp_util",      "Utilization Signal","trend",       "signal", 150,  -310, 24, 312441,   "Derived demand curve per station and site — feeds expansion scoring and load shaping."],
+    ["cp_port",      "Charging Port",    "webhook",      "core",   -330, -90,  28, 588102,   "An individual connector on a station — the unit that fails, meters and serves sessions."],
+    ["cp_site",      "Site",             "map",          "core",   -460, 60,   26, 78000,    "A parking lot, depot or corridor location holding stations — where power, host and permits meet."],
+    ["cp_host",      "Site Host",        "organization", "core",   -550, 220,  24, 5200,     "The business or property owner hosting chargers — the B2B customer of record."],
+    ["cp_utility",   "Utility",          "globe",        "core",   -540, -140, 24, 420,      "The serving electric utility — rates, interconnects and demand-charge exposure."],
+    ["cp_tariff",    "Tariff Plan",      "receipt",      "core",   -390, -270, 24, 3800,     "A utility rate schedule with peak windows and demand charges — prices every kWh a session delivers."],
+    ["cp_driver",    "Driver",           "person",       "core",   380,  -130, 26, 1300000,  "A charging customer — app account, payment method, home/roaming behavior."],
+    ["cp_vehicle",   "Vehicle",          "cart",         "core",   550,  -10,  24, 890000,   "An EV known to the network — connector type, battery size, fleet assignment."],
+    ["cp_fleet",     "Fleet Operator",   "team",         "core",   490,  -270, 24, 2300,     "A commercial fleet running on managed charging — depots, routes and state-of-charge targets."],
+    ["cp_roaming",   "Roaming Partner",  "integration",  "core",   545,  150,  24, 380,      "An interop network (via Hubject) whose drivers charge on ChargePoint hardware."],
+    ["cp_payment",   "Payment",          "payment",      "core",   350,  290,  24, 460000000,"A settled charge for a session or subscription — revenue lands here."],
+    ["cp_ticket",    "Support Ticket",   "ticket",       "core",   140,  330,  24, 940000,   "A driver or host issue — almost always about a session that went wrong."],
+    ["cp_workorder", "Work Order",       "task",         "core",   -90,  300,  26, 84000,    "A field-service job to fix a fault — parts, technician, SLA window."],
+    ["cp_fault",     "Fault Alert",      "incident",     "core",   -320, 230,  26, 1200000,  "An error raised by a port or station — OCPP codes, connectivity drops, payment failures."],
+    ["cp_tech",      "Technician",       "employee",     "core",   110,  190,  22, 1900,     "A certified field engineer — skills, region and open assignments."],
+    ["cp_part",      "Spare Part",       "settings",     "core",   -250, 330,  22, 12000,    "A replaceable component (cable, screen, power module) with stock and lead time."],
+    ["cp_warranty",  "Assure Contract",  "shield",       "core",   -190, -300, 24, 96000,    "A ChargePoint Assure SLA covering a station — uptime commitments and penalty terms."],
+  ]
+  const SRCS = [
+    ["cp_nos",        "NOS Telemetry", "Station heartbeats + OCPP"],
+    ["cp_salesforce", "Salesforce",    "CRM — hosts, fleets, sites"],
+    ["cp_netsuite",   "NetSuite",      "Billing + invoicing"],
+    ["cp_stripe",     "Stripe",        "Driver payments"],
+    ["cp_servicenow", "ServiceNow",    "Field service + work orders"],
+    ["cp_zendesk",    "Zendesk",       "Driver + host support"],
+    ["cp_hubject",    "Hubject",       "Roaming interop"],
+    ["cp_genability", "Genability",    "Utility tariff data"],
+    ["cp_workday",    "Workday",       "Technicians + HR"],
+    ["cp_geotab",     "Geotab",        "Fleet telematics"],
+    ["cp_snowflake",  "Snowflake",     "Analytics warehouse"],
+    ["cp_ota",        "Firmware OTA",  "Station firmware registry"],
+  ]
+  const fmtK = n => n >= 1000000 ? (n/1000000).toFixed(1).replace(/\.0$/,"")+"M" : n >= 1000 ? (n/1000).toFixed(n>=10000?0:1).replace(/\.0$/,"")+"K" : String(n)
+  const nodes = []
+  E.forEach((e, i) => {
+    const [id, label, glyph, state, x, y, size, inst, desc] = e
+    const seed = label.length*7 + i*13
+    nodes.push({
+      id, label, glyph, type:"entity", state, cat: state==="signal"?"derived":"core",
+      x, y, size, instances: fmtK(inst), instancesN: inst, props: 8 + (seed%14), edges: 0,
+      fill: 80 + (seed%18), conf: 88 + (seed%11), fresh: ["2m","6m","12m","1h","4h","1d"][seed%6],
+      pii: 0, change: ["LOW","MEDIUM","HIGH"][seed%3], desc,
+    })
+  })
+  SRCS.forEach((s, i) => {
+    const [id, label, desc] = s
+    const a = (i/SRCS.length)*Math.PI*2 - Math.PI/2
+    const seed = label.length*5 + i*11
+    nodes.push({
+      id, label, glyph:"database", type:"source", state:"core", cat:"source",
+      x: Math.round(Math.cos(a)*880), y: Math.round(Math.sin(a)*640), size:24,
+      instances:"—", instancesN:0, props: 10 + (seed%18), edges:0,
+      fresh: ["1m","2m","5m","12m"][seed%4], pii:0, change:"LOW", desc,
+    })
+  })
+  // [s, t, label, kind]
+  const ER = [
+    // The network spine
+    ["cp_port","cp_station","INSTALLED_ON","direct"],
+    ["cp_station","cp_site","LOCATED_AT","direct"],
+    ["cp_site","cp_host","HOSTED_BY","direct"],
+    ["cp_utility","cp_site","SERVES","direct"],
+    ["cp_tariff","cp_utility","OFFERED_BY","direct"],
+    // Sessions — the atomic fact
+    ["cp_session","cp_port","DELIVERED_BY","direct"],
+    ["cp_session","cp_driver","STARTED_BY","direct"],
+    ["cp_session","cp_vehicle","CHARGED","direct"],
+    ["cp_tariff","cp_session","PRICES","direct"],
+    ["cp_payment","cp_session","SETTLES","direct"],
+    ["cp_roaming","cp_session","ORIGINATED","inferred"],
+    // Fleet loop
+    ["cp_vehicle","cp_fleet","OPERATED_BY","direct"],
+    ["cp_driver","cp_fleet","MEMBER_OF","inferred"],
+    // Service loop
+    ["cp_fault","cp_port","RAISED_ON","direct"],
+    ["cp_workorder","cp_fault","RESOLVES","direct"],
+    ["cp_tech","cp_workorder","ASSIGNED_TO","direct"],
+    ["cp_part","cp_workorder","CONSUMED_BY","direct"],
+    ["cp_warranty","cp_station","COVERS","direct"],
+    ["cp_workorder","cp_warranty","UNDER_SLA","inferred"],
+    // Support
+    ["cp_ticket","cp_session","ABOUT","direct"],
+    ["cp_ticket","cp_driver","OPENED_BY","direct"],
+    // Signals — the "why" anchors
+    ["cp_failrisk","cp_port","ON_PORT","direct"],
+    ["cp_failrisk","cp_fault","LEARNED_FROM","inferred"],
+    ["cp_failrisk","cp_workorder","TRIGGERS","direct"],
+    ["cp_util","cp_station","ON_STATION","direct"],
+    ["cp_util","cp_site","AT_SITE","inferred"],
+    ["cp_util","cp_tariff","SHAPES_LOAD","inferred"],
+    // Sources → entities
+    ["cp_nos","cp_station","SOURCES","source"],
+    ["cp_nos","cp_port","SOURCES","source"],
+    ["cp_nos","cp_session","SOURCES","source"],
+    ["cp_nos","cp_fault","SOURCES","source"],
+    ["cp_salesforce","cp_host","SOURCES","source"],
+    ["cp_salesforce","cp_fleet","SOURCES","source"],
+    ["cp_salesforce","cp_site","SOURCES","source"],
+    ["cp_netsuite","cp_payment","SOURCES","source"],
+    ["cp_netsuite","cp_host","SOURCES","source"],
+    ["cp_stripe","cp_payment","SOURCES","source"],
+    ["cp_stripe","cp_driver","SOURCES","source"],
+    ["cp_servicenow","cp_workorder","SOURCES","source"],
+    ["cp_servicenow","cp_part","SOURCES","source"],
+    ["cp_zendesk","cp_ticket","SOURCES","source"],
+    ["cp_hubject","cp_roaming","SOURCES","source"],
+    ["cp_genability","cp_tariff","SOURCES","source"],
+    ["cp_genability","cp_utility","SOURCES","source"],
+    ["cp_workday","cp_tech","SOURCES","source"],
+    ["cp_geotab","cp_vehicle","SOURCES","source"],
+    ["cp_geotab","cp_fleet","SOURCES","source"],
+    ["cp_snowflake","cp_failrisk","SOURCES","source"],
+    ["cp_snowflake","cp_util","SOURCES","source"],
+    ["cp_ota","cp_station","SOURCES","source"],
+    ["cp_ota","cp_warranty","SOURCES","source"],
+  ]
+  const P = (name, type, o) => Object.assign({ name, type, required:false, indexed:false, pii:false, pk:false, fill:92, conf:96, source:"primary" }, o)
+  const PROPS = {
+    cp_station:  [P("station_id","uuid",{pk:1,required:1,indexed:1,source:"NOS Telemetry"}),P("name","string",{required:1,indexed:1,source:"NOS Telemetry"}),P("model","enum",{indexed:1,source:"NOS Telemetry"}),P("serial_no","string",{indexed:1,source:"NOS Telemetry"}),P("site_id","uuid",{indexed:1,source:"Salesforce"}),P("firmware_version","string",{indexed:1,source:"Firmware OTA"}),P("network_status","enum",{indexed:1,source:"NOS Telemetry"}),P("last_heartbeat","timestamp",{indexed:1,source:"NOS Telemetry"}),P("nevi_funded","bool",{source:"Salesforce"}),P("commissioned_at","date",{source:"Salesforce"})],
+    cp_session:  [P("session_id","uuid",{pk:1,required:1,indexed:1,source:"NOS Telemetry"}),P("port_id","uuid",{indexed:1,source:"NOS Telemetry"}),P("driver_id","uuid",{indexed:1,source:"NOS Telemetry"}),P("start_at","timestamp",{required:1,indexed:1,source:"NOS Telemetry"}),P("end_at","timestamp",{indexed:1,source:"NOS Telemetry"}),P("kwh_delivered","decimal",{indexed:1,source:"NOS Telemetry"}),P("peak_kw","decimal",{source:"NOS Telemetry"}),P("cost","decimal",{indexed:1,source:"NetSuite"}),P("stop_reason","enum",{indexed:1,source:"NOS Telemetry"}),P("payment_status","enum",{source:"Stripe"})],
+    cp_failrisk: [P("risk_id","uuid",{pk:1,required:1,indexed:1,source:"Snowflake"}),P("port_id","uuid",{indexed:1,source:"Snowflake"}),P("probability","float",{required:1,indexed:1,source:"Snowflake"}),P("horizon_days","int",{source:"Snowflake"}),P("top_signal","enum",{indexed:1,source:"Snowflake"}),P("health_score","float",{indexed:1,source:"Snowflake"}),P("computed_at","timestamp",{indexed:1,source:"Snowflake"})],
+    cp_util:     [P("signal_id","uuid",{pk:1,required:1,indexed:1,source:"Snowflake"}),P("station_id","uuid",{indexed:1,source:"Snowflake"}),P("avg_occupancy_pct","float",{indexed:1,source:"Snowflake"}),P("peak_hour","int",{source:"Snowflake"}),P("queue_events_30d","int",{indexed:1,source:"Snowflake"}),P("trend","enum",{indexed:1,source:"Snowflake"}),P("forecast_30d","float",{source:"Snowflake"})],
+    cp_port:     [P("port_id","uuid",{pk:1,required:1,indexed:1,source:"NOS Telemetry"}),P("station_id","uuid",{indexed:1,source:"NOS Telemetry"}),P("connector_type","enum",{required:1,indexed:1,source:"NOS Telemetry"}),P("max_kw","decimal",{source:"NOS Telemetry"}),P("status","enum",{indexed:1,source:"NOS Telemetry"}),P("meter_reading_kwh","decimal",{source:"NOS Telemetry"}),P("error_count_30d","int",{indexed:1,source:"NOS Telemetry"}),P("last_session_at","timestamp",{source:"NOS Telemetry"})],
+    cp_site:     [P("site_id","uuid",{pk:1,required:1,indexed:1,source:"Salesforce"}),P("name","string",{required:1,indexed:1,source:"Salesforce"}),P("address","string",{source:"Salesforce"}),P("host_org_id","uuid",{indexed:1,source:"Salesforce"}),P("utility_id","uuid",{indexed:1,source:"Genability"}),P("station_count","int",{indexed:1,source:"computed"}),P("panel_capacity_kw","decimal",{source:"Salesforce"}),P("segment","enum",{indexed:1,source:"Salesforce"})],
+    cp_host:     [P("org_id","uuid",{pk:1,required:1,indexed:1,source:"Salesforce"}),P("name","string",{required:1,indexed:1,source:"Salesforce"}),P("segment","enum",{indexed:1,source:"Salesforce"}),P("account_owner","string",{source:"Salesforce"}),P("arr","decimal",{indexed:1,source:"NetSuite"}),P("contract_end","date",{indexed:1,source:"Salesforce"}),P("nps","int",{source:"Salesforce"})],
+    cp_utility:  [P("utility_id","uuid",{pk:1,required:1,indexed:1,source:"Genability"}),P("name","string",{required:1,indexed:1,source:"Genability"}),P("territory","string",{indexed:1,source:"Genability"}),P("iso_region","enum",{indexed:1,source:"Genability"}),P("demand_charge","decimal",{source:"Genability"}),P("interconnect_queue_days","int",{source:"Genability"})],
+    cp_tariff:   [P("tariff_id","uuid",{pk:1,required:1,indexed:1,source:"Genability"}),P("name","string",{required:1,indexed:1,source:"Genability"}),P("utility_id","uuid",{indexed:1,source:"Genability"}),P("peak_start","time",{source:"Genability"}),P("peak_end","time",{source:"Genability"}),P("peak_rate_kwh","decimal",{indexed:1,source:"Genability"}),P("offpeak_rate_kwh","decimal",{source:"Genability"}),P("demand_charge_kw","decimal",{indexed:1,source:"Genability"})],
+    cp_driver:   [P("driver_id","uuid",{pk:1,required:1,indexed:1,source:"Stripe"}),P("name","string",{required:1,indexed:1,source:"Stripe"}),P("email","string",{indexed:1,pii:1,source:"Stripe"}),P("home_region","string",{indexed:1,source:"Snowflake"}),P("sessions_90d","int",{indexed:1,source:"Snowflake"}),P("failed_sessions_90d","int",{indexed:1,source:"Snowflake"}),P("payment_method","enum",{source:"Stripe"}),P("fleet_id","uuid",{indexed:1,source:"Salesforce"})],
+    cp_vehicle:  [P("vehicle_id","uuid",{pk:1,required:1,indexed:1,source:"Geotab"}),P("vin","string",{indexed:1,source:"Geotab"}),P("make_model","string",{indexed:1,source:"Geotab"}),P("battery_kwh","decimal",{source:"Geotab"}),P("connector_type","enum",{indexed:1,source:"Geotab"}),P("fleet_id","uuid",{indexed:1,source:"Geotab"}),P("soc_pct","float",{indexed:1,source:"Geotab"}),P("next_route_at","timestamp",{indexed:1,source:"Geotab"})],
+    cp_fleet:    [P("fleet_id","uuid",{pk:1,required:1,indexed:1,source:"Salesforce"}),P("name","string",{required:1,indexed:1,source:"Salesforce"}),P("segment","enum",{indexed:1,source:"Salesforce"}),P("vehicle_count","int",{indexed:1,source:"Geotab"}),P("depot_count","int",{source:"Salesforce"}),P("soc_target_pct","float",{source:"Geotab"}),P("managed_charging","bool",{indexed:1,source:"Salesforce"})],
+    cp_roaming:  [P("partner_id","uuid",{pk:1,required:1,indexed:1,source:"Hubject"}),P("name","string",{required:1,indexed:1,source:"Hubject"}),P("network","string",{indexed:1,source:"Hubject"}),P("settlement_terms","enum",{source:"Hubject"}),P("sessions_30d","int",{indexed:1,source:"Hubject"}),P("revenue_share_pct","float",{source:"Hubject"})],
+    cp_payment:  [P("payment_id","uuid",{pk:1,required:1,indexed:1,source:"Stripe"}),P("session_id","uuid",{indexed:1,source:"Stripe"}),P("amount","decimal",{required:1,indexed:1,source:"Stripe"}),P("currency","enum",{source:"Stripe"}),P("status","enum",{indexed:1,source:"Stripe"}),P("method","enum",{source:"Stripe"}),P("settled_at","timestamp",{indexed:1,source:"Stripe"}),P("invoice_id","uuid",{source:"NetSuite"})],
+    cp_ticket:   [P("ticket_id","uuid",{pk:1,required:1,indexed:1,source:"Zendesk"}),P("subject","string",{required:1,indexed:1,source:"Zendesk"}),P("driver_id","uuid",{indexed:1,source:"Zendesk"}),P("session_id","uuid",{indexed:1,source:"Zendesk"}),P("category","enum",{indexed:1,source:"Zendesk"}),P("priority","enum",{indexed:1,source:"Zendesk"}),P("status","enum",{indexed:1,source:"Zendesk"}),P("opened_at","timestamp",{source:"Zendesk"})],
+    cp_workorder:[P("wo_id","uuid",{pk:1,required:1,indexed:1,source:"ServiceNow"}),P("fault_id","uuid",{indexed:1,source:"ServiceNow"}),P("station_id","uuid",{indexed:1,source:"ServiceNow"}),P("priority","enum",{required:1,indexed:1,source:"ServiceNow"}),P("sla_due_at","timestamp",{indexed:1,source:"ServiceNow"}),P("technician_id","uuid",{indexed:1,source:"ServiceNow"}),P("parts_required","string",{source:"ServiceNow"}),P("status","enum",{indexed:1,source:"ServiceNow"}),P("truck_roll_cost","decimal",{source:"ServiceNow"})],
+    cp_fault:    [P("fault_id","uuid",{pk:1,required:1,indexed:1,source:"NOS Telemetry"}),P("port_id","uuid",{indexed:1,source:"NOS Telemetry"}),P("ocpp_code","string",{required:1,indexed:1,source:"NOS Telemetry"}),P("severity","enum",{indexed:1,source:"NOS Telemetry"}),P("raised_at","timestamp",{indexed:1,source:"NOS Telemetry"}),P("cleared_at","timestamp",{source:"NOS Telemetry"}),P("recurrence_30d","int",{indexed:1,source:"Snowflake"})],
+    cp_tech:     [P("tech_id","uuid",{pk:1,required:1,indexed:1,source:"Workday"}),P("name","string",{required:1,indexed:1,source:"Workday"}),P("region","string",{indexed:1,source:"Workday"}),P("certifications","string",{source:"Workday"}),P("open_orders","int",{indexed:1,source:"ServiceNow"}),P("utilization_pct","float",{source:"ServiceNow"})],
+    cp_part:     [P("part_id","uuid",{pk:1,required:1,indexed:1,source:"ServiceNow"}),P("name","string",{required:1,indexed:1,source:"ServiceNow"}),P("sku","string",{indexed:1,source:"ServiceNow"}),P("compatible_models","string",{source:"ServiceNow"}),P("stock_qty","int",{indexed:1,source:"ServiceNow"}),P("warehouse","string",{indexed:1,source:"ServiceNow"}),P("lead_time_days","int",{indexed:1,source:"ServiceNow"})],
+    cp_warranty: [P("contract_id","uuid",{pk:1,required:1,indexed:1,source:"Salesforce"}),P("station_id","uuid",{indexed:1,source:"Salesforce"}),P("tier","enum",{required:1,indexed:1,source:"Salesforce"}),P("uptime_commitment_pct","float",{indexed:1,source:"Salesforce"}),P("penalty_terms","string",{source:"Salesforce"}),P("start_date","date",{source:"Salesforce"}),P("end_date","date",{indexed:1,source:"Salesforce"})],
+  }
+  const ids = {}; nodes.forEach(n => { ids[n.id] = n; if (PROPS[n.id]) { n._userProps = PROPS[n.id]; n.props = PROPS[n.id].length } })
+  const edges = ER.filter(e => ids[e[0]] && ids[e[1]]).map(e => ({ s:e[0], t:e[1], label:e[2], kind:e[3] }))
+  edges.forEach(e => { if (ids[e.s]) ids[e.s].edges++; if (ids[e.t] && e.t !== e.s) ids[e.t].edges++ })
+  return { nodes, edges }
+}
+const CHARGEPOINT_DATA = buildChargePoint()
+
 const SIDEBAR_NODES = [...NODES].filter(n => n.type !== "agent" && n.type !== "source").sort((a, b) => a.label.localeCompare(b.label));
 
 // ---------- HELPERS ---------------------------------------------------------
@@ -1912,7 +2068,7 @@ function Sidebar({ open, onToggle, filter, setFilter, query, setQuery, selected,
 
 
 // ── Stage 1 host: provides graph state + view/edit toggle, renders the canvas ──
-export { SIDEBAR_NODES, EDGES as GRAPH_EDGES, LOWES_DATA, NIKE_DATA, FINANCE_DATA, ListGlyph, colorForNode, NodeShape, ZoomControls, Minimap, AddNodeFlow, NewEdgeFlow, generateProps, generateRules }
+export { SIDEBAR_NODES, EDGES as GRAPH_EDGES, LOWES_DATA, NIKE_DATA, FINANCE_DATA, CHARGEPOINT_DATA, ListGlyph, colorForNode, NodeShape, ZoomControls, Minimap, AddNodeFlow, NewEdgeFlow, generateProps, generateRules }
 
 export default function GraphStage({ data }) {
   // Optional `data` ({ nodes, edges }) lets a caller render a different graph

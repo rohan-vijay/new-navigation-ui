@@ -5,7 +5,7 @@ import CreateAgentPage, { ModelIcon, MODELS } from './CreateAgentModal'
 import BuildWithAIModal from './BuildWithAIModal'
 import { ToolGlyph } from './AddToolPanel'
 import { LinkSourceFlow } from './LinkSourceFlow'
-import GraphStage, { SIDEBAR_NODES, GRAPH_EDGES, LOWES_DATA, NIKE_DATA, FINANCE_DATA, ListGlyph, colorForNode, AddNodeFlow, NewEdgeFlow, generateProps, generateRules, PropertiesPane } from './GraphStage'
+import GraphStage, { SIDEBAR_NODES, GRAPH_EDGES, LOWES_DATA, NIKE_DATA, FINANCE_DATA, CHARGEPOINT_DATA, ListGlyph, colorForNode, AddNodeFlow, NewEdgeFlow, generateProps, generateRules, PropertiesPane } from './GraphStage'
 // Make node schema available to LinkSourceFlow.buildEditState (runs at module load time)
 if (typeof window !== 'undefined') { window.NODES = SIDEBAR_NODES; window.EDGES = GRAPH_EDGES; window.generateProps = generateProps; window.ListGlyph = ListGlyph; }
 import RecordsPage from './RecordsPage'
@@ -107,6 +107,13 @@ const FINANCE_GD = {
   edges: FINANCE_DATA.edges,
   sources: buildDatasetSources(FINANCE_DATA, { editFn: financeEditSpec, freqMap: FINANCE_FREQ, owner: 'Grace Coleman' }),
   data: FINANCE_DATA,
+}
+const CHARGEPOINT_FREQ = { cp_nos: 'Streaming', cp_salesforce: 'Hourly', cp_netsuite: 'Hourly', cp_stripe: 'Streaming', cp_servicenow: '15 min', cp_zendesk: '15 min', cp_hubject: 'Hourly', cp_genability: 'Daily', cp_workday: 'Daily', cp_geotab: 'Streaming', cp_snowflake: 'Hourly', cp_ota: 'Daily' }
+const CHARGEPOINT_GD = {
+  sidebarNodes: [...CHARGEPOINT_DATA.nodes].filter(n => n.type === 'entity').sort((a, b) => a.label.localeCompare(b.label)),
+  edges: CHARGEPOINT_DATA.edges,
+  sources: buildDatasetSources(CHARGEPOINT_DATA, { freqMap: CHARGEPOINT_FREQ, owner: 'Rohan Vijay' }),
+  data: CHARGEPOINT_DATA,
 }
 
 const TABS = ['Graph', 'Nodes', 'Edges', 'Sources', 'Agents', 'Records', 'Governance']
@@ -261,7 +268,7 @@ export default function GraphCanvas(props) {
 
 function GraphCanvasInner({ title = 'New graph', onBack, onAgentAI, dataset }) {
   // Select the active dataset for this render pass (children read GD below).
-  GD = dataset === 'lowes' ? LOWES_GD : dataset === 'nike' ? NIKE_GD : dataset === 'finance' ? FINANCE_GD : DEFAULT_GD
+  GD = dataset === 'lowes' ? LOWES_GD : dataset === 'nike' ? NIKE_GD : dataset === 'finance' ? FINANCE_GD : dataset === 'chargepoint' ? CHARGEPOINT_GD : DEFAULT_GD
   // The source pipeline editor resolves nodes/properties from window.NODES — keep
   // it in sync with the active graph so its mapping aligns to the Lowe's nodes.
   if (typeof window !== 'undefined') { window.NODES = GD.sidebarNodes; window.EDGES = GD.edges }
