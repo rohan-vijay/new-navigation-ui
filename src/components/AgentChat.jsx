@@ -39,7 +39,7 @@ const AGENTS = [
   { id: 'merch',   name: 'Merch & Campaign Agent', color: '#8a5a2b', tagline: 'Ties sell-through back to campaigns, media spend and events.', graph: 'Nike Retail Context Graph',
     greeting: "I connect sell-through to the campaigns, paid media and cultural events behind it. I run Cypher across the graph — ask me what's actually driving a lift.",
     starters: ['campaign_roi', 'airmax_spike', 'seattle_ny'] },
-  { id: 'uptime',  name: 'Uptime Copilot', color: '#c2543a', tagline: 'Finds failing ports before drivers do.', graph: 'ChargePoint Network Graph',
+  { id: 'uptime',  name: 'Uptime Agent', color: '#c2543a', tagline: 'Finds failing ports before drivers do.', graph: 'ChargePoint Network Graph',
     greeting: "I'm grounded in the ChargePoint Network Graph. I answer by tracing telemetry through faults, work orders and Assure warranty SLAs — ask me why uptime moved and I'll show you the ports, firmware and penalty dollars behind it.",
     starters: ['bayarea_uptime', 'failing_port', 'truck_rolls'] },
   { id: 'fieldops', name: 'Field Ops Agent', color: '#3a6ea0', tagline: 'Cuts truck rolls with parts-aware, SLA-aware dispatch.', graph: 'ChargePoint Network Graph',
