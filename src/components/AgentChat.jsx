@@ -48,6 +48,9 @@ const AGENTS = [
   { id: 'energy',  name: 'Energy Cost Agent', color: '#0f8a5f', tagline: 'Shrinks demand charges with tariff-aware load shaping.', graph: 'ChargePoint Network Graph',
     greeting: "I'm grounded in the ChargePoint Network Graph. I trace energy cost through sites, utilities, tariff peak windows and fleet charging behavior — ask me why a bill spiked and I'll show you the load shape that caused it.",
     starters: ['demand_charges', 'bayarea_uptime', 'failing_port'] },
+  { id: 'maint',   name: 'Maintenance Agent', color: '#6b5aa6', tagline: 'Plans repairs and preventive maintenance across the network.', graph: 'ChargePoint Network Graph',
+    greeting: "I'm grounded in the ChargePoint Network Graph. I plan repairs and preventive maintenance by tracing faults, wear signals, parts stock and SLA windows — ask me what needs fixing, in what order, and what should change in the schedule.",
+    starters: ['repair_queue', 'pm_schedule', 'failing_port'] },
 ]
 
 // ── Scripted, graph-grounded conversations ───────────────────────────────────
@@ -442,6 +445,107 @@ RETURN u.peak_hour, u.avg_occupancy_pct, count(v) AS vans, fl.soc_target_pct`,
       { n: 5, node: 'cp_utility', ref: 'UTIL-PGE', detail: 'PG&E · BEV-2-S filing eff. Jul 1 · off-peak $0.14/kWh' },
     ],
   },
+  repair_queue: {
+    q: "Which stations need repair right now, and in what order?",
+    tag: 'Repairs · Severity · SLA',
+    chain: [
+      { kind: 'cypher', title: 'Pull active faults with no resolving work order', nodes: ['cp_fault', 'cp_port', 'cp_station'],
+        cypher: `MATCH (f:FaultAlert)-[:RAISED_ON]->(p:ChargingPort)
+      -[:INSTALLED_ON]->(s:ChargingStation)
+WHERE f.cleared_at IS NULL
+OPTIONAL MATCH (wo:WorkOrder)-[:RESOLVES]->(f) WHERE wo.status <> 'Closed'
+RETURN f.severity, count(DISTINCT s) AS stations, count(wo) AS covered
+ORDER BY f.severity`,
+        result: `Critical → 9 stations · 3 covered by open WOs\nMajor → 14 stations · 5 covered\nMinor → 15 stations · 2 covered  →  38 stations carry active faults` },
+      { kind: 'cypher', title: 'Rank by SLA clock and failure risk', nodes: ['cp_warranty', 'cp_failrisk', 'cp_workorder'],
+        cypher: `MATCH (w:AssureContract)-[:COVERS]->(s:ChargingStation)
+      <-[:INSTALLED_ON]-(p:ChargingPort)<-[:RAISED_ON]-(f:FaultAlert)
+WHERE f.severity = 'Critical' AND f.cleared_at IS NULL
+OPTIONAL MATCH (r:FailureRisk)-[:ON_PORT]->(p)
+RETURN s.name, w.sla_due_at, r.probability
+ORDER BY w.sla_due_at`,
+        result: `6 of 9 critical stations under Assure · SLA due < 24h\nFremont Depot — Bay 4 due in 9h · Santana Row P2 due in 14h\n3 of the 6 already have technicians assigned` },
+      { kind: 'sql', title: 'Price the downtime per station-day', nodes: ['cp_session', 'cp_site'],
+        cypher: `SELECT s.site_name, AVG(f.sessions_per_day) AS lost_sessions,
+       AVG(f.sessions_per_day * f.avg_revenue) AS lost_rev_day
+FROM   station_down_facts f JOIN dim_site s ON s.id = f.site_id
+WHERE  f.status = 'down' GROUP BY 1 ORDER BY lost_rev_day DESC LIMIT 5`,
+        result: `Fremont Depot → $540/day · SFO Lot A → $470/day\nSantana Row → $410/day · Mission St → $360/day · Milpitas → $310/day` },
+      { kind: 'cypher', title: 'Check parts availability for each repair', nodes: ['cp_part', 'cp_workorder'],
+        cypher: `MATCH (pt:SparePart) WHERE pt.sku IN $needed_skus
+RETURN pt.name, pt.warehouse, pt.stock_qty, pt.lead_time_days`,
+        result: `Contactor 400A → Fremont DC · 11 in stock · same-day\nPower Module 62.5kW → Fremont DC · 4 in stock · same-day\nTouchscreen 10in → Reno DC · 6 in stock · 2-day transfer\n→ parts in-region for 7 of 9 critical repairs` },
+    ],
+    answer: [
+      { kind: 'verdict', text: 'Nine stations need repair now — six are SLA-critical inside 24 hours, and seven of the nine can be fixed with parts already in-region.' },
+      { kind: 'para', text: 'The graph shows 38 stations carrying active faults, but severity and SLA clocks compress the real queue to nine[1]. In priority order:' },
+      { kind: 'list', n: 1, text: '**Fremont Depot — Bay 4** — contactor weld (E-341) · SLA due 9h · $540/day downtime[2][3] · part in Fremont DC' },
+      { kind: 'list', n: 2, text: '**Santana Row P2** — power module reset loop · SLA due 14h · part in Fremont DC[2]' },
+      { kind: 'list', n: 3, text: '**SFO Long-Term Lot A** — meter comms failure (E-102) · $470/day · high failure-risk overlay[3]' },
+      { kind: 'list', n: 4, text: '**Mission St Garage** — ground fault trip (E-108) · SLA due 21h · $360/day[3]' },
+      { kind: 'list', n: 5, text: '**Milpitas Great Mall** — cellular link lost (E-220) · SLA due 23h · $310/day[3]' },
+      { kind: 'list', n: 6, text: '**Remaining 4 critical stations** — no SLA clock inside 24h · sequence by failure-risk score, incl. the two touchscreen repairs waiting on a 2-day Reno transfer[4]' },
+      { kind: 'bullet', text: '**Parts are not the bottleneck** — contactors and power modules are in Fremont DC same-day for 7 of 9 repairs[4]; only the touchscreen repairs wait on Reno, and neither is SLA-critical.' },
+      { kind: 'bullet', text: '**Only 3 of the 9 have an open work order** — six need one raised now[1]; 4 co-located Major repairs can ride along at zero extra truck rolls[5].' },
+      { kind: 'action', text: 'Recommend: (1) raise work orders on the 6 uncovered critical stations now[1]; (2) dispatch in the order above with parts picked from Fremont DC[4]; (3) fold the 4 co-located Major repairs into the same visits; (4) start the Reno touchscreen transfer today so next week\'s visits aren\'t blocked.' },
+    ],
+    sources: [
+      { n: 1, node: 'cp_fault', ref: 'FLT-99411', detail: '9 Critical · 14 Major · 15 Minor active · 6 critical uncovered' },
+      { n: 2, node: 'cp_warranty', ref: 'ASR-55344', detail: '6 stations SLA due < 24h · Fremont 9h · Santana Row 14h' },
+      { n: 3, node: 'cp_site', ref: 'SITE-2214', detail: 'Downtime cost $310–$540 per station-day, top 5 sites' },
+      { n: 4, node: 'cp_part', ref: 'PRT-3306', detail: 'Contactor + power module in Fremont DC same-day · screens 2d Reno' },
+      { n: 5, node: 'cp_workorder', ref: 'WO-21440', detail: '3 of 9 critical covered · 4 Major repairs co-located' },
+    ],
+  },
+  pm_schedule: {
+    q: "What preventive maintenance is due in the next 30 days — and should the schedule change?",
+    tag: 'Preventive · Wear · Scheduling',
+    chain: [
+      { kind: 'cypher', title: 'Find calendar-due stations', nodes: ['cp_station', 'cp_site'],
+        cypher: `MATCH (s:ChargingStation)-[:LOCATED_AT]->(st:Site)
+WHERE duration.between(s.last_service_at, date()).days > 150
+RETURN st.name, count(s) AS due, min(s.last_service_at) AS oldest
+ORDER BY due DESC`,
+        result: `46 stations calendar-due in the next 30 days\nheaviest: SFO Lot A (7) · Fremont Depot (6) · Milpitas Great Mall (5)` },
+      { kind: 'sql', title: 'Overlay actual wear against fleet medians', nodes: ['cp_port', 'cp_session'],
+        cypher: `SELECT s.station_id,
+       w.contactor_cycles / m.median_cycles AS cycle_ratio,
+       w.cable_insertions / m.median_insert AS wear_ratio,
+       w.overtemp_events_90d
+FROM   wear_facts w JOIN fleet_medians m ON m.model = w.model
+JOIN   dim_station s ON s.id = w.station_id
+WHERE  s.calendar_due = TRUE ORDER BY cycle_ratio DESC`,
+        result: `12 of 46 show accelerated wear (≥1.6× median cycles)\n9 of 46 show minimal wear (≤0.4× median) — barely used\n25 in the normal band` },
+      { kind: 'semantic', title: 'Check OEM cadence guidance', nodes: ['cp_station'],
+        query: 'CT4000 Express Plus preventive maintenance interval guidance',
+        matches: [
+          { score: 0.92, text: '“SB-2311: move CT4000 PM to usage-based — 8k contactor cycles or 12 months” — service bulletin', src: 'Firmware OTA' },
+          { score: 0.85, text: 'Coastal sites: add corrosion inspection at every PM visit', src: 'ServiceNow' },
+          { score: 0.77, text: 'Express Plus cable-liner replacement moved to 15k insertions', src: 'Firmware OTA' },
+        ] },
+      { kind: 'cypher', title: 'Overlap PM with already-planned visits', nodes: ['cp_workorder', 'cp_tech'],
+        cypher: `MATCH (wo:WorkOrder)-[:RESOLVES]->(:FaultAlert)-[:RAISED_ON]->(:ChargingPort)
+      -[:INSTALLED_ON]->(s:ChargingStation)-[:LOCATED_AT]->(st:Site)
+WHERE wo.status IN ['Open','Dispatched'] AND st.id IN $pm_due_sites
+RETURN st.name, count(wo) AS visits_in_window`,
+        result: `17 of 46 due stations sit at sites with a repair visit already scheduled\nin the next 30 days — PM can ride along at zero extra rolls` },
+    ],
+    answer: [
+      { kind: 'verdict', text: '46 stations are calendar-due, but the wear data says the calendar is wrong — 12 need attention early, 9 can safely wait a quarter, and 17 can ride along with visits you\'ve already planned.' },
+      { kind: 'para', text: 'The 30-day calendar queue is 46 stations[1], concentrated at SFO Lot A, Fremont Depot and Milpitas. But wear telemetry splits that queue three ways: 12 stations are running at 1.6× or more of median contactor cycles and should be serviced early, while 9 are barely used and can slip a quarter without risk[2].' },
+      { kind: 'bullet', text: '**The schedule should change** — the OEM bulletin SB-2311 already recommends usage-based PM (8k contactor cycles or 12 months, whichever first)[3]. Your own wear data supports it: calendar-only scheduling is over-servicing idle stations and under-servicing the busy ones.' },
+      { kind: 'bullet', text: '**17 free ride-alongs** — 17 of the 46 due stations sit at sites with a repair visit already scheduled this window[4]; folding PM into those visits clears more than a third of the queue at zero extra truck rolls.' },
+      { kind: 'para', text: 'Net effect: instead of 46 standalone PM visits, the graph supports a 29-visit plan — 12 early (wear-driven), 17 folded into existing routes, and the 9 low-wear stations deferred with telemetry watching them[2]. Coastal sites get the corrosion check added per the bulletin[3].' },
+      { kind: 'action', text: 'Recommend: (1) approve the switch to usage-based cadence per SB-2311[3]; (2) schedule the 12 high-wear stations this week; (3) attach PM tasks to the 17 overlapping repair visits[4]; (4) defer the 9 low-wear stations to next quarter with a telemetry watch.' },
+    ],
+    sources: [
+      { n: 1, node: 'cp_station', ref: 'STA-514332', detail: '46 calendar-due · SFO 7, Fremont 6, Milpitas 5' },
+      { n: 2, node: 'cp_port', ref: 'PORT-90233', detail: '12 at ≥1.6× median cycles · 9 at ≤0.4× — defer-safe' },
+      { n: 3, node: 'cp_station', ref: 'STA-860881', detail: 'SB-2311 usage-based cadence · coastal corrosion check' },
+      { n: 4, node: 'cp_workorder', ref: 'WO-21502', detail: '17 due stations overlap scheduled repair visits' },
+      { n: 5, node: 'cp_site', ref: 'SITE-3320', detail: '29-visit plan vs 46 standalone — 37% fewer rolls' },
+    ],
+  },
 }
 
 const FALLBACK = {
@@ -464,6 +568,8 @@ function matchScript(text) {
   if (/fail|predict|14 day|ignore/.test(t)) return 'failing_port'
   if (/truck roll|backlog|dispatch|p1|socal/.test(t)) return 'truck_rolls'
   if (/demand charge|tariff|fremont|energy|peak/.test(t)) return 'demand_charges'
+  if (/repair|broken|fix|what needs|order should/.test(t)) return 'repair_queue'
+  if (/maintenance|preventive|\bpm\b|service due|schedule|cadence/.test(t)) return 'pm_schedule'
   return null
 }
 
@@ -822,6 +928,12 @@ function AssistantMessage({ msg, agent, onOpenSources }) {
             {msg.answer.map((b, i) => {
               if (b.kind === 'verdict') return <p key={i} style={{ margin: '0 0 12px', fontFamily: 'var(--serif)', fontSize: 17, fontWeight: 500, color: '#16341f', lineHeight: 1.4 }}><Rich text={b.text} onCite={jumpToCite} /></p>
               if (b.kind === 'bullet') return <div key={i} style={{ display: 'flex', gap: 8, margin: '0 0 8px', fontSize: 14, color: '#3a3a36', lineHeight: 1.6 }}><span style={{ color: '#16341f', marginTop: 1 }}>•</span><span><Rich text={b.text} onCite={jumpToCite} /></span></div>
+              if (b.kind === 'list') return (
+                <div key={i} style={{ display: 'flex', gap: 10, alignItems: 'flex-start', margin: '0 0 8px', padding: '10px 12px', background: '#faf9f5', border: '1px solid #f0eee7', borderRadius: 9 }}>
+                  <span style={{ flexShrink: 0, width: 22, height: 22, borderRadius: '50%', background: '#16341f', color: '#fff', fontSize: 11.5, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'var(--mono)' }}>{b.n}</span>
+                  <span style={{ fontSize: 13.5, color: '#3a3a36', lineHeight: 1.55, paddingTop: 2 }}><Rich text={b.text} onCite={jumpToCite} /></span>
+                </div>
+              )
               if (b.kind === 'action') return <div key={i} style={{ marginTop: 12, padding: '12px 14px', background: '#f3f7f3', border: '1px solid #dce8dc', borderRadius: 10, fontSize: 13.5, color: '#20492e', lineHeight: 1.55 }}><Rich text={b.text} onCite={jumpToCite} /></div>
               return <p key={i} style={{ margin: '0 0 11px', fontSize: 14, color: '#3a3a36', lineHeight: 1.65 }}><Rich text={b.text} onCite={jumpToCite} /></p>
             })}
