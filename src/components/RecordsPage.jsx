@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
-import { NodeShape, ListGlyph, ZoomControls, Minimap, colorForNode as canvasColorForNode, NIKE_DATA, FINANCE_DATA } from './GraphStage'
+import { NodeShape, ListGlyph, ZoomControls, Minimap, colorForNode as canvasColorForNode, NIKE_DATA, FINANCE_DATA, CHARGEPOINT_DATA } from './GraphStage'
 
 // ── Color palette (New UI tokens) ──────────────────────────────────────────
 const C = {
@@ -312,6 +312,10 @@ const NIKE_ENTITY_NODES = NIKE_DATA.nodes.filter(n => n.type === 'entity')
 const NIKE_ENTITY_IDS = new Set(NIKE_ENTITY_NODES.map(n => n.id))
 const NIKE_PROPS = {}; NIKE_ENTITY_NODES.forEach(n => { if (n._userProps) NIKE_PROPS[n.id] = n._userProps })
 const NIKE_RD = { nodes: NIKE_ENTITY_NODES, edges: NIKE_DATA.edges.filter(e => NIKE_ENTITY_IDS.has(e.s) && NIKE_ENTITY_IDS.has(e.t)), props: NIKE_PROPS }
+const CP_ENTITY_NODES = CHARGEPOINT_DATA.nodes.filter(n => n.type === 'entity')
+const CP_ENTITY_IDS = new Set(CP_ENTITY_NODES.map(n => n.id))
+const CP_PROPS = {}; CP_ENTITY_NODES.forEach(n => { if (n._userProps) CP_PROPS[n.id] = n._userProps })
+const CHARGEPOINT_RD = { nodes: CP_ENTITY_NODES, edges: CHARGEPOINT_DATA.edges.filter(e => CP_ENTITY_IDS.has(e.s) && CP_ENTITY_IDS.has(e.t)), props: CP_PROPS }
 const FIN_ENTITY_NODES = FINANCE_DATA.nodes.filter(n => n.type === 'entity')
 const FIN_ENTITY_IDS = new Set(FIN_ENTITY_NODES.map(n => n.id))
 const FIN_PROPS = {}; FIN_ENTITY_NODES.forEach(n => { if (n._userProps) FIN_PROPS[n.id] = n._userProps })
@@ -324,7 +328,8 @@ const CRM_SOURCE_LABELS = ['Salesforce CRM', 'NetSuite ERP', 'HubSpot Marketing'
 const LOWES_SOURCE_LABELS = ['Azure AD', 'Outlook', 'Teams', 'Calendar', 'SharePoint', 'OneDrive', 'ServiceNow', 'Jira', 'Confluence']
 const NIKE_SOURCE_LABELS = ['SAP ERP', 'Commerce Cloud', 'Retail POS', 'Snowflake CDP', 'o9 Planning', 'Manhattan WMS', 'Adobe Analytics', 'Paid Media', 'Marketing Cloud', 'Market Signals']
 const FINANCE_SOURCE_LABELS = ['SAP S/4HANA', 'Oracle NetSuite', 'Workday', 'Coupa', 'SAP Concur', 'Anaplan', 'BlackLine', 'Kyriba', 'BILL', 'Snowflake']
-const recordSourcePool = () => (RD === LOWES_RD ? LOWES_SOURCE_LABELS : RD === NIKE_RD ? NIKE_SOURCE_LABELS : RD === FINANCE_RD ? FINANCE_SOURCE_LABELS : CRM_SOURCE_LABELS)
+const CP_SOURCE_LABELS = ['NOS Telemetry', 'Salesforce', 'NetSuite', 'Stripe', 'ServiceNow', 'Zendesk', 'Hubject', 'Genability', 'Workday', 'Geotab', 'Snowflake', 'Firmware OTA']
+const recordSourcePool = () => (RD === LOWES_RD ? LOWES_SOURCE_LABELS : RD === NIKE_RD ? NIKE_SOURCE_LABELS : RD === FINANCE_RD ? FINANCE_SOURCE_LABELS : RD === CHARGEPOINT_RD ? CP_SOURCE_LABELS : CRM_SOURCE_LABELS)
 const pickSource = seed => { const p = recordSourcePool(); return p[Math.abs(seed) % p.length] }
 
 // ── Colour helpers ──────────────────────────────────────────────────────────
@@ -446,11 +451,109 @@ function nikeValue(p, v, nodeId) {
     default: return null
   }
 }
+const CP_NAMES = {
+  cp_station: ['Fremont Depot — Bay 4','SFO Long-Term Lot A','Whole Foods Cupertino','Santana Row P2','Mission St Garage','Palo Alto City Hall','Sunnyvale Caltrain','Oakland Airport Daily','San Mateo Bridge Plaza','Milpitas Great Mall'],
+  cp_site: ['Fremont Fleet Depot','SFO Airport Parking','Whole Foods Cupertino','Santana Row','Mission Street Garage','Palo Alto Civic Center','Sunnyvale Transit Center','Oakland Airport'],
+  cp_host: ['Whole Foods Market','Prologis','Simon Property Group','City of Palo Alto','SFO Airport Authority','Kaiser Permanente','Stanford University','Westfield'],
+  cp_utility: ['PG&E','Southern California Edison','SDG&E','Silicon Valley Power','Austin Energy','Con Edison'],
+  cp_tariff: ['PG&E B-19 TOU','SCE TOU-EV-8','PG&E BEV-2-S','SVP EV Commercial','SDG&E AL-TOU','ConEd SC-9 Rate II'],
+  cp_driver: ['Priya Sharma','Daniel Kim','Maya Chen','Liam Bennett','Sofia Alvarez','Noah Parker','Ava Mitchell','Ethan Brooks','Grace Coleman','Mason Reed'],
+  cp_fleet: ['Amazon Logistics — SJC7','FedEx Ground Fremont','Sysco NorCal','US Foods Bay Area','PepsiCo Fleet West','UPS Oakland Hub'],
+  cp_roaming: ['EVgo','Electrify America','Shell Recharge','BP Pulse','Blink','Flo'],
+  cp_tech: ['Marcus Webb','Elena Rodriguez','James Okafor','Sarah Lindqvist','David Chen','Aisha Patel','Tom Callahan'],
+  cp_part: ['CCS Cable Assembly 350A','Power Module 62.5kW','Touchscreen Display 10in','Cellular Modem LTE','Contactor 400A','Cable Retractor Kit','RFID Reader Module'],
+  cp_vehicle: ['Ford E-Transit','Rivian EDV 700','Tesla Model Y','Chevy BrightDrop Zevo','Ford F-150 Lightning','Mercedes eSprinter'],
+  cp_ticket: ['Session ended early — charge incomplete','Card charged twice for one session','Connector stuck in vehicle port','Station offline at Santana Row','App shows wrong price for session','Receipt never arrived'],
+  cp_workorder: ['Replace CCS cable — Bay 4','Power module swap — SFO A','Touchscreen unresponsive','Modem replacement — offline station','Contactor replacement — fault E-341'],
+  cp_fault: ['E-341 Contactor weld detected','E-108 Ground fault trip','E-220 Cellular link lost','E-415 Overtemp derate','E-102 Meter comms failure','E-509 Payment terminal fault'],
+  cp_warranty: ['Assure Pro — Fremont Depot','Assure — SFO Lot A','Assure Pro — Santana Row','Assure — Palo Alto Civic'],
+}
+function cpValue(p, v, nodeId) {
+  // Decorrelate strided seeds so pool picks don't repeat in runs.
+  v = Math.imul(v ^ (v >>> 16), 2654435761) >>> 0
+  if (['name','title','subject','description'].includes(p.name) && CP_NAMES[nodeId]) return CP_NAMES[nodeId][(v >>> 3) % CP_NAMES[nodeId].length]
+  if (p.name === 'make_model') return CP_NAMES.cp_vehicle[(v >>> 3) % CP_NAMES.cp_vehicle.length]
+  if (p.name === 'ocpp_code') return CP_NAMES.cp_fault[(v >>> 3) % CP_NAMES.cp_fault.length].split(' ')[0]
+  switch (p.name) {
+    case 'model': return ['CT4000','Express Plus','CPF50','Express 250','CT4021'][(v >>> 3) % 5]
+    case 'serial_no': return 'CP' + (100000 + v % 899999)
+    case 'firmware_version': return ['5.14.2','5.14.1','5.12.8','5.15.0-rc1'][(v >>> 3) % 4]
+    case 'network_status': return ['Online','Online','Online','Degraded','Offline'][(v >>> 3) % 5]
+    case 'connectivity': return ['Cellular','Ethernet','Cellular'][(v >>> 3) % 3]
+    case 'nevi_funded': return v % 3 === 0 ? 'true' : 'false'
+    case 'connector_type': return ['CCS1','NACS','J1772','CHAdeMO'][(v >>> 3) % 4]
+    case 'max_kw': return ['62.5','150','350','19.2','7.2'][(v >>> 3) % 5]
+    case 'kwh_delivered': return (8 + v % 72) + '.' + (v % 9)
+    case 'peak_kw': return (20 + v % 330) + '.' + (v % 9)
+    case 'stop_reason': return ['Complete','Driver stop','Fault','Payment declined','Timeout'][(v >>> 3) % 5]
+    case 'payment_status': return ['Settled','Settled','Pending','Refunded'][(v >>> 3) % 4]
+    case 'probability': return (0.35 + (v % 60) / 100).toFixed(2)
+    case 'horizon_days': return String(3 + v % 14)
+    case 'top_signal': return ['Contactor drift','Overtemp events','Comms flaps','Meter variance','Cable wear'][(v >>> 3) % 5]
+    case 'health_score': return (0.42 + (v % 55) / 100).toFixed(2)
+    case 'avg_occupancy_pct': return (28 + v % 64) + '%'
+    case 'peak_hour': return ['17:00','18:00','16:00','19:00','12:00'][(v >>> 3) % 5]
+    case 'queue_events_30d': return String(v % 46)
+    case 'trend': return ['Rising','Surging','Flat','Declining'][(v >>> 3) % 4]
+    case 'forecast_30d': return (0.5 + (v % 45) / 100).toFixed(2)
+    case 'segment': return nodeId === 'cp_site' ? ['Retail','Workplace','Fleet Depot','Municipal','Airport'][(v >>> 3) % 5] : ['Enterprise','Mid-market','Public Sector','Strategic'][(v >>> 3) % 4]
+    case 'panel_capacity_kw': return String(200 + (v % 14) * 50)
+    case 'station_count': return String(2 + v % 22)
+    case 'arr': return (48000 + (v % 80) * 6000).toLocaleString('en-US', { minimumFractionDigits: 2 })
+    case 'nps': return String(20 + v % 60)
+    case 'territory': return ['Northern California','Southern California','Central Valley','Bay Area'][(v >>> 3) % 4]
+    case 'iso_region': return ['CAISO','CAISO','ERCOT','NYISO','PJM'][(v >>> 3) % 5]
+    case 'demand_charge': case 'demand_charge_kw': return '$' + (12 + v % 26) + '.' + (v % 90 + 10) + '/kW'
+    case 'interconnect_queue_days': return String(45 + v % 320)
+    case 'peak_start': return ['16:00','17:00','14:00'][(v >>> 3) % 3]
+    case 'peak_end': return ['21:00','20:00','19:00'][(v >>> 3) % 3]
+    case 'peak_rate_kwh': return '$0.' + (32 + v % 28)
+    case 'offpeak_rate_kwh': return '$0.' + (11 + v % 14)
+    case 'home_region': return ['Bay Area','Sacramento','Los Angeles','San Diego','Portland'][(v >>> 3) % 5]
+    case 'sessions_90d': return String(8 + v % 88)
+    case 'failed_sessions_90d': return String(v % 7)
+    case 'payment_method': return ['Card on file','Apple Pay','Google Pay','Fleet card'][(v >>> 3) % 4]
+    case 'vin': return '1FT' + (v % 10) + 'W1E' + (v % 10) + (v % 10) + 'KF' + (10000 + v % 89999)
+    case 'battery_kwh': return ['68','135','98','77','131'][(v >>> 3) % 5]
+    case 'soc_pct': return (18 + v % 78) + '%'
+    case 'next_route_at': return '0' + (4 + v % 4) + ':' + ['00','30','15'][(v >>> 3) % 3] + ' tomorrow'
+    case 'vehicle_count': return String(12 + v % 240)
+    case 'depot_count': return String(1 + v % 6)
+    case 'soc_target_pct': return ['85%','90%','80%'][(v >>> 3) % 3]
+    case 'managed_charging': return v % 4 !== 0 ? 'true' : 'false'
+    case 'network': return ['Hubject','OCPI Direct','Hubject'][(v >>> 3) % 3]
+    case 'settlement_terms': return ['Net 15','Net 30','Monthly true-up'][(v >>> 3) % 3]
+    case 'sessions_30d': return String(400 + (v % 90) * 120)
+    case 'revenue_share_pct': return (8 + v % 12) + '%'
+    case 'method': return ['Card','Apple Pay','Fleet card','ACH'][(v >>> 3) % 4]
+    case 'category': return ['Charging failure','Billing','Hardware','App','Access'][(v >>> 3) % 5]
+    case 'sla_due_at': return 'in ' + (2 + v % 46) + 'h'
+    case 'parts_required': return CP_NAMES.cp_part[(v >>> 3) % CP_NAMES.cp_part.length]
+    case 'truck_roll_cost': return '$' + (380 + (v % 14) * 45)
+    case 'severity': return ['Critical','Major','Minor'][(v >>> 3) % 3]
+    case 'recurrence_30d': return String(v % 9)
+    case 'certifications': return ['HV + CT4000 + Express','HV + CT4000','Express Plus + HV','CT4000'][(v >>> 3) % 4]
+    case 'open_orders': return String(v % 9)
+    case 'utilization_pct': return (55 + v % 40) + '%'
+    case 'sku': return 'CPP-' + (1000 + v % 8999)
+    case 'compatible_models': return ['CT4000, CT4021','Express Plus, Express 250','CT4000','All models'][(v >>> 3) % 4]
+    case 'stock_qty': return String(v % 48)
+    case 'warehouse': return ['Fremont DC','Reno DC','Dallas DC','Atlanta DC'][(v >>> 3) % 4]
+    case 'lead_time_days': return String(1 + v % 21)
+    case 'tier': return nodeId === 'cp_warranty' ? ['Assure','Assure Pro','Assure'][(v >>> 3) % 3] : null
+    case 'uptime_commitment_pct': return ['97.0%','98.0%','99.0%'][(v >>> 3) % 3]
+    case 'penalty_terms': return ['Credit 2% per 0.1% below','Credit 5% flat','Service credits tiered'][(v >>> 3) % 3]
+    case 'status': return nodeId === 'cp_port' ? ['Available','Charging','Available','Faulted','Offline'][(v >>> 3) % 5] : nodeId === 'cp_workorder' ? ['Open','Dispatched','On site','Closed'][(v >>> 3) % 4] : nodeId === 'cp_ticket' ? ['Open','Pending','Solved'][(v >>> 3) % 3] : nodeId === 'cp_payment' ? ['Settled','Settled','Pending','Refunded'][(v >>> 3) % 4] : null
+    case 'priority': return ['P1','P2','P3','P2'][(v >>> 3) % 4]
+    default: return null
+  }
+}
 function generateValueForProp(p, seed, nodeId) {
   const v = Math.abs(seed * (p.name.charCodeAt(0) + 1))
   if (p.pk) return p.name.replace(/_id$/, '').toUpperCase().slice(0,3) + '-' + (10000 + v % 89999)
   if (RD === NIKE_RD) { const nv = nikeValue(p, v, nodeId); if (nv != null) return nv }
   if (RD === FINANCE_RD) { const fv = financeValue(p, v, nodeId); if (fv != null) return fv }
+  if (RD === CHARGEPOINT_RD) { const cv = cpValue(p, v, nodeId); if (cv != null) return cv }
   // Lowe's-specific labels for the name/title/subject/topic field of each node.
   if (RD === LOWES_RD && ['name','title','subject','summary','topic'].includes(p.name) && LOWES_NAMES[nodeId] && !PERSON_NODES.has(nodeId)) {
     return LOWES_NAMES[nodeId][v % LOWES_NAMES[nodeId].length]
@@ -2543,7 +2646,7 @@ function DocumentViewer({ gnode, prov, onClose, onBack }) {
 
 // ── Page ─────────────────────────────────────────────────────────────────────
 export default function RecordsPage({ disableDetail, dataset }) {
-  RD = dataset === 'lowes' ? LOWES_RD : dataset === 'nike' ? NIKE_RD : dataset === 'finance' ? FINANCE_RD : DEFAULT_RD
+  RD = dataset === 'lowes' ? LOWES_RD : dataset === 'nike' ? NIKE_RD : dataset === 'finance' ? FINANCE_RD : dataset === 'chargepoint' ? CHARGEPOINT_RD : DEFAULT_RD
   const [selectedRecord, setSelectedRecord] = useState(null)
   const [selectedNode,   setSelectedNode]   = useState(null)
 

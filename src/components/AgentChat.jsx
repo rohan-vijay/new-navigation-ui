@@ -1,8 +1,8 @@
 import { useState, useRef, useEffect } from 'react'
-import { NIKE_DATA, ListGlyph } from './GraphStage'
+import { NIKE_DATA, CHARGEPOINT_DATA, ListGlyph } from './GraphStage'
 
 // ── Node lookup (for rendering graph chips in the reasoning trace) ──
-const NODE_BY_ID = (() => { const m = {}; NIKE_DATA.nodes.forEach(n => { m[n.id] = n }); return m })()
+const NODE_BY_ID = (() => { const m = {}; [...NIKE_DATA.nodes, ...CHARGEPOINT_DATA.nodes].forEach(n => { m[n.id] = n }); return m })()
 
 // Synthesize a record's field values from the node's property schema — lets the
 // "View record" action show a real record inspector for a cited source.
@@ -30,15 +30,24 @@ function recordFields(source) {
 
 // ── Agents ──────────────────────────────────────────────────────────────────
 const AGENTS = [
-  { id: 'demand',  name: 'Retail Demand Agent', color: '#16341f', tagline: 'Explains demand spikes across product, store, media & supply.',
+  { id: 'demand',  name: 'Retail Demand Agent', color: '#16341f', tagline: 'Explains demand spikes across product, store, media & supply.', graph: 'Nike Retail Context Graph',
     greeting: "I'm grounded in the Nike Retail Context Graph. I answer by running Cypher over the graph — ask me why a product is moving in a market and I'll trace it through demand, media and supply.",
     starters: ['seattle_ny', 'airmax_spike', 'pegasus_pnw'] },
-  { id: 'supply',  name: 'Supply Chain Agent', color: '#3a6ea0', tagline: 'Spots stockout risk and replenishment gaps before they cost sales.',
+  { id: 'supply',  name: 'Supply Chain Agent', color: '#3a6ea0', tagline: 'Spots stockout risk and replenishment gaps before they cost sales.', graph: 'Nike Retail Context Graph',
     greeting: "I watch inventory positions, weeks-of-supply and inbound replenishment across every door. I query the graph directly — ask me where you're about to lose sales.",
     starters: ['stockout_risk', 'seattle_ny', 'pegasus_pnw'] },
-  { id: 'merch',   name: 'Merch & Campaign Agent', color: '#8a5a2b', tagline: 'Ties sell-through back to campaigns, media spend and events.',
+  { id: 'merch',   name: 'Merch & Campaign Agent', color: '#8a5a2b', tagline: 'Ties sell-through back to campaigns, media spend and events.', graph: 'Nike Retail Context Graph',
     greeting: "I connect sell-through to the campaigns, paid media and cultural events behind it. I run Cypher across the graph — ask me what's actually driving a lift.",
     starters: ['campaign_roi', 'airmax_spike', 'seattle_ny'] },
+  { id: 'uptime',  name: 'Uptime Copilot', color: '#c2543a', tagline: 'Finds failing ports before drivers do.', graph: 'ChargePoint Network Graph',
+    greeting: "I'm grounded in the ChargePoint Network Graph. I answer by tracing telemetry through faults, work orders and Assure warranty SLAs — ask me why uptime moved and I'll show you the ports, firmware and penalty dollars behind it.",
+    starters: ['bayarea_uptime', 'failing_port', 'truck_rolls'] },
+  { id: 'fieldops', name: 'Field Ops Agent', color: '#3a6ea0', tagline: 'Cuts truck rolls with parts-aware, SLA-aware dispatch.', graph: 'ChargePoint Network Graph',
+    greeting: "I'm grounded in the ChargePoint Network Graph. I plan dispatch by joining open work orders to technician skills, spare-part stock and SLA clocks — ask me how to clear a backlog and I'll batch it into the fewest truck rolls.",
+    starters: ['truck_rolls', 'failing_port', 'bayarea_uptime'] },
+  { id: 'energy',  name: 'Energy Cost Agent', color: '#0f8a5f', tagline: 'Shrinks demand charges with tariff-aware load shaping.', graph: 'ChargePoint Network Graph',
+    greeting: "I'm grounded in the ChargePoint Network Graph. I trace energy cost through sites, utilities, tariff peak windows and fleet charging behavior — ask me why a bill spiked and I'll show you the load shape that caused it.",
+    starters: ['demand_charges', 'bayarea_uptime', 'failing_port'] },
 ]
 
 // ── Scripted, graph-grounded conversations ───────────────────────────────────
@@ -243,6 +252,196 @@ RETURN s.name, i.weeks_of_supply`,
       { n: 3, node: 'inventory', ref: 'IP-7781', detail: 'Northeast (Nike NYC) 1.2 weeks of supply' },
     ],
   },
+  bayarea_uptime: {
+    q: "Why did uptime dip below the NEVI 97% floor in the Bay Area this week?",
+    tag: 'Uptime · Faults · SLA',
+    chain: [
+      { kind: 'cypher', title: 'Find repeat-fault ports in the metro', nodes: ['cp_station', 'cp_port', 'cp_fault'],
+        cypher: `MATCH (f:FaultAlert)-[:RAISED_ON]->(p:ChargingPort)
+      -[:INSTALLED_ON]->(s:ChargingStation)-[:LOCATED_AT]->(st:Site)
+WHERE st.metro = 'Bay Area' AND f.raised_at > date() - duration('P7D')
+WITH s, p, count(f) AS faults WHERE faults >= 3
+RETURN s.model, s.firmware_version, count(p) AS ports, sum(faults) AS faults`,
+        result: `CT4000 · fw 5.1.2.1104 → 14 ports · 61 faults\nExpress Plus · fw 7.0.3 → 2 ports · 7 faults` },
+      { kind: 'sql', title: 'Quantify downtime minutes by site', nodes: ['cp_site'],
+        cypher: `SELECT s.site_name, SUM(d.downtime_min) AS down_min,
+       1 - SUM(d.downtime_min) / SUM(d.tracked_min) AS uptime
+FROM   port_downtime_facts d JOIN dim_site s ON s.id = d.site_id
+WHERE  d.metro = 'Bay Area' AND d.week = CURRENT_WEEK
+GROUP BY 1 ORDER BY down_min DESC`,
+        result: `Fremont Hub → 4,310 min · 94.1%\nSan Jose Airport → 2,750 min · 95.3%\nOther 21 sites → 1,760 min · 98.9%  →  two sites = 80% of lost minutes` },
+      { kind: 'semantic', title: 'Check for a known firmware issue', nodes: ['cp_station', 'cp_fault'],
+        query: 'known issues on CT4000 firmware 5.1.2.1104',
+        matches: [
+          { score: 0.94, text: '“CP-FW-1104: DC contactor chatter after OTA 5.1.2.1104” — known issue', src: 'Firmware OTA' },
+          { score: 0.87, text: 'Field bulletin: CT4000 power-module resets on build 1104', src: 'ServiceNow' },
+          { score: 0.78, text: 'Rollback validation notes — 5.1.1 is the stable baseline', src: 'Firmware OTA' },
+        ] },
+      { kind: 'cypher', title: 'Price the SLA exposure & check work-order cover', nodes: ['cp_warranty', 'cp_workorder'],
+        cypher: `MATCH (w:AssureContract)-[:COVERS]->(s:ChargingStation)
+      <-[:INSTALLED_ON]-(p:ChargingPort)
+WHERE p.port_id IN $repeat_fault_ports
+OPTIONAL MATCH (wo:WorkOrder)-[:RESOLVES]->(:FaultAlert)-[:RAISED_ON]->(p)
+RETURN w.uptime_commitment_pct, count(DISTINCT p) AS ports,
+       sum(w.penalty_accrual) AS exposure, collect(DISTINCT wo.status)`,
+        result: `97% NEVI floor · 14 ports covered · $86,400 penalty exposure\nwork orders: 3 open · 11 ports with none raised` },
+    ],
+    answer: [
+      { kind: 'verdict', text: 'The dip is a firmware regression, not random hardware — 14 CT4000 ports on one bad build, with two sites driving 80% of the lost minutes.' },
+      { kind: 'para', text: 'Bay Area uptime landed at 96.5% this week against the 97% NEVI floor, and the graph shows the shortfall is tightly concentrated: 14 CT4000 ports with three or more faults each, all running firmware 5.1.2.1104[1], threw 61 faults in seven days[2]. This is not a fleet-wide reliability slide — it is one build misbehaving on one hardware family.' },
+      { kind: 'bullet', text: '**Two sites carry the dip** — Fremont Hub (4,310 min) and San Jose Airport (2,750 min) account for 80% of lost minutes[3]; the other 21 Bay Area sites sit at 98.9% and are fine.' },
+      { kind: 'bullet', text: '**The cause is already documented** — the OTA registry flags build 5.1.2.1104 for DC contactor chatter on CT4000 (CP-FW-1104), and the fault signature on these ports matches it exactly[2].' },
+      { kind: 'para', text: 'The money side: all 14 ports sit under Assure contracts carrying the 97% NEVI commitment, and penalty exposure is already $86,400 if the dip holds through month-end[4]. Yet only 3 work orders are open — 11 of the 14 ports have nothing raised against them[5], so the service loop has not caught up with what telemetry already knows.' },
+      { kind: 'action', text: 'Recommend: (1) raise pre-emptive work orders on the 11 uncovered ports today[5]; (2) expedite DC power modules into Fremont Hub and San Jose Airport ahead of the visits[3]; (3) OTA-rollback the affected CT4000s to 5.1.1 — the registry flags it as the stable baseline[2].' },
+    ],
+    sources: [
+      { n: 1, node: 'cp_port', ref: 'PORT-88412', detail: '14 CT4000 ports · ≥3 faults each · fw 5.1.2.1104' },
+      { n: 2, node: 'cp_fault', ref: 'FLT-99120', detail: '61 faults in 7d · contactor chatter · matches CP-FW-1104' },
+      { n: 3, node: 'cp_site', ref: 'SITE-2214', detail: 'Fremont Hub 4,310 + San Jose Airport 2,750 min = 80% of downtime' },
+      { n: 4, node: 'cp_warranty', ref: 'ASR-55310', detail: 'Assure NEVI tier · 97% floor · $86,400 penalty exposure' },
+      { n: 5, node: 'cp_workorder', ref: 'WO-20871', detail: '3 open work orders · 11 ports with none raised' },
+    ],
+  },
+  failing_port: {
+    q: "Which ports will fail in the next 14 days and what will it cost to ignore them?",
+    tag: 'Predictive · Parts · Dispatch',
+    chain: [
+      { kind: 'cypher', title: 'Pull ports over the risk threshold', nodes: ['cp_failrisk', 'cp_port', 'cp_station'],
+        cypher: `MATCH (r:FailureRisk)-[:ON_PORT]->(p:ChargingPort)
+      -[:INSTALLED_ON]->(s:ChargingStation)
+WHERE r.probability > 0.6 AND r.horizon_days <= 14
+RETURN s.name, p.port_id, r.probability, r.top_signal
+ORDER BY r.probability DESC`,
+        result: `23 ports above 0.6 (9 above 0.8)\ntop: PORT-88412 0.91 contactor drift · PORT-71553 0.88 comms flap · PORT-90234 0.84 relay wear` },
+      { kind: 'sql', title: 'Backtest fault → hard-failure conversion', nodes: ['cp_failrisk', 'cp_fault'],
+        cypher: `SELECT risk_band, COUNT(*) AS ports,
+       AVG(hard_failure_within_14d::int) AS conversion
+FROM   failrisk_backtest
+WHERE  scored_at > DATEADD('month', -6, CURRENT_DATE)
+GROUP BY 1 ORDER BY 1 DESC`,
+        result: `p > 0.8 → 71% fail within 14d · 0.6–0.8 → 44%\n→ ~12 expected hard failures from the 23 flagged` },
+      { kind: 'cypher', title: 'Check spare-part stock & lead times', nodes: ['cp_part', 'cp_workorder'],
+        cypher: `MATCH (r:FailureRisk)-[:ON_PORT]->(p:ChargingPort)
+WHERE r.probability > 0.6
+MATCH (pt:SparePart) WHERE pt.sku IN p.likely_parts
+RETURN pt.name, pt.warehouse, pt.stock_qty, pt.lead_time_days`,
+        result: `DC power module → Reno · 11 in stock · 2d\ncable assembly → Stockton · 26 in stock · 1d\ncontrol board → factory only · 0 regional · 18d lead\n→ 9 of 23 ports fixable with in-region stock` },
+      { kind: 'cypher', title: 'Price the cost of ignoring them', nodes: ['cp_warranty', 'cp_session'],
+        cypher: `MATCH (w:AssureContract)-[:COVERS]->(s:ChargingStation)
+      <-[:INSTALLED_ON]-(p:ChargingPort)
+WHERE p.port_id IN $flagged
+OPTIONAL MATCH (sess:ChargingSession)-[:DELIVERED_BY]->(p)
+WITH w, p, avg(sess.cost) AS avg_rev, count(sess) / 90.0 AS per_day
+RETURN sum(w.penalty_accrual_14d) AS penalties, sum(avg_rev * per_day * 14)`,
+        result: `Assure penalty accrual (14d) → $54,000\nlost session revenue → ~$11,900 (12 failures × ~$71/day)\ncost to ignore ≈ $66K · fixing the 9 in-stock ports ≈ $8,100` },
+    ],
+    answer: [
+      { kind: 'verdict', text: '23 ports cross the failure threshold within 14 days — ignoring them costs ~$66K, fixing the 9 with in-region parts costs ~$8K.' },
+      { kind: 'para', text: 'The failure-risk model flags 23 ports above 0.6 probability on a 14-day horizon, nine of them above 0.8 — led by PORT-88412 at 0.91 on contactor drift[1][2]. The backtest says these scores are earned: over the last six months, ports above 0.8 converted to hard failures 71% of the time, and the 0.6–0.8 band 44%[1] — so expect roughly 12 hard failures from this list if nothing moves.' },
+      { kind: 'bullet', text: '**Parts split the list into “now” and “expedite”** — 9 ports need DC power modules or cable assemblies stocked in-region (Reno 2-day, Stockton 1-day)[3]. The other 14 need control boards with zero regional stock and an 18-day factory lead[3].' },
+      { kind: 'bullet', text: '**The cost of waiting is asymmetric** — Assure penalty accrual runs $54,000 over the window[4], plus ~$11.9K in lost session revenue (12 failures × ~$71/port/day at 6.2 sessions of $11.40 each)[5]. Fixing the 9 in-stock ports now is ~$8,100 in truck rolls.' },
+      { kind: 'para', text: 'The ranked batch: take the nine in-stock ports in probability order first — each visit is cheap and each one averted keeps a whole station inside its Assure commitment[4]. The control-board cohort cannot be fixed faster than its lead time, so the only lever there is starting the clock.' },
+      { kind: 'action', text: 'Recommend: (1) dispatch the 9 in-stock ports this week as one batched route, highest probability first[1][3]; (2) place the control-board order today so the 18-day lead starts now[3]; (3) soft-close the highest-risk uncovered ports at off-peak stations to cap penalty accrual while parts are in transit[4].' },
+    ],
+    sources: [
+      { n: 1, node: 'cp_failrisk', ref: 'RSK-90211', detail: '23 ports > 0.6 · 9 above 0.8 · backtest 71% / 44% conversion' },
+      { n: 2, node: 'cp_port', ref: 'PORT-88412', detail: 'top risk 0.91 · contactor drift' },
+      { n: 3, node: 'cp_part', ref: 'PRT-4407', detail: 'power modules 11 @ Reno (2d) · control boards 0 regional, 18d lead' },
+      { n: 4, node: 'cp_warranty', ref: 'ASR-55310', detail: '$54,000 Assure penalty accrual over 14 days' },
+      { n: 5, node: 'cp_session', ref: 'SES-33018', detail: 'avg 6.2 sessions/day · $11.40 per session → ~$71/port/day' },
+    ],
+  },
+  truck_rolls: {
+    q: "How do I clear the P1 backlog in SoCal with the fewest truck rolls?",
+    tag: 'Dispatch · Parts · SLA',
+    chain: [
+      { kind: 'cypher', title: 'Group open P1 work orders by site', nodes: ['cp_workorder', 'cp_site'],
+        cypher: `MATCH (wo:WorkOrder {status:'Open', priority:'P1'})-[:RESOLVES]->(f:FaultAlert)
+      -[:RAISED_ON]->(:ChargingPort)-[:INSTALLED_ON]->(s:ChargingStation)
+      -[:LOCATED_AT]->(st:Site)
+WHERE st.metro IN ['Los Angeles','San Diego','Inland Empire']
+RETURN st.name, count(wo) AS orders, min(wo.sla_due_at) AS first_due`,
+        result: `31 open P1s across 12 sites\nLong Beach Depot 6 · Anaheim Retail 5 · Ontario Corridor 4 · 9 sites ≤3\nearliest SLA: WO-20871 in 31h · WO-20904 in 40h` },
+      { kind: 'cypher', title: 'Match technicians by skill, region & load', nodes: ['cp_tech', 'cp_workorder'],
+        cypher: `MATCH (t:Technician)-[:ASSIGNED_TO]->(wo:WorkOrder {status:'Open'})
+WHERE t.region = 'SoCal'
+RETURN t.name, t.certifications, t.open_orders, t.utilization_pct
+ORDER BY t.utilization_pct`,
+        result: `7 certified techs in region · 4 carry the Express Plus cert\navg load 4.4 open orders · 2 techs under 60% utilization` },
+      { kind: 'sql', title: 'Check part stock against requirements', nodes: ['cp_part'],
+        cypher: `SELECT p.part_name, p.warehouse, p.stock_qty, r.required_qty
+FROM   part_stock p JOIN wo_part_requirements r ON r.sku = p.sku
+WHERE  r.metro = 'SoCal' AND r.priority = 'P1'
+ORDER  BY r.required_qty - p.stock_qty DESC`,
+        result: `power modules 11 req / 4 stock → short 7 (Reno, 2d)\ncables 18 req / 24 stock ✓ · screens 6 req / 9 stock ✓` },
+      { kind: 'semantic', title: 'Retrieve past batched-dispatch outcomes', nodes: ['cp_workorder', 'cp_tech'],
+        query: 'outcomes of batching P1 work orders by site and shared part',
+        matches: [
+          { score: 0.91, text: 'Q1 SoCal batching pilot: 38% fewer truck rolls · SLA hit-rate 99.2%', src: 'ServiceNow' },
+          { score: 0.84, text: 'Route-clustering playbook — batch by same-site + same-part', src: 'Knowledge' },
+          { score: 0.77, text: 'Post-mortem: split dispatch on Ontario corridor doubled drive time', src: 'ServiceNow' },
+        ] },
+    ],
+    answer: [
+      { kind: 'verdict', text: '31 open P1s collapse into 9 batched routes — but two orders can\'t wait for the batch, and you\'re 7 power modules short.' },
+      { kind: 'para', text: 'SoCal holds 31 open P1 work orders across 12 sites, but the spread is deceptive: Long Beach Depot, Anaheim Retail and Ontario Corridor carry 15 of them[1][4]. Because the fault mix is concentrated too — 55% connector lock, 26% power module[5] — clustering by site and shared part collapses the backlog into 9 routes, the same batching that cut truck rolls 38% in the Q1 pilot while holding SLA hit-rate at 99.2%[1].' },
+      { kind: 'bullet', text: '**Two orders must jump the queue** — WO-20871 (31h to SLA breach) and WO-20904 (40h) cannot wait for batch day[1]; send the two under-utilized techs at them today[2].' },
+      { kind: 'bullet', text: '**Parts gate the plan, not people** — 7 certified techs can absorb 9 routes, but power modules are 7 short against 11 required[3]; cables and screens are covered. Without the expedite, 4 of the 9 routes go out incomplete and become repeat rolls.' },
+      { kind: 'para', text: 'Assignment matters as much as routing: 4 of the 7 techs carry the Express Plus certification the depot sites require[2], so put them on Long Beach and Ontario and let the CT4000-only techs sweep the retail sites.' },
+      { kind: 'action', text: 'Recommend: (1) dispatch WO-20871 and WO-20904 today, outside the batch[1][2]; (2) expedite 7 power modules from Reno (2-day) before batch day[3]; (3) run the remaining 29 orders as 9 site-clustered routes over 4 days, Express Plus-certified techs on the depots[2].' },
+    ],
+    sources: [
+      { n: 1, node: 'cp_workorder', ref: 'WO-20871', detail: '31 open P1 · earliest SLA 31h · Q1 batching pilot −38% rolls' },
+      { n: 2, node: 'cp_tech', ref: 'TECH-1147', detail: '7 certified techs · 4 Express Plus · 2 under 60% utilization' },
+      { n: 3, node: 'cp_part', ref: 'PRT-4407', detail: 'power modules 11 required / 4 in stock → short 7 · Reno 2d' },
+      { n: 4, node: 'cp_site', ref: 'SITE-3306', detail: 'Long Beach 6 · Anaheim 5 · Ontario 4 of 31 orders' },
+      { n: 5, node: 'cp_fault', ref: 'FLT-84433', detail: 'fault mix: 55% connector lock · 26% power module · 19% comms' },
+    ],
+  },
+  demand_charges: {
+    q: "Why did the Fremont depot's demand charges spike 40% and what do we do about it?",
+    tag: 'Energy · Tariffs · Load',
+    chain: [
+      { kind: 'cypher', title: 'Trace the site to its tariff & peak window', nodes: ['cp_site', 'cp_utility', 'cp_tariff'],
+        cypher: `MATCH (st:Site {name:'Fremont Depot'})<-[:SERVES]-(u:Utility)
+      <-[:OFFERED_BY]-(t:TariffPlan)
+RETURN u.name, t.name, t.peak_start, t.peak_end, t.demand_charge_kw`,
+        result: `PG&E · BEV-2-S (new filing, eff. Jul 1)\npeak window 16:00–21:00 · demand charge $23.10/kW (was $20.40)` },
+      { kind: 'sql', title: 'Find the coincident peak in session data', nodes: ['cp_session'],
+        cypher: `SELECT DATE_TRUNC('hour', start_at) AS hr, SUM(peak_kw) AS site_kw
+FROM   session_facts
+WHERE  site_id = 'SITE-FRE-01' AND month = CURRENT_MONTH
+GROUP BY 1 ORDER BY site_kw DESC LIMIT 3`,
+        result: `Jul 22 18:00 → 505 kW · Jul 15 17:00 → 498 kW · Jul 29 18:00 → 491 kW\nall three inside the 4–7pm shift-end window (prior monthly high: 410 kW)` },
+      { kind: 'cypher', title: 'Read the utilization curve & fleet SoC targets', nodes: ['cp_util', 'cp_fleet', 'cp_vehicle'],
+        cypher: `MATCH (u:UtilizationSignal)-[:AT_SITE]->(st:Site {name:'Fremont Depot'})
+MATCH (v:Vehicle)-[:OPERATED_BY]->(fl:FleetOperator {name:'BayShore Logistics'})
+RETURN u.peak_hour, u.avg_occupancy_pct, count(v) AS vans, fl.soc_target_pct`,
+        result: `peak hour 18:00 · occupancy 92% at shift end (34% overnight)\n42 vans · SoC target 90% by 05:30 — all plug in 16:30–18:00` },
+      { kind: 'semantic', title: 'Retrieve the utility\'s new rate filing', nodes: ['cp_tariff', 'cp_utility'],
+        query: 'PG&E BEV-2-S rate filing changes effective July',
+        matches: [
+          { score: 0.95, text: 'PG&E BEV-2-S filing: demand charge $20.40 → $23.10/kW eff. Jul 1', src: 'Genability' },
+          { score: 0.86, text: 'Advice letter: overnight off-peak kWh cut to $0.14 under BEV-2-S', src: 'Genability' },
+          { score: 0.79, text: 'Managed-charging case study: staggered depot charging −31% demand charge', src: 'Knowledge' },
+        ] },
+    ],
+    answer: [
+      { kind: 'verdict', text: 'It\'s plug-in coincidence under a new tariff — 42 fleet vans all charge at shift end inside PG&E\'s peak window; stagger them and most of the spike unwinds.' },
+      { kind: 'para', text: 'Two things moved at once. PG&E\'s new BEV-2-S filing took effect July 1, lifting the demand charge from $20.40 to $23.10/kW[1][5]. At the same time the depot\'s coincident peak jumped from 410 kW to 505 kW[2] — and all three of the month\'s highest hours land between 4 and 7pm, exactly where the tariff\'s 16:00–21:00 peak window prices demand hardest[1]. Rate ×1.13 compounding with peak ×1.23 is the ~40% bill jump.' },
+      { kind: 'bullet', text: '**The peak is behavioral, not load growth** — occupancy hits 92% at shift end against 34% overnight[3]: BayShore\'s 42 vans plug in together between 16:30 and 18:00[4], stacking their draw into one coincident spike.' },
+      { kind: 'bullet', text: '**The constraint is soft** — the fleet\'s real requirement is 90% SoC by 05:30[4], which leaves an 11-hour overnight window; nothing about the routes requires charging at 6pm power levels.' },
+      { kind: 'para', text: 'Staggered managed charging that spreads the same energy across the overnight window keeps every van at its SoC target while dropping the coincident peak to roughly 330 kW — about $4,000/month less in demand charges at the new rate ((505−330) × $23.10)[1][2], before counting the cheaper $0.14 off-peak kWh BEV-2-S introduces[5].' },
+      { kind: 'action', text: 'Recommend: (1) push a staggered charging profile to the Fremont depot — start windows spread 21:00–03:00, SoC targets unchanged[4]; (2) cap site draw at 350 kW during the 16:00–21:00 window[1]; (3) re-run this tariff check across the other PG&E depots — the same filing hits them on their next billing cycle[5].' },
+    ],
+    sources: [
+      { n: 1, node: 'cp_tariff', ref: 'TRF-8802', detail: 'BEV-2-S · peak 16:00–21:00 · $23.10/kW (was $20.40)' },
+      { n: 2, node: 'cp_session', ref: 'SES-71204', detail: 'coincident peak 505 kW at 18:00 · prior high 410 kW' },
+      { n: 3, node: 'cp_util', ref: 'SIG-4471', detail: '92% occupancy at shift end vs 34% overnight' },
+      { n: 4, node: 'cp_fleet', ref: 'FLEET-2041', detail: 'BayShore Logistics · 42 vans · SoC 90% by 05:30' },
+      { n: 5, node: 'cp_utility', ref: 'UTIL-PGE', detail: 'PG&E · BEV-2-S filing eff. Jul 1 · off-peak $0.14/kWh' },
+    ],
+  },
 }
 
 const FALLBACK = {
@@ -261,6 +460,10 @@ function matchScript(text) {
   if (/pegasus|running|marathon/.test(t)) return 'pegasus_pnw'
   if (/stock|out of stock|risk|weeks of supply|replenish/.test(t)) return 'stockout_risk'
   if (/campaign|spend|roi|convert|media|push/.test(t)) return 'campaign_roi'
+  if (/uptime|nevi|bay area|firmware|fault/.test(t)) return 'bayarea_uptime'
+  if (/fail|predict|14 day|ignore/.test(t)) return 'failing_port'
+  if (/truck roll|backlog|dispatch|p1|socal/.test(t)) return 'truck_rolls'
+  if (/demand charge|tariff|fremont|energy|peak/.test(t)) return 'demand_charges'
   return null
 }
 
@@ -334,7 +537,7 @@ export default function AgentChat({ onBack }) {
             )
           })}
         </div>
-        <div style={{ padding: 12, fontSize: 11, color: '#a89e88', borderTop: '1px solid #efece6' }}>Grounded in the <b style={{ color: '#6b6960' }}>Nike Retail Context Graph</b></div>
+        <div style={{ padding: 12, fontSize: 11, color: '#a89e88', borderTop: '1px solid #efece6' }}>Grounded in the <b style={{ color: '#6b6960' }}>{agent.graph}</b></div>
       </div>
 
       {/* ── Conversation ── */}
@@ -372,7 +575,7 @@ export default function AgentChat({ onBack }) {
               <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M8 13V3M4 6.5 8 2.5l4 4" stroke="#fff" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" /></svg>
             </button>
           </div>
-          <div style={{ maxWidth: 780, margin: '6px auto 0', textAlign: 'center', fontSize: 11, color: '#b5ad9c' }}>Answers run live as Cypher over the Nike Retail Context Graph.</div>
+          <div style={{ maxWidth: 780, margin: '6px auto 0', textAlign: 'center', fontSize: 11, color: '#b5ad9c' }}>Answers run live as Cypher over the {agent.graph}.</div>
         </div>
       </div>
 
@@ -438,7 +641,7 @@ function SourcePanel({ panel, onClose }) {
                       </div>
                     ))}
                   </div>
-                  <div style={{ marginTop: 7, fontSize: 10.5, color: '#a89e88' }}>Record from the Nike Retail Context Graph</div>
+                  <div style={{ marginTop: 7, fontSize: 10.5, color: '#a89e88' }}>Record from the {s.node.startsWith('cp_') ? 'ChargePoint Network Graph' : 'Nike Retail Context Graph'}</div>
                 </div>
               )}
             </div>

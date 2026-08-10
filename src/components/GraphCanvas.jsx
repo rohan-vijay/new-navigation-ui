@@ -362,7 +362,7 @@ function GraphCanvasInner({ title = 'New graph', onBack, onAgentAI, dataset }) {
       ) : tab === 'Agents' && agents.length > 0 ? (
         <AgentsList agents={agents} onAction={onAgentAction} onRemove={i => setAgents(a => a.filter((_, j) => j !== i))} />
       ) : tab === 'Records' ? (
-        <RecordsPage disableDetail dataset={dataset === 'lowes' ? 'lowes' : dataset === 'nike' ? 'nike' : dataset === 'finance' ? 'finance' : undefined} />
+        <RecordsPage disableDetail dataset={dataset === 'lowes' ? 'lowes' : dataset === 'nike' ? 'nike' : dataset === 'finance' ? 'finance' : dataset === 'chargepoint' ? 'chargepoint' : undefined} />
       ) : tab === 'Governance' ? (
         <GovernanceRoles />
       ) : (
@@ -553,6 +553,19 @@ const FAVICON_OVERRIDES = {
   kyriba:          _fav('kyriba.com'),
   bill_com:        _fav('bill.com'),
   snowflake_dw:    _fav('snowflake.com'),
+  // ChargePoint sources
+  cp_nos:        _fav('chargepoint.com'),
+  cp_salesforce: _fav('salesforce.com'),
+  cp_netsuite:   '/logos/netsuite.svg',
+  cp_stripe:     _fav('stripe.com'),
+  cp_servicenow: _fav('servicenow.com'),
+  cp_zendesk:    _fav('zendesk.com'),
+  cp_hubject:    _fav('hubject.com'),
+  cp_genability: _fav('genability.com'),
+  cp_workday:    _fav('workday.com'),
+  cp_geotab:     _fav('geotab.com'),
+  cp_snowflake:  _fav('snowflake.com'),
+  cp_ota:        _fav('chargepoint.com'),
 }
 function SourceIcon({ slug, name, size = 20 }) {
   const [failed, setFailed] = useState(false)
@@ -1519,6 +1532,16 @@ const SEED_ROLES = [
   { id: 'r_analyst', name: 'Revenue Analyst',      desc: 'Reads the commercial picture across every account.',                                perm: 'Viewer', members: 14, pii: false, scopes: govAll('account', 'opportunity', 'subscription', 'invoice', 'contract', 'product', 'renewal', 'churn_risk', 'health_score') },
   { id: 'r_auditor', name: 'Auditor',              desc: 'Read-only access to everything for compliance review.',                              perm: 'Viewer', members: 4,  pii: false, scopes: govAll(...GOV_ENTITY_IDS) },
 ]
+// ChargePoint-flavored seed roles — same scoping machinery, ops-relevant names.
+const CP_SEED_ROLES = [
+  { id: 'r_noc',     name: 'Network Ops Engineer',     desc: 'Monitors station health and clears faults across the whole network.',        perm: 'Editor', members: 26, pii: false, scopes: govAll('account', 'ticket', 'case', 'subscription', 'invoice', 'contract', 'health_score') },
+  { id: 'r_fsm',     name: 'Field Service Manager',    desc: 'Owns work orders, technicians and parts for their service region.',          perm: 'Editor', members: 14, pii: true,  scopes: govScoped('account', 'ticket', 'case', 'invoice', 'contract') },
+  { id: 'r_host',    name: 'Site Host Success Manager',desc: 'Sees the sites, contracts and billing for the hosts they manage.',           perm: 'Editor', members: 22, pii: true,  scopes: govScoped('account', 'contact', 'subscription', 'invoice', 'contract', 'meeting') },
+  { id: 'r_fleetam', name: 'Fleet Account Manager',    desc: 'Reads charging readiness and spend for their fleet customers.',              perm: 'Viewer', members: 9,  pii: false, scopes: govAll('account', 'subscription', 'invoice', 'contract', 'product', 'health_score') },
+  { id: 'r_admin',   name: 'Workspace Admin',          desc: 'Full control over the graph schema, data, and governance.',                  perm: 'Admin',  members: 3,  pii: true,  scopes: govAll(...GOV_ENTITY_IDS) },
+  { id: 'r_steward', name: 'Data Steward',             desc: 'Curates schema, resolves matches, and manages data quality.',                perm: 'Editor', members: 5,  pii: true,  scopes: govAll(...GOV_ENTITY_IDS) },
+  { id: 'r_auditor', name: 'Compliance Auditor',       desc: 'Read-only access to everything for NEVI and SLA compliance review.',         perm: 'Viewer', members: 4,  pii: false, scopes: govAll(...GOV_ENTITY_IDS) },
+]
 const ROLE_SORTERS = {
   'Members': (a, b) => b.members - a.members,
   'Name (A–Z)': (a, b) => a.name.localeCompare(b.name),
@@ -1544,7 +1567,7 @@ const govSelect = { ...govInput, appearance: 'none', cursor: 'pointer', backgrou
 
 // ── Governance container: list ⇄ role detail ────────────────────────────────
 function GovernanceRoles() {
-  const [roles, setRoles] = useState(SEED_ROLES)
+  const [roles, setRoles] = useState(() => (GD === CHARGEPOINT_GD ? CP_SEED_ROLES : SEED_ROLES))
   const [open, setOpen] = useState(null) // role being viewed/edited, or 'new'
 
   const saveRole = role => {
