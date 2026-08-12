@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
-import { NodeShape, ListGlyph, ZoomControls, Minimap, colorForNode as canvasColorForNode, NIKE_DATA, FINANCE_DATA, CHARGEPOINT_DATA } from './GraphStage'
+import { NodeShape, ListGlyph, ZoomControls, Minimap, colorForNode as canvasColorForNode, NIKE_DATA, FINANCE_DATA, CHARGEPOINT_DATA, REVENUE_DATA } from './GraphStage'
 
 // ── Color palette (New UI tokens) ──────────────────────────────────────────
 const C = {
@@ -320,6 +320,10 @@ const FIN_ENTITY_NODES = FINANCE_DATA.nodes.filter(n => n.type === 'entity')
 const FIN_ENTITY_IDS = new Set(FIN_ENTITY_NODES.map(n => n.id))
 const FIN_PROPS = {}; FIN_ENTITY_NODES.forEach(n => { if (n._userProps) FIN_PROPS[n.id] = n._userProps })
 const FINANCE_RD = { nodes: FIN_ENTITY_NODES, edges: FINANCE_DATA.edges.filter(e => FIN_ENTITY_IDS.has(e.s) && FIN_ENTITY_IDS.has(e.t)), props: FIN_PROPS }
+const RV_ENTITY_NODES = REVENUE_DATA.nodes.filter(n => n.type === 'entity')
+const RV_ENTITY_IDS = new Set(RV_ENTITY_NODES.map(n => n.id))
+const RV_PROPS = {}; RV_ENTITY_NODES.forEach(n => { if (n._userProps) RV_PROPS[n.id] = n._userProps })
+const REVENUE_RD = { nodes: RV_ENTITY_NODES, edges: REVENUE_DATA.edges.filter(e => RV_ENTITY_IDS.has(e.s) && RV_ENTITY_IDS.has(e.t)), props: RV_PROPS }
 let RD = DEFAULT_RD
 
 // Source systems shown in record-level provenance — dataset-aware so the Lowe's
@@ -329,7 +333,8 @@ const LOWES_SOURCE_LABELS = ['Azure AD', 'Outlook', 'Teams', 'Calendar', 'ShareP
 const NIKE_SOURCE_LABELS = ['SAP ERP', 'Commerce Cloud', 'Retail POS', 'Snowflake CDP', 'o9 Planning', 'Manhattan WMS', 'Adobe Analytics', 'Paid Media', 'Marketing Cloud', 'Market Signals']
 const FINANCE_SOURCE_LABELS = ['SAP S/4HANA', 'Oracle NetSuite', 'Workday', 'Coupa', 'SAP Concur', 'Anaplan', 'BlackLine', 'Kyriba', 'BILL', 'Snowflake']
 const CP_SOURCE_LABELS = ['NOS Telemetry', 'Salesforce', 'NetSuite', 'Stripe', 'ServiceNow', 'Zendesk', 'Hubject', 'Genability', 'Workday', 'Geotab', 'Snowflake', 'Firmware OTA']
-const recordSourcePool = () => (RD === LOWES_RD ? LOWES_SOURCE_LABELS : RD === NIKE_RD ? NIKE_SOURCE_LABELS : RD === FINANCE_RD ? FINANCE_SOURCE_LABELS : RD === CHARGEPOINT_RD ? CP_SOURCE_LABELS : CRM_SOURCE_LABELS)
+const REVENUE_SOURCE_LABELS = ['Salesforce', 'Marketo', 'Marketing Cloud', 'Google Ads', 'LinkedIn Ads', 'Segment CDP', '6sense', 'Gong', 'Outreach', 'Gainsight', 'Zendesk', 'Zuora', 'Clari', 'Snowflake', 'Pendo']
+const recordSourcePool = () => (RD === LOWES_RD ? LOWES_SOURCE_LABELS : RD === NIKE_RD ? NIKE_SOURCE_LABELS : RD === FINANCE_RD ? FINANCE_SOURCE_LABELS : RD === CHARGEPOINT_RD ? CP_SOURCE_LABELS : RD === REVENUE_RD ? REVENUE_SOURCE_LABELS : CRM_SOURCE_LABELS)
 const pickSource = seed => { const p = recordSourcePool(); return p[Math.abs(seed) % p.length] }
 
 // ── Colour helpers ──────────────────────────────────────────────────────────
@@ -548,12 +553,164 @@ function cpValue(p, v, nodeId) {
     default: return null
   }
 }
+const REVENUE_PEOPLE = ['Priya Sharma','Daniel Kim','Maya Chen','Lucas Bennett','Sofia Alvarez','Ethan Walsh','Aisha Khan','Tom Eriksen','Grace Liu','Marcus Webb','Elena Petrova','Noah Fischer','Tara Singh','Owen Gallagher','Camille Dubois','Victor Osei','Hana Suzuki','Leo Martinez']
+const REVENUE_NAMES = {
+  rv_account: ['Northwind Logistics','Cascade Analytics','Meridian Labs','Horizon Tech','Summit Partners','Apex Global','Quantum Dynamics','Vertex Solutions','Pinnacle Systems','Beacon Industries','Cipher Group','Delphi Networks','Forge Systems','Glacier Tech','Redwood Health'],
+  rv_opportunity: ['Platform expansion — 240 seats','Multi-year renewal + Analytics','New logo — Enterprise tier','Analytics add-on — EMEA','Seat true-up FY27','API Gateway cross-sell','Security module attach','Migration from incumbent — 3yr','Departmental pilot → org-wide'],
+  rv_campaign: ['Q3 Enterprise ABM','Gartner MQ Webinar','Always-On Search — Brand','Always-On Search — Competitor','LinkedIn ABM — Tier 1','Product-Led Trial Nurture','Field Dinner Series — NA','Analyst Report Syndication','Customer Expansion Nurture','Win-Back — Closed Lost 12mo'],
+  rv_content: ['The Context Graph Buyer’s Guide','Forrester Wave — Data Platforms','Live Demo — Attribution in 20 min','ROI Calculator — Revenue Ops','Case Study — Northwind Logistics','Reference Architecture Whitepaper','Benchmark Report — GTM Efficiency','Webinar Replay — Pipeline Hygiene'],
+  rv_segment: ['ICP — Enterprise SaaS 1K+','ABM Tier 1 — Named 200','ABM Tier 2 — Named 800','Expansion-Ready Customers','Dormant Trials 90d','EMEA Mid-Market','Competitor Displacement Targets','Champion Job-Change Alerts'],
+  rv_event: ['Dreamforce 2026','SaaStr Annual','Revenue Ops Summit — NYC','Executive Dinner — Chicago','Webinar: Attribution That Survives Audit','Gartner Data & Analytics Summit','Customer Advisory Board — Q3'],
+  rv_territory: ['NA East — Enterprise','NA West — Enterprise','NA Central — Mid-Market','EMEA North','EMEA South','APAC — ANZ','LATAM','Global Strategic Accounts'],
+  rv_product: ['Context Graph Platform','Attribution Suite','Revenue Analytics','Data Activation Cloud','API Gateway','Governance & Lineage','Agent Studio'],
+  rv_competitor: ['Atlas Data Cloud','HelioWorks','GridIron Systems','Vantage AI','Northstar Analytics','In-house build'],
+  rv_partner: ['Accenture','Deloitte Digital','Slalom','Aspire Consulting','Tekmark Partners','Cloudreach','Bluewave Systems'],
+  rv_ticket: ['Attribution report timing out','SSO login loop after IdP change','Salesforce sync missing custom fields','Usage dashboard shows stale data','Bulk export fails over 1M rows','Seat count not updating after true-up'],
+  rv_onboarding: ['Northwind — Phase 1 Go-Live','Cascade Analytics — Data Migration','Meridian Labs — Pilot to Production','Horizon Tech — Global Rollout','Summit Partners — Fast Track'],
+  rv_activity: ['Discovery call — RevOps team','Technical deep dive — security review','Exec alignment — CRO + VP Sales','Pricing walkthrough','Follow-up: procurement timeline','QBR — usage and expansion'],
+  rv_forecast: ['Q3 FY27 — Week 4 commit','Q3 FY27 — Week 8 commit','Q4 FY27 — Week 2 commit','Q2 FY27 — Final call'],
+  rv_renewal: ['Northwind — Mar 2027 renewal','Cascade — Jan 2027 renewal','Meridian — Jun 2027 renewal','Horizon — Nov 2026 renewal'],
+}
+function revenueValue(p, v, nodeId) {
+  // Decorrelate strided seeds so pool picks don't repeat in runs.
+  v = Math.imul(v ^ (v >>> 16), 2654435761) >>> 0
+  const pick = a => a[(v >>> 3) % a.length]
+  if (['name','title','subject','company'].includes(p.name)) {
+    if (['rv_contact','rv_lead','rv_ae','rv_csm'].includes(nodeId) && p.name === 'name') return pick(REVENUE_PEOPLE)
+    if (p.name === 'company') return pick(REVENUE_NAMES.rv_account)
+    if (REVENUE_NAMES[nodeId]) return pick(REVENUE_NAMES[nodeId])
+  }
+  if (p.name === 'recommended_product') return pick(REVENUE_NAMES.rv_product)
+  if (p.name === 'ad_group') return pick(['brand — exact','competitor — phrase','category — broad','retargeting — site visitors','ICP — job title'])
+  switch (p.name) {
+    case 'stage': return pick(['Discovery','Qualification','Technical Validation','Proposal','Negotiation','Closed Won','Closed Lost'])
+    case 'forecast_category': return pick(['Commit','Best Case','Pipeline','Omitted','Closed'])
+    case 'probability': return String([10,25,40,60,75,90][(v >>> 3) % 6]) + '%'
+    case 'amount_usd': case 'renewal_arr_usd': return (24000 + (v % 90) * 8500).toLocaleString('en-US', { minimumFractionDigits: 2 })
+    case 'arr_usd': case 'book_arr_usd': case 'tcv_usd': case 'expected_arr_usd': case 'arr_at_risk_usd': return (48000 + (v % 120) * 9500).toLocaleString('en-US', { minimumFractionDigits: 2 })
+    case 'mrr_usd': return (3200 + (v % 90) * 780).toLocaleString('en-US', { minimumFractionDigits: 2 })
+    case 'commit_usd': return (1200000 + (v % 60) * 42000).toLocaleString('en-US', { minimumFractionDigits: 2 })
+    case 'best_case_usd': return (1800000 + (v % 60) * 51000).toLocaleString('en-US', { minimumFractionDigits: 2 })
+    case 'pipeline_usd': case 'sourced_pipeline_usd': case 'influenced_pipeline_usd': return (3400000 + (v % 80) * 74000).toLocaleString('en-US', { minimumFractionDigits: 2 })
+    case 'closed_usd': return (640000 + (v % 70) * 28000).toLocaleString('en-US', { minimumFractionDigits: 2 })
+    case 'quota_usd': return (900000 + (v % 12) * 150000).toLocaleString('en-US', { minimumFractionDigits: 2 })
+    case 'spend_usd': return (420 + (v % 90) * 185).toLocaleString('en-US', { minimumFractionDigits: 2 })
+    case 'cost_usd': return (12000 + (v % 40) * 3400).toLocaleString('en-US', { minimumFractionDigits: 2 })
+    case 'list_price_usd': return (1200 + (v % 20) * 450).toLocaleString('en-US', { minimumFractionDigits: 2 })
+    case 'attributed_amount_usd': case 'credited_amount_usd': return (2400 + (v % 90) * 1650).toLocaleString('en-US', { minimumFractionDigits: 2 })
+    case 'channel': return nodeId === 'rv_touch' ? pick(['Email','Paid Search','Paid Social','Webinar','Organic','Event','Direct Mail','Content Syndication']) : pick(['Email','Paid Search','Paid Social','Field','Webinar','Partner'])
+    case 'industry': return pick(['SaaS','Fintech','Healthcare','Manufacturing','Retail','Logistics','Telecom','Energy'])
+    case 'tier': return nodeId === 'rv_competitor' ? pick(['Primary','Secondary','Emerging']) : nodeId === 'rv_partner' ? pick(['Platinum','Gold','Silver']) : pick(['Strategic','Enterprise','Mid-Market','SMB'])
+    case 'health_score': case 'usage_component': case 'support_component': case 'sentiment_component': return (0.38 + (v % 60) / 100).toFixed(2)
+    case 'position': return pick(['First touch','Mid journey','Last touch','Opportunity created'])
+    case 'top_driver': return nodeId === 'rv_churn' ? pick(['Usage decline 42% QoQ','Champion departed','Open Sev-1 aging','Adoption below plan','Budget freeze cited on call'])
+      : nodeId === 'rv_expansion' ? pick(['License utilization 94%','New team onboarded','API volume above tier','Multi-region rollout signals'])
+      : nodeId === 'rv_leadscore' ? pick(['Demo request','Pricing page repeat visits','ICP fit — firmographic','Intent surge — category','Webinar attendance'])
+      : pick(['Single-threaded deal','No exec engagement 21d','Stage age above median','Competitor mention on last call'])
+    case 'priority': return pick(['Urgent','High','Normal','Low'])
+    case 'sentiment': return nodeId === 'rv_nps' ? pick(['Promoter','Passive','Detractor']) : pick(['Positive','Neutral','Negative'])
+    case 'status': return nodeId === 'rv_opportunity' ? pick(['Open','Open','Won','Lost'])
+      : nodeId === 'rv_quote' ? pick(['Draft','Sent','In approval','Accepted','Expired'])
+      : nodeId === 'rv_subscription' ? pick(['Active','Active','Active','Suspended','Cancelled'])
+      : nodeId === 'rv_ticket' ? pick(['Open','Pending','On hold','Solved'])
+      : nodeId === 'rv_lead' ? pick(['New','Working','MQL','SQL','Nurture','Disqualified'])
+      : nodeId === 'rv_renewal' ? pick(['On track','At risk','In negotiation','Closed won'])
+      : nodeId === 'rv_campaign' ? pick(['Active','Active','Planned','Completed','Paused'])
+      : nodeId === 'rv_onboarding' ? pick(['On track','At risk','Blocked','Complete'])
+      : pick(['Active','Active','Pending','Closed'])
+    case 'type': return nodeId === 'rv_activity' ? pick(['Call','Meeting','Email','Demo','LinkedIn InMail'])
+      : nodeId === 'rv_campaign' ? pick(['ABM','Nurture','Paid','Field','Webinar','Product-Led'])
+      : nodeId === 'rv_event' ? pick(['Conference','Webinar','Executive Dinner','Trade Show','Roadshow'])
+      : nodeId === 'rv_partner' ? pick(['SI','Reseller','Referral','Technology'])
+      : pick(['Standard','Strategic','Self-serve'])
+    case 'category': return pick(['Data sync','Performance','Access & SSO','Billing','Reporting','How-to'])
+    case 'persona': return pick(['RevOps Lead','CRO','VP Marketing','Data Engineer','CIO','VP Customer Success','Procurement'])
+    case 'title': return pick(['VP Revenue Operations','Chief Revenue Officer','Director of Demand Gen','Head of Data Platform','VP Customer Success','Manager, Sales Ops'])
+    case 'lead_source': return pick(['Inbound — Demo Request','Paid Search','Webinar','Partner Referral','Outbound — SDR','Event','Content Syndication'])
+    case 'marketing_status': return pick(['Subscribed','Engaged','MQL','Nurture','Unsubscribed'])
+    case 'grade': return pick(['A','A','B','C','D'])
+    case 'score': return nodeId === 'rv_nps' ? String((v >>> 3) % 11) : String(28 + v % 71)
+    case 'csat': return String(3 + (v >>> 3) % 3)
+    case 'plan': return pick(['Enterprise','Enterprise','Growth','Business','Starter'])
+    case 'family': return pick(['Platform','Analytics','Activation','Governance'])
+    case 'billing_model': return pick(['Per seat / annual','Consumption','Flat platform fee','Hybrid'])
+    case 'phase': return pick(['Kickoff','Data connection','Configuration','Enablement','Go-live','Hypercare'])
+    case 'health': return pick(['Green','Green','Yellow','Red'])
+    case 'trend': return pick(['Rising','Surging','Flat','Declining'])
+    case 'buying_stage': return pick(['Target','Awareness','Consideration','Decision','Purchase'])
+    case 'topic': return pick(['Customer data platform','Marketing attribution','Data governance','Reverse ETL','AI agents','Revenue forecasting'])
+    case 'intent_score': case 'propensity': case 'coverage_ratio': return (0.42 + (v % 55) / 100).toFixed(2)
+    case 'engagement_score': case 'win_rate_vs': case 'feature_adoption_pct': case 'license_utilization_pct': return (0.31 + (v % 62) / 100).toFixed(2)
+    case 'model': return pick(['W-shaped','Linear','Time decay','First touch','Data-driven'])
+    case 'credit_pct': return (0.08 + (v % 40) / 100).toFixed(2)
+    case 'model_version': return 'v' + (2 + (v >>> 3) % 3) + '.' + (v % 9)
+    case 'slip_risk': return pick(['Low','Medium','High'])
+    case 'risk_level': return pick(['Low','Medium','High','Critical'])
+    case 'region': return pick(['NA-East','NA-West','NA-Central','EMEA','APAC','LATAM'])
+    case 'segment': return pick(['Enterprise','Mid-Market','SMB','Strategic'])
+    case 'primary_market': return pick(['Enterprise SaaS','Mid-Market','Data Infrastructure','Marketing Tech'])
+    case 'role': return pick(['Account Executive','Enterprise AE','Strategic AE','Sales Manager'])
+    case 'platform': return pick(['Google Ads','LinkedIn Ads','Google Ads','Meta','Reddit'])
+    case 'provider': return '6sense'
+    case 'format': return pick(['Whitepaper','Video','Interactive tool','Case study','Report','Webinar replay'])
+    case 'funnel_stage': return pick(['Top of funnel','Mid funnel','Bottom of funnel'])
+    case 'device': return pick(['Desktop','Mobile','Tablet'])
+    case 'referrer': return pick(['google.com','linkedin.com','direct','news.ycombinator.com','g2.com'])
+    case 'landing_page': return pick(['/platform','/pricing','/demo','/customers/northwind','/blog/attribution-that-survives-audit'])
+    case 'utm_campaign': return pick(['q3-abm-tier1','always-on-brand','gartner-webinar','trial-nurture','competitor-displacement'])
+    case 'anonymous_id': return 'anon_' + (100000 + v % 899999).toString(36)
+    case 'definition': return pick(['employees > 1000 AND industry IN (SaaS, Fintech)','arr_usd > 100000 AND health_score < 0.5','intent_score > 0.7 AND no open opp','trial_ended_at < now() - 90d'])
+    case 'refresh_cadence': return pick(['Hourly','Daily','Real-time'])
+    case 'survey_wave': return pick(['FY27 Q1 Relationship','FY27 Q2 Relationship','Post-onboarding pulse','Post-support pulse'])
+    case 'verbatim': return pick(['Attribution finally matches what finance sees.','Onboarding was fast, reporting depth is why we stay.','Great product, support response times slipped this quarter.','Powerful, but the learning curve for new analysts is real.'])
+    case 'next_step': case 'next_steps': return pick(['Send security questionnaire responses','Schedule exec alignment with CRO','Confirm procurement timeline','Deliver ROI model for board review','Loop in partner for implementation scope'])
+    case 'period': return pick(['Q3 FY27','Q4 FY27','Q2 FY27'])
+    case 'category_mix': return pick(['62% Commit / 28% Best Case / 10% Pipeline','48% Commit / 34% Best Case / 18% Pipeline','71% Commit / 21% Best Case / 8% Pipeline'])
+    case 'quote_no': return 'Q-' + (20000 + v % 79999)
+    case 'contract_no': return 'MSA-' + (2026 + (v >>> 3) % 2) + '-' + (1000 + v % 8999)
+    case 'sku': return 'CGP-' + pick(['PLAT','ANLY','ACTV','GOVN','AGNT']) + '-' + (100 + v % 899)
+    case 'seats': case 'accounts_managed': return String(25 + v % 480)
+    case 'employee_count': return String(250 + (v % 90) * 145)
+    case 'account_count': return String(40 + v % 160)
+    case 'active_users': return String(60 + v % 940)
+    case 'sessions': case 'pages_viewed': return String(1 + v % 24)
+    case 'registrations': return String(120 + v % 880)
+    case 'attendees': return String(60 + v % 420)
+    case 'downloads_90d': return String(180 + v % 2400)
+    case 'mentions_90d': return String(4 + v % 60)
+    case 'mql_goal': return String(50 + (v % 30) * 25)
+    case 'size': return String(200 + (v % 40) * 85)
+    case 'impressions': return String(4000 + (v % 90) * 1850)
+    case 'clicks': return String(40 + v % 640)
+    case 'conversions': return String(v % 48)
+    case 'cpc_usd': return (2.4 + (v % 90) / 10).toFixed(2)
+    case 'discount_pct': case 'uplift_pct': case 'referral_fee_pct': return (4 + v % 22) + '%'
+    case 'attainment_pct': return (58 + v % 68) + '%'
+    case 'term_months': return String([12, 12, 24, 36][(v >>> 3) % 4])
+    case 'duration_min': return String(15 + (v % 6) * 10)
+    case 'duration_sec': return String(45 + v % 900)
+    case 'stage_velocity_days': case 'days_to_value': return String(9 + v % 68)
+    case 'horizon_days': return String(30 + (v % 4) * 30)
+    case 'first_response_min': return String(6 + v % 220)
+    case 'tenure_months': return String(4 + v % 68)
+    case 'engagement_depth': return String(1 + v % 8)
+    case 'auto_renew': case 'is_abm': case 'is_active': return v % 4 !== 0 ? 'true' : 'false'
+    case 'signature_status': return pick(['Signed','Out for signature','Draft','Signed'])
+    case 'approved_by': return pick(REVENUE_PEOPLE)
+    case 'venue': return pick(['Moscone Center, SF','Javits Center, NYC','Online','Fairmont Chicago','ExCeL London'])
+    case 'domain': return pick(['northwind.com','cascade.io','meridianlabs.com','horizon.tech','summit.partners','apexglobal.com','quantumdyn.ai','vertex.dev'])
+    case 'email': return pick(['taylor.j','morgan.k','jordan.s','alex.r','casey.m','priya.s','daniel.k']) + '@' + pick(['northwind.com','cascade.io','horizon.tech','summit.partners','vertex.dev'])
+    case 'phone': return '+1 (415) ' + (200 + v % 799) + '-' + (1000 + v % 8999)
+    default: return null
+  }
+}
 function generateValueForProp(p, seed, nodeId) {
   const v = Math.abs(seed * (p.name.charCodeAt(0) + 1))
   if (p.pk) return p.name.replace(/_id$/, '').toUpperCase().slice(0,3) + '-' + (10000 + v % 89999)
   if (RD === NIKE_RD) { const nv = nikeValue(p, v, nodeId); if (nv != null) return nv }
   if (RD === FINANCE_RD) { const fv = financeValue(p, v, nodeId); if (fv != null) return fv }
   if (RD === CHARGEPOINT_RD) { const cv = cpValue(p, v, nodeId); if (cv != null) return cv }
+  if (RD === REVENUE_RD) { const rv = revenueValue(p, v, nodeId); if (rv != null) return rv }
   // Lowe's-specific labels for the name/title/subject/topic field of each node.
   if (RD === LOWES_RD && ['name','title','subject','summary','topic'].includes(p.name) && LOWES_NAMES[nodeId] && !PERSON_NODES.has(nodeId)) {
     return LOWES_NAMES[nodeId][v % LOWES_NAMES[nodeId].length]
@@ -2646,7 +2803,7 @@ function DocumentViewer({ gnode, prov, onClose, onBack }) {
 
 // ── Page ─────────────────────────────────────────────────────────────────────
 export default function RecordsPage({ disableDetail, dataset }) {
-  RD = dataset === 'lowes' ? LOWES_RD : dataset === 'nike' ? NIKE_RD : dataset === 'finance' ? FINANCE_RD : dataset === 'chargepoint' ? CHARGEPOINT_RD : DEFAULT_RD
+  RD = dataset === 'revenue' ? REVENUE_RD : dataset === 'lowes' ? LOWES_RD : dataset === 'nike' ? NIKE_RD : dataset === 'finance' ? FINANCE_RD : dataset === 'chargepoint' ? CHARGEPOINT_RD : DEFAULT_RD
   const [selectedRecord, setSelectedRecord] = useState(null)
   const [selectedNode,   setSelectedNode]   = useState(null)
 

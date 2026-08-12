@@ -4,6 +4,7 @@ import { NewGraphFlow } from './NewGraphFlow'
 
 // sample Enterprise Context Graphs
 const GRAPHS = [
+  { id: 'revenue', name: 'Revenue Teams Context Graph', version: 'v1.0.0', status: 'Live', nodes: 34, edges: 100, sources: 15, lastSync: 'Streaming', sharedType: 'org', shared: 'Everyone', owner: 'Ava Mitchell', ownerInit: 'A', modified: 'Just now', isRevenue: true },
   { id: 'chargepoint', name: 'ChargePoint Network Graph', version: 'v1.0.0', status: 'Live', nodes: 20, edges: 51, sources: 12, lastSync: 'Streaming', sharedType: 'org', shared: 'Everyone', owner: 'Rohan Vijay', ownerInit: 'R', modified: '12 min ago', isCP: true },
   { id: 'ecg', name: 'Enterprise Context Graph', version: 'v1.0.0', status: 'Live', nodes: 47, edges: 60, sources: 13, lastSync: '2 min ago', sharedType: 'org', shared: 'Everyone', owner: 'James Carter', ownerInit: 'J', modified: '2 hours ago', isECG: true },
   { id: 'lowes', name: "Lowe's Context Graph", version: 'v1.0.0', status: 'Live', nodes: 11, edges: 43, sources: 9, lastSync: '5 min ago', sharedType: 'org', shared: 'Everyone', owner: 'Ethan Brooks', ownerInit: 'E', modified: 'Just now', isLowes: true },

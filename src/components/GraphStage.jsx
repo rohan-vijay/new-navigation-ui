@@ -816,7 +816,247 @@ function buildChargePoint() {
 }
 const CHARGEPOINT_DATA = buildChargePoint()
 
-const SIDEBAR_NODES = [...NODES].filter(n => n.type !== "agent" && n.type !== "source").sort((a, b) => a.label.localeCompare(b.label));
+// ─── REVENUE TEAMS CONTEXT GRAPH ─────────────────────────────────────────────
+// Sales + Marketing + Customer Success on one spine: Account × Opportunity.
+// Every pipeline, attribution, renewal and churn question resolves against the
+// same two anchors, so a marketing touch, a rep's call and a support ticket all
+// land on the same account and the same deal.
+function buildRevenue() {
+  // [id, label, glyph, state, x, y, size, instances, desc]
+  const E = [
+    // ── The spine ──────────────────────────────────────────────────────────
+    ["rv_account",      "Account",              "account",      "core",   -110, 30,   36, 42000,     "The company of record — one row per customer or prospect, resolved across CRM, CDP and billing. Co-central: sales, marketing and CS all hang off it."],
+    ["rv_opportunity",  "Opportunity",          "target",       "core",   190,  0,    36, 86000,     "An open or closed deal with stage, amount and close date. Co-central anchor — pipeline, forecast and attribution all resolve here."],
+    // ── Sales ──────────────────────────────────────────────────────────────
+    ["rv_contact",      "Contact",              "contact",      "core",   -310, 60,   28, 380000,    "A known person at an account — the join between marketing engagement and sales conversation."],
+    ["rv_lead",         "Lead",                 "funnel",       "core",   -470, 160,  24, 1200000,   "An unqualified inbound or outbound person before conversion — the top of the funnel."],
+    ["rv_quote",        "Quote",                "receipt",      "core",   360,  120,  24, 124000,    "A priced, discounted configuration sent to a buyer — the bridge from stage to signature."],
+    ["rv_contract",     "Contract",             "contract",     "core",   480,  230,  24, 38000,     "The signed commercial agreement — term, TCV and renewal mechanics."],
+    ["rv_activity",     "Sales Activity",       "phone",        "core",   -70,  220,  26, 4200000,   "A logged call, meeting or email from a rep — captured by Outreach and enriched with Gong conversation signals."],
+    ["rv_ae",           "Account Executive",    "employee",     "core",   400,  -140, 24, 640,       "The rep who owns the deal — quota, territory and attainment."],
+    ["rv_territory",    "Territory",            "map",          "core",   590,  -240, 22, 180,       "A named book of business — region × segment — that accounts and quota are assigned to."],
+    ["rv_product",      "Product",              "cart",         "core",   400,  -20,  22, 42,        "A sellable SKU on the price book — what the deal is actually for and what usage is measured against."],
+    ["rv_competitor",   "Competitor",           "flag",         "core",   420,  -320, 22, 86,        "A rival detected on a deal — surfaced from Gong call mentions and rep-logged fields."],
+    ["rv_partner",      "Partner",              "briefcase",    "core",   590,  -40,  22, 420,       "A reseller, SI or referral partner that sources or co-sells pipeline."],
+    ["rv_forecast",     "Forecast Submission",  "trend",        "core",   270,  -250, 24, 96000,     "A rep's or manager's weekly commit / best-case / pipeline call — what the number was promised to be."],
+    // ── Marketing ──────────────────────────────────────────────────────────
+    ["rv_campaign",     "Campaign",             "campaign",     "core",   -370, -180, 28, 1800,      "A funded marketing program — ABM, nurture, paid or field — with a budget and a target segment."],
+    ["rv_touch",        "Marketing Touch",      "star",         "core",   -170, -160, 28, 96000000,  "One attributed engagement — an open, click, form fill, view or registration — carrying its channel and position in the journey."],
+    ["rv_content",      "Content Asset",        "document",     "core",   -540, -320, 22, 4200,      "A whitepaper, demo video or landing page — the thing that got engaged with."],
+    ["rv_websession",   "Web Session",          "eye",          "core",   -350, -350, 24, 24000000,  "One anonymous or identified visit stitched by Segment — pages, referrer, UTMs and duration."],
+    ["rv_adspend",      "Ad Spend",             "payment",      "core",   -620, -150, 22, 2600000,   "Daily platform spend by campaign and ad group — the cost side of every CAC and ROAS number."],
+    ["rv_segment",      "Segment",              "tag",          "core",   -560, -20,  22, 340,       "A targetable audience definition — ICP, ABM tier or lifecycle stage — refreshed from the warehouse."],
+    ["rv_event",        "Event / Webinar",      "event",        "core",   -180, -320, 22, 620,       "A field event, trade show or webinar with registrations and attendance."],
+    ["rv_intent",       "Intent Signal",        "trigger",      "core",   -20,  -300, 24, 3400000,   "Third-party research activity from 6sense — topic, score and buying stage at the account level."],
+    // ── Customer Success ───────────────────────────────────────────────────
+    ["rv_subscription", "Subscription",         "subscription", "core",   330,  270,  28, 38000,     "The live entitlement — plan, seats, MRR and term. Where booked revenue becomes recurring revenue."],
+    ["rv_renewal",      "Renewal",              "sync",         "core",   540,  350,  24, 34000,     "The upcoming term rollover with its uplift, risk level and forecast category."],
+    ["rv_ticket",       "Support Ticket",       "ticket",       "core",   90,   350,  24, 640000,    "A customer-raised issue — category, priority, first-response time and CSAT."],
+    ["rv_usage",        "Product Usage",        "metric",       "core",   150,  190,  24, 180000000, "Daily telemetry per subscription — active users, feature adoption and license utilization."],
+    ["rv_csm",          "CSM",                  "person",       "core",   560,  120,  22, 210,       "The customer success manager who owns the post-sale relationship and the renewal book."],
+    ["rv_onboarding",   "Onboarding Project",   "project",      "core",   620,  240,  22, 12000,     "The time-to-value program after signature — phase, go-live target and health."],
+    ["rv_nps",          "NPS Response",         "heart",        "core",   -330, 280,  22, 96000,     "A survey score and verbatim from a named contact — the sentiment input to account health."],
+    // ── Derived signals ────────────────────────────────────────────────────
+    ["rv_leadscore",    "Lead Score",           "dashboard",    "signal", -620, 140,  22, 1200000,   "Derived fit × engagement score that decides when a lead becomes an MQL."],
+    ["rv_pipeline",     "Pipeline Health",      "trend",        "signal", 140,  -160, 24, 86000,     "Derived per-deal coverage, stage velocity and slip risk — the node every “will we make the number” question lands on."],
+    ["rv_churn",        "Churn Risk",           "risk",         "signal", 200,  360,  24, 38000,     "Derived probability that a subscription does not renew, with the driver and the ARR at risk."],
+    ["rv_expansion",    "Expansion Signal",     "idea",         "signal", -200, 150,  22, 42000,     "Derived propensity to buy more — seats, modules or tier — learned from usage and engagement."],
+    ["rv_health",       "Account Health Score", "shield",       "signal", 60,   130,  22, 42000,     "Derived blend of usage, support and sentiment — the single number a CSM triages their book by."],
+    ["rv_attrib",       "Attribution Credit",   "pie",          "signal", -40,  -120, 26, 96000000,  "Derived revenue credit assigned to a touch under the active model — how marketing and sales split the same dollar."],
+  ]
+  const SRCS = [
+    ["rv_salesforce",   "Salesforce",       "CRM — accounts, opps, contacts"],
+    ["rv_marketo",      "Marketo",          "Marketing automation"],
+    ["rv_sfmc",         "Marketing Cloud",  "Email + journeys"],
+    ["rv_googleads",    "Google Ads",       "Paid search + display"],
+    ["rv_linkedinads",  "LinkedIn Ads",     "Paid social + ABM"],
+    ["rv_segmentcdp",   "Segment CDP",      "Identity + web events"],
+    ["rv_6sense",       "6sense",           "Intent + ABM"],
+    ["rv_gong",         "Gong",             "Conversation intelligence"],
+    ["rv_outreach",     "Outreach",         "Sales engagement"],
+    ["rv_gainsight",    "Gainsight",        "Customer success"],
+    ["rv_zendesk",      "Zendesk",          "Support"],
+    ["rv_zuora",        "Zuora",            "Subscription billing"],
+    ["rv_clari",        "Clari",            "Forecasting + pipeline"],
+    ["rv_snowflake",    "Snowflake",        "Revenue warehouse"],
+    ["rv_pendo",        "Pendo",            "Product telemetry"],
+  ]
+  const fmtK = n => n >= 1000000 ? (n/1000000).toFixed(1).replace(/\.0$/,"")+"M" : n >= 1000 ? (n/1000).toFixed(n>=10000?0:1).replace(/\.0$/,"")+"K" : String(n)
+  const nodes = []
+  E.forEach((e, i) => {
+    const [id, label, glyph, state, x, y, size, inst, desc] = e
+    const seed = label.length*7 + i*13
+    nodes.push({
+      id, label, glyph, type:"entity", state, cat: state==="signal"?"derived":"core",
+      x, y, size, instances: fmtK(inst), instancesN: inst, props: 8 + (seed%14), edges: 0,
+      fill: 80 + (seed%18), conf: 88 + (seed%11), fresh: ["2m","8m","15m","1h","4h","1d"][seed%6],
+      pii: 0, change: ["LOW","MEDIUM","HIGH"][seed%3], desc,
+    })
+  })
+  SRCS.forEach((s, i) => {
+    const [id, label, desc] = s
+    const a = (i/SRCS.length)*Math.PI*2 - Math.PI/2
+    const seed = label.length*5 + i*11
+    nodes.push({
+      id, label, glyph:"database", type:"source", state:"core", cat:"source",
+      x: Math.round(Math.cos(a)*980), y: Math.round(Math.sin(a)*700), size:24,
+      instances:"—", instancesN:0, props: 10 + (seed%18), edges:0,
+      fresh: ["1m","2m","5m","12m"][seed%4], pii:0, change:"LOW", desc,
+    })
+  })
+  // [s, t, label, kind]
+  const ER = [
+    // Sales — lead to signature
+    ["rv_contact","rv_account","WORKS_AT","direct"],
+    ["rv_lead","rv_contact","CONVERTED_TO","direct"],
+    ["rv_lead","rv_account","MATCHED_TO","inferred"],
+    ["rv_opportunity","rv_account","FOR_ACCOUNT","direct"],
+    ["rv_opportunity","rv_ae","OWNED_BY","direct"],
+    ["rv_opportunity","rv_contact","HAS_BUYER","inferred"],
+    ["rv_quote","rv_opportunity","QUOTES","direct"],
+    ["rv_quote","rv_product","LINE_ITEM","direct"],
+    ["rv_contract","rv_quote","SIGNED_FROM","direct"],
+    ["rv_activity","rv_opportunity","ADVANCED","direct"],
+    ["rv_activity","rv_contact","WITH_CONTACT","direct"],
+    ["rv_activity","rv_ae","LOGGED_BY","direct"],
+    ["rv_ae","rv_territory","COVERS","direct"],
+    ["rv_account","rv_territory","IN_TERRITORY","direct"],
+    ["rv_opportunity","rv_product","FOR_PRODUCT","direct"],
+    ["rv_opportunity","rv_competitor","COMPETING_WITH","inferred"],
+    ["rv_opportunity","rv_partner","SOURCED_BY","inferred"],
+    ["rv_forecast","rv_opportunity","FORECASTS","direct"],
+    ["rv_forecast","rv_ae","SUBMITTED_BY","direct"],
+    // Marketing — demand to influence
+    ["rv_touch","rv_campaign","FROM_CAMPAIGN","direct"],
+    ["rv_touch","rv_contact","TOUCHED","direct"],
+    ["rv_touch","rv_content","ENGAGED_WITH","direct"],
+    ["rv_touch","rv_opportunity","INFLUENCED","inferred"],
+    ["rv_campaign","rv_segment","TARGETS","direct"],
+    ["rv_campaign","rv_lead","GENERATES","direct"],
+    ["rv_adspend","rv_campaign","FUNDS","direct"],
+    ["rv_content","rv_campaign","USED_IN","direct"],
+    ["rv_event","rv_campaign","PART_OF","direct"],
+    ["rv_event","rv_contact","ATTENDED_BY","direct"],
+    ["rv_websession","rv_contact","BY_CONTACT","inferred"],
+    ["rv_websession","rv_account","DEANONYMIZED_TO","inferred"],
+    ["rv_websession","rv_content","VIEWED","direct"],
+    ["rv_intent","rv_account","ON_ACCOUNT","inferred"],
+    ["rv_intent","rv_segment","MATCHES","inferred"],
+    ["rv_segment","rv_account","INCLUDES","inferred"],
+    // Customer Success — signature to renewal
+    ["rv_subscription","rv_contract","PROVISIONED_BY","direct"],
+    ["rv_subscription","rv_account","BILLED_TO","direct"],
+    ["rv_renewal","rv_subscription","RENEWS","direct"],
+    ["rv_renewal","rv_opportunity","BOOKED_AS","inferred"],
+    ["rv_ticket","rv_account","RAISED_BY","direct"],
+    ["rv_ticket","rv_contact","OPENED_BY","direct"],
+    ["rv_ticket","rv_subscription","ABOUT","inferred"],
+    ["rv_usage","rv_subscription","MEASURES","direct"],
+    ["rv_usage","rv_product","OF_PRODUCT","direct"],
+    ["rv_csm","rv_account","MANAGES","direct"],
+    ["rv_onboarding","rv_subscription","ONBOARDS","direct"],
+    ["rv_onboarding","rv_csm","RUN_BY","direct"],
+    ["rv_nps","rv_contact","FROM_CONTACT","direct"],
+    ["rv_nps","rv_account","SCORES_ACCOUNT","inferred"],
+    // Signals — the "why" anchors
+    ["rv_leadscore","rv_lead","SCORES","direct"],
+    ["rv_leadscore","rv_touch","LEARNED_FROM","inferred"],
+    ["rv_pipeline","rv_opportunity","ON_PIPELINE","direct"],
+    ["rv_pipeline","rv_forecast","FEEDS","inferred"],
+    ["rv_pipeline","rv_activity","LEARNED_FROM","inferred"],
+    ["rv_attrib","rv_touch","CREDITS","direct"],
+    ["rv_attrib","rv_opportunity","ATTRIBUTES_TO","inferred"],
+    ["rv_churn","rv_subscription","PREDICTS","direct"],
+    ["rv_churn","rv_usage","LEARNED_FROM","inferred"],
+    ["rv_churn","rv_ticket","LEARNED_FROM","inferred"],
+    ["rv_expansion","rv_account","ON_ACCOUNT","direct"],
+    ["rv_expansion","rv_usage","LEARNED_FROM","inferred"],
+    ["rv_health","rv_account","SCORES","direct"],
+    ["rv_health","rv_nps","LEARNED_FROM","inferred"],
+    // Sources → entities
+    ["rv_salesforce","rv_account","SOURCES","source"],
+    ["rv_salesforce","rv_opportunity","SOURCES","source"],
+    ["rv_salesforce","rv_contact","SOURCES","source"],
+    ["rv_salesforce","rv_lead","SOURCES","source"],
+    ["rv_marketo","rv_campaign","SOURCES","source"],
+    ["rv_marketo","rv_lead","SOURCES","source"],
+    ["rv_marketo","rv_touch","SOURCES","source"],
+    ["rv_sfmc","rv_campaign","SOURCES","source"],
+    ["rv_sfmc","rv_touch","SOURCES","source"],
+    ["rv_googleads","rv_adspend","SOURCES","source"],
+    ["rv_googleads","rv_campaign","SOURCES","source"],
+    ["rv_linkedinads","rv_adspend","SOURCES","source"],
+    ["rv_linkedinads","rv_segment","SOURCES","source"],
+    ["rv_segmentcdp","rv_websession","SOURCES","source"],
+    ["rv_segmentcdp","rv_contact","SOURCES","source"],
+    ["rv_6sense","rv_intent","SOURCES","source"],
+    ["rv_6sense","rv_segment","SOURCES","source"],
+    ["rv_gong","rv_activity","SOURCES","source"],
+    ["rv_gong","rv_competitor","SOURCES","source"],
+    ["rv_outreach","rv_activity","SOURCES","source"],
+    ["rv_outreach","rv_contact","SOURCES","source"],
+    ["rv_gainsight","rv_csm","SOURCES","source"],
+    ["rv_gainsight","rv_onboarding","SOURCES","source"],
+    ["rv_gainsight","rv_nps","SOURCES","source"],
+    ["rv_zendesk","rv_ticket","SOURCES","source"],
+    ["rv_zuora","rv_subscription","SOURCES","source"],
+    ["rv_zuora","rv_contract","SOURCES","source"],
+    ["rv_zuora","rv_renewal","SOURCES","source"],
+    ["rv_clari","rv_forecast","SOURCES","source"],
+    ["rv_clari","rv_pipeline","SOURCES","source"],
+    ["rv_pendo","rv_usage","SOURCES","source"],
+    ["rv_pendo","rv_product","SOURCES","source"],
+    ["rv_snowflake","rv_leadscore","SOURCES","source"],
+    ["rv_snowflake","rv_attrib","SOURCES","source"],
+    ["rv_snowflake","rv_churn","SOURCES","source"],
+    ["rv_snowflake","rv_expansion","SOURCES","source"],
+    ["rv_snowflake","rv_health","SOURCES","source"],
+  ]
+  const P = (name, type, o) => Object.assign({ name, type, required:false, indexed:false, pii:false, pk:false, fill:92, conf:96, source:"primary" }, o)
+  const PROPS = {
+    rv_account:      [P("account_id","uuid",{pk:1,required:1,indexed:1,source:"Salesforce"}),P("name","string",{required:1,indexed:1,source:"Salesforce"}),P("domain","string",{indexed:1,source:"Segment CDP"}),P("industry","enum",{indexed:1,source:"Salesforce"}),P("employee_count","int",{source:"6sense"}),P("arr_usd","decimal",{indexed:1,source:"Zuora"}),P("tier","enum",{indexed:1,source:"Salesforce"}),P("territory_id","uuid",{indexed:1,source:"Salesforce"}),P("health_score","float",{indexed:1,source:"Gainsight"}),P("owner_id","uuid",{indexed:1,source:"Salesforce"}),P("created_at","timestamp",{source:"Salesforce"})],
+    rv_opportunity:  [P("opportunity_id","uuid",{pk:1,required:1,indexed:1,source:"Salesforce"}),P("name","string",{required:1,indexed:1,source:"Salesforce"}),P("account_id","uuid",{indexed:1,source:"Salesforce"}),P("stage","enum",{required:1,indexed:1,source:"Salesforce"}),P("amount_usd","decimal",{indexed:1,source:"Salesforce"}),P("close_date","date",{indexed:1,source:"Salesforce"}),P("probability","float",{indexed:1,source:"Clari"}),P("forecast_category","enum",{indexed:1,source:"Clari"}),P("owner_id","uuid",{indexed:1,source:"Salesforce"}),P("next_step","string",{source:"Gong"}),P("competitor_id","uuid",{source:"Gong"}),P("source_campaign_id","uuid",{source:"Marketo"})],
+    rv_contact:      [P("contact_id","uuid",{pk:1,required:1,indexed:1,source:"Salesforce"}),P("name","string",{required:1,indexed:1,pii:1,source:"Salesforce"}),P("email","string",{indexed:1,pii:1,source:"Salesforce"}),P("phone","string",{pii:1,source:"Salesforce"}),P("title","string",{indexed:1,source:"Salesforce"}),P("account_id","uuid",{indexed:1,source:"Salesforce"}),P("persona","enum",{indexed:1,source:"Marketo"}),P("lead_source","enum",{source:"Marketo"}),P("marketing_status","enum",{indexed:1,source:"Marketo"}),P("last_activity_at","timestamp",{indexed:1,source:"Outreach"})],
+    rv_lead:         [P("lead_id","uuid",{pk:1,required:1,indexed:1,source:"Marketo"}),P("name","string",{required:1,indexed:1,pii:1,source:"Marketo"}),P("email","string",{indexed:1,pii:1,source:"Marketo"}),P("company","string",{indexed:1,source:"Marketo"}),P("lead_source","enum",{indexed:1,source:"Marketo"}),P("status","enum",{indexed:1,source:"Salesforce"}),P("score","int",{indexed:1,source:"Snowflake"}),P("mql_at","timestamp",{indexed:1,source:"Marketo"}),P("owner_id","uuid",{source:"Salesforce"}),P("converted_contact_id","uuid",{indexed:1,source:"Salesforce"})],
+    rv_quote:        [P("quote_id","uuid",{pk:1,required:1,indexed:1,source:"Salesforce"}),P("quote_no","string",{indexed:1,source:"Salesforce"}),P("opportunity_id","uuid",{indexed:1,source:"Salesforce"}),P("amount_usd","decimal",{indexed:1,source:"Salesforce"}),P("discount_pct","float",{indexed:1,source:"Salesforce"}),P("term_months","int",{source:"Zuora"}),P("status","enum",{indexed:1,source:"Salesforce"}),P("expires_on","date",{source:"Salesforce"}),P("approved_by","string",{source:"Salesforce"})],
+    rv_contract:     [P("contract_id","uuid",{pk:1,required:1,indexed:1,source:"Zuora"}),P("contract_no","string",{indexed:1,source:"Zuora"}),P("quote_id","uuid",{indexed:1,source:"Salesforce"}),P("account_id","uuid",{indexed:1,source:"Zuora"}),P("tcv_usd","decimal",{indexed:1,source:"Zuora"}),P("start_date","date",{indexed:1,source:"Zuora"}),P("end_date","date",{indexed:1,source:"Zuora"}),P("auto_renew","bool",{indexed:1,source:"Zuora"}),P("signature_status","enum",{source:"Salesforce"}),P("signed_at","timestamp",{source:"Salesforce"})],
+    rv_activity:     [P("activity_id","uuid",{pk:1,required:1,indexed:1,source:"Outreach"}),P("type","enum",{required:1,indexed:1,source:"Outreach"}),P("subject","string",{indexed:1,source:"Outreach"}),P("contact_id","uuid",{indexed:1,source:"Outreach"}),P("opportunity_id","uuid",{indexed:1,source:"Salesforce"}),P("owner_id","uuid",{indexed:1,source:"Outreach"}),P("occurred_at","timestamp",{indexed:1,source:"Outreach"}),P("duration_min","int",{source:"Gong"}),P("sentiment","enum",{indexed:1,source:"Gong"}),P("next_steps","string",{source:"Gong"})],
+    rv_ae:           [P("user_id","uuid",{pk:1,required:1,indexed:1,source:"Salesforce"}),P("name","string",{required:1,indexed:1,pii:1,source:"Salesforce"}),P("email","string",{indexed:1,pii:1,source:"Salesforce"}),P("role","enum",{indexed:1,source:"Salesforce"}),P("territory_id","uuid",{indexed:1,source:"Salesforce"}),P("quota_usd","decimal",{indexed:1,source:"Clari"}),P("attainment_pct","float",{indexed:1,source:"Clari"}),P("manager_id","uuid",{source:"Salesforce"}),P("hire_date","date",{source:"Salesforce"})],
+    rv_territory:    [P("territory_id","uuid",{pk:1,required:1,indexed:1,source:"Salesforce"}),P("name","string",{required:1,indexed:1,source:"Salesforce"}),P("region","enum",{indexed:1,source:"Salesforce"}),P("segment","enum",{indexed:1,source:"Salesforce"}),P("manager_id","uuid",{source:"Salesforce"}),P("account_count","int",{source:"computed"}),P("quota_usd","decimal",{indexed:1,source:"Clari"})],
+    rv_product:      [P("product_id","uuid",{pk:1,required:1,indexed:1,source:"Salesforce"}),P("name","string",{required:1,indexed:1,source:"Salesforce"}),P("sku","string",{indexed:1,source:"Zuora"}),P("family","enum",{indexed:1,source:"Salesforce"}),P("list_price_usd","decimal",{source:"Zuora"}),P("billing_model","enum",{source:"Zuora"}),P("is_active","bool",{source:"Salesforce"})],
+    rv_competitor:   [P("competitor_id","uuid",{pk:1,required:1,indexed:1,source:"Salesforce"}),P("name","string",{required:1,indexed:1,source:"Salesforce"}),P("tier","enum",{indexed:1,source:"Salesforce"}),P("primary_market","enum",{source:"6sense"}),P("win_rate_vs","float",{indexed:1,source:"Snowflake"}),P("mentions_90d","int",{indexed:1,source:"Gong"}),P("last_seen_at","timestamp",{source:"Gong"})],
+    rv_partner:      [P("partner_id","uuid",{pk:1,required:1,indexed:1,source:"Salesforce"}),P("name","string",{required:1,indexed:1,source:"Salesforce"}),P("type","enum",{indexed:1,source:"Salesforce"}),P("tier","enum",{indexed:1,source:"Salesforce"}),P("region","enum",{source:"Salesforce"}),P("sourced_pipeline_usd","decimal",{indexed:1,source:"Snowflake"}),P("referral_fee_pct","float",{source:"Salesforce"})],
+    rv_forecast:     [P("submission_id","uuid",{pk:1,required:1,indexed:1,source:"Clari"}),P("owner_id","uuid",{indexed:1,source:"Clari"}),P("period","string",{required:1,indexed:1,source:"Clari"}),P("commit_usd","decimal",{indexed:1,source:"Clari"}),P("best_case_usd","decimal",{source:"Clari"}),P("pipeline_usd","decimal",{source:"Clari"}),P("closed_usd","decimal",{indexed:1,source:"Salesforce"}),P("category_mix","string",{source:"Clari"}),P("submitted_at","timestamp",{indexed:1,source:"Clari"})],
+    rv_campaign:     [P("campaign_id","uuid",{pk:1,required:1,indexed:1,source:"Marketo"}),P("name","string",{required:1,indexed:1,source:"Marketo"}),P("type","enum",{indexed:1,source:"Marketo"}),P("channel","enum",{indexed:1,source:"Marketo"}),P("status","enum",{indexed:1,source:"Marketo"}),P("start_date","date",{indexed:1,source:"Marketo"}),P("end_date","date",{source:"Marketo"}),P("budget_usd","decimal",{indexed:1,source:"Marketo"}),P("segment_id","uuid",{indexed:1,source:"6sense"}),P("mql_goal","int",{source:"Marketo"}),P("owner_id","uuid",{source:"Marketo"})],
+    rv_touch:        [P("touch_id","uuid",{pk:1,required:1,indexed:1,source:"Marketo"}),P("contact_id","uuid",{indexed:1,source:"Marketo"}),P("campaign_id","uuid",{indexed:1,source:"Marketo"}),P("channel","enum",{required:1,indexed:1,source:"Marketo"}),P("asset_id","uuid",{source:"Marketing Cloud"}),P("touched_at","timestamp",{indexed:1,source:"Marketo"}),P("position","enum",{indexed:1,source:"Snowflake"}),P("attributed_amount_usd","decimal",{indexed:1,source:"Snowflake"}),P("engagement_score","float",{source:"Snowflake"})],
+    rv_content:      [P("asset_id","uuid",{pk:1,required:1,indexed:1,source:"Marketing Cloud"}),P("title","string",{required:1,indexed:1,source:"Marketing Cloud"}),P("format","enum",{indexed:1,source:"Marketing Cloud"}),P("funnel_stage","enum",{indexed:1,source:"Marketo"}),P("topic","enum",{indexed:1,source:"6sense"}),P("published_at","date",{source:"Marketing Cloud"}),P("downloads_90d","int",{indexed:1,source:"Snowflake"}),P("influenced_pipeline_usd","decimal",{source:"Snowflake"})],
+    rv_websession:   [P("session_id","uuid",{pk:1,required:1,indexed:1,source:"Segment CDP"}),P("anonymous_id","string",{indexed:1,source:"Segment CDP"}),P("contact_id","uuid",{indexed:1,source:"Segment CDP"}),P("account_id","uuid",{indexed:1,source:"6sense"}),P("landing_page","string",{source:"Segment CDP"}),P("referrer","string",{source:"Segment CDP"}),P("utm_campaign","string",{indexed:1,source:"Segment CDP"}),P("device","enum",{source:"Segment CDP"}),P("pages_viewed","int",{source:"Segment CDP"}),P("duration_sec","int",{source:"Segment CDP"}),P("started_at","timestamp",{indexed:1,source:"Segment CDP"})],
+    rv_adspend:      [P("spend_id","uuid",{pk:1,required:1,indexed:1,source:"Google Ads"}),P("campaign_id","uuid",{indexed:1,source:"Google Ads"}),P("platform","enum",{required:1,indexed:1,source:"Google Ads"}),P("ad_group","string",{indexed:1,source:"Google Ads"}),P("date","date",{indexed:1,source:"Google Ads"}),P("spend_usd","decimal",{indexed:1,source:"Google Ads"}),P("impressions","int",{source:"Google Ads"}),P("clicks","int",{source:"Google Ads"}),P("cpc_usd","decimal",{indexed:1,source:"Google Ads"}),P("conversions","int",{source:"LinkedIn Ads"})],
+    rv_segment:      [P("segment_id","uuid",{pk:1,required:1,indexed:1,source:"6sense"}),P("name","string",{required:1,indexed:1,source:"6sense"}),P("definition","string",{source:"Snowflake"}),P("size","int",{indexed:1,source:"6sense"}),P("refresh_cadence","enum",{source:"Snowflake"}),P("is_abm","bool",{indexed:1,source:"6sense"}),P("owner_id","uuid",{source:"Marketo"})],
+    rv_event:        [P("event_id","uuid",{pk:1,required:1,indexed:1,source:"Marketo"}),P("name","string",{required:1,indexed:1,source:"Marketo"}),P("type","enum",{indexed:1,source:"Marketo"}),P("campaign_id","uuid",{indexed:1,source:"Marketo"}),P("starts_at","timestamp",{indexed:1,source:"Marketo"}),P("venue","string",{source:"Marketo"}),P("registrations","int",{indexed:1,source:"Marketo"}),P("attendees","int",{indexed:1,source:"Marketo"}),P("cost_usd","decimal",{source:"Marketo"})],
+    rv_intent:       [P("signal_id","uuid",{pk:1,required:1,indexed:1,source:"6sense"}),P("account_id","uuid",{indexed:1,source:"6sense"}),P("topic","enum",{required:1,indexed:1,source:"6sense"}),P("intent_score","float",{indexed:1,source:"6sense"}),P("trend","enum",{indexed:1,source:"6sense"}),P("buying_stage","enum",{indexed:1,source:"6sense"}),P("provider","enum",{source:"6sense"}),P("observed_at","timestamp",{indexed:1,source:"6sense"})],
+    rv_subscription: [P("subscription_id","uuid",{pk:1,required:1,indexed:1,source:"Zuora"}),P("account_id","uuid",{indexed:1,source:"Zuora"}),P("contract_id","uuid",{indexed:1,source:"Zuora"}),P("plan","enum",{required:1,indexed:1,source:"Zuora"}),P("seats","int",{indexed:1,source:"Zuora"}),P("mrr_usd","decimal",{indexed:1,source:"Zuora"}),P("arr_usd","decimal",{indexed:1,source:"Zuora"}),P("term_start","date",{source:"Zuora"}),P("term_end","date",{indexed:1,source:"Zuora"}),P("status","enum",{indexed:1,source:"Zuora"}),P("auto_renew","bool",{source:"Zuora"})],
+    rv_renewal:      [P("renewal_id","uuid",{pk:1,required:1,indexed:1,source:"Zuora"}),P("subscription_id","uuid",{indexed:1,source:"Zuora"}),P("owner_id","uuid",{indexed:1,source:"Gainsight"}),P("renewal_date","date",{required:1,indexed:1,source:"Zuora"}),P("renewal_arr_usd","decimal",{indexed:1,source:"Zuora"}),P("uplift_pct","float",{source:"Zuora"}),P("status","enum",{indexed:1,source:"Gainsight"}),P("risk_level","enum",{indexed:1,source:"Gainsight"}),P("forecast_category","enum",{source:"Clari"})],
+    rv_ticket:       [P("ticket_id","uuid",{pk:1,required:1,indexed:1,source:"Zendesk"}),P("subject","string",{required:1,indexed:1,source:"Zendesk"}),P("account_id","uuid",{indexed:1,source:"Zendesk"}),P("contact_id","uuid",{indexed:1,source:"Zendesk"}),P("category","enum",{indexed:1,source:"Zendesk"}),P("priority","enum",{indexed:1,source:"Zendesk"}),P("status","enum",{indexed:1,source:"Zendesk"}),P("opened_at","timestamp",{indexed:1,source:"Zendesk"}),P("first_response_min","int",{source:"Zendesk"}),P("csat","int",{indexed:1,source:"Zendesk"})],
+    rv_usage:        [P("usage_id","uuid",{pk:1,required:1,indexed:1,source:"Pendo"}),P("subscription_id","uuid",{indexed:1,source:"Pendo"}),P("product_id","uuid",{indexed:1,source:"Pendo"}),P("measured_on","date",{required:1,indexed:1,source:"Pendo"}),P("active_users","int",{indexed:1,source:"Pendo"}),P("sessions","int",{source:"Pendo"}),P("feature_adoption_pct","float",{indexed:1,source:"Pendo"}),P("license_utilization_pct","float",{indexed:1,source:"Snowflake"}),P("trend","enum",{source:"Snowflake"})],
+    rv_csm:          [P("csm_id","uuid",{pk:1,required:1,indexed:1,source:"Gainsight"}),P("name","string",{required:1,indexed:1,pii:1,source:"Gainsight"}),P("email","string",{indexed:1,pii:1,source:"Gainsight"}),P("region","enum",{indexed:1,source:"Gainsight"}),P("book_arr_usd","decimal",{indexed:1,source:"Zuora"}),P("accounts_managed","int",{source:"Gainsight"}),P("tenure_months","int",{source:"Gainsight"})],
+    rv_onboarding:   [P("project_id","uuid",{pk:1,required:1,indexed:1,source:"Gainsight"}),P("subscription_id","uuid",{indexed:1,source:"Gainsight"}),P("csm_id","uuid",{indexed:1,source:"Gainsight"}),P("phase","enum",{required:1,indexed:1,source:"Gainsight"}),P("started_at","date",{source:"Gainsight"}),P("target_go_live","date",{indexed:1,source:"Gainsight"}),P("days_to_value","int",{indexed:1,source:"Snowflake"}),P("status","enum",{indexed:1,source:"Gainsight"}),P("health","enum",{source:"Gainsight"})],
+    rv_nps:          [P("response_id","uuid",{pk:1,required:1,indexed:1,source:"Gainsight"}),P("contact_id","uuid",{indexed:1,source:"Gainsight"}),P("account_id","uuid",{indexed:1,source:"Gainsight"}),P("score","int",{required:1,indexed:1,source:"Gainsight"}),P("verbatim","string",{source:"Gainsight"}),P("survey_wave","string",{indexed:1,source:"Gainsight"}),P("sentiment","enum",{indexed:1,source:"Snowflake"}),P("submitted_at","timestamp",{source:"Gainsight"})],
+    rv_leadscore:    [P("score_id","uuid",{pk:1,required:1,indexed:1,source:"Snowflake"}),P("lead_id","uuid",{indexed:1,source:"Snowflake"}),P("score","int",{required:1,indexed:1,source:"Snowflake"}),P("grade","enum",{indexed:1,source:"Snowflake"}),P("top_driver","enum",{indexed:1,source:"Snowflake"}),P("model_version","string",{source:"Snowflake"}),P("computed_at","timestamp",{indexed:1,source:"Snowflake"})],
+    rv_pipeline:     [P("health_id","uuid",{pk:1,required:1,indexed:1,source:"Clari"}),P("opportunity_id","uuid",{indexed:1,source:"Clari"}),P("coverage_ratio","float",{indexed:1,source:"Clari"}),P("stage_velocity_days","int",{indexed:1,source:"Snowflake"}),P("slip_risk","enum",{required:1,indexed:1,source:"Clari"}),P("engagement_depth","int",{source:"Gong"}),P("top_driver","enum",{indexed:1,source:"Clari"}),P("computed_at","timestamp",{source:"Clari"})],
+    rv_churn:        [P("risk_id","uuid",{pk:1,required:1,indexed:1,source:"Snowflake"}),P("subscription_id","uuid",{indexed:1,source:"Snowflake"}),P("probability","float",{required:1,indexed:1,source:"Snowflake"}),P("top_driver","enum",{indexed:1,source:"Snowflake"}),P("horizon_days","int",{source:"Snowflake"}),P("arr_at_risk_usd","decimal",{indexed:1,source:"Snowflake"}),P("computed_at","timestamp",{indexed:1,source:"Snowflake"})],
+    rv_expansion:    [P("signal_id","uuid",{pk:1,required:1,indexed:1,source:"Snowflake"}),P("account_id","uuid",{indexed:1,source:"Snowflake"}),P("propensity","float",{required:1,indexed:1,source:"Snowflake"}),P("recommended_product","string",{indexed:1,source:"Snowflake"}),P("expected_arr_usd","decimal",{indexed:1,source:"Snowflake"}),P("top_driver","enum",{source:"Snowflake"}),P("computed_at","timestamp",{source:"Snowflake"})],
+    rv_health:       [P("score_id","uuid",{pk:1,required:1,indexed:1,source:"Gainsight"}),P("account_id","uuid",{indexed:1,source:"Gainsight"}),P("health_score","float",{required:1,indexed:1,source:"Gainsight"}),P("trend","enum",{indexed:1,source:"Snowflake"}),P("usage_component","float",{source:"Pendo"}),P("support_component","float",{source:"Zendesk"}),P("sentiment_component","float",{source:"Gainsight"}),P("computed_at","timestamp",{indexed:1,source:"Snowflake"})],
+    rv_attrib:       [P("credit_id","uuid",{pk:1,required:1,indexed:1,source:"Snowflake"}),P("touch_id","uuid",{indexed:1,source:"Snowflake"}),P("opportunity_id","uuid",{indexed:1,source:"Snowflake"}),P("model","enum",{required:1,indexed:1,source:"Snowflake"}),P("credit_pct","float",{indexed:1,source:"Snowflake"}),P("credited_amount_usd","decimal",{indexed:1,source:"Snowflake"}),P("position","enum",{indexed:1,source:"Snowflake"}),P("computed_at","timestamp",{source:"Snowflake"})],
+  }
+  const ids = {}; nodes.forEach(n => { ids[n.id] = n; if (PROPS[n.id]) { n._userProps = PROPS[n.id]; n.props = PROPS[n.id].length } })
+  const edges = ER.filter(e => ids[e[0]] && ids[e[1]]).map(e => ({ s:e[0], t:e[1], label:e[2], kind:e[3] }))
+  edges.forEach(e => { if (ids[e.s]) ids[e.s].edges++; if (ids[e.t] && e.t !== e.s) ids[e.t].edges++ })
+  return { nodes, edges }
+}
+const REVENUE_DATA = buildRevenue()
+
+const SIDEBAR_NODES =[...NODES].filter(n => n.type !== "agent" && n.type !== "source").sort((a, b) => a.label.localeCompare(b.label));
 
 // ---------- HELPERS ---------------------------------------------------------
 
@@ -2068,7 +2308,7 @@ function Sidebar({ open, onToggle, filter, setFilter, query, setQuery, selected,
 
 
 // ── Stage 1 host: provides graph state + view/edit toggle, renders the canvas ──
-export { SIDEBAR_NODES, EDGES as GRAPH_EDGES, LOWES_DATA, NIKE_DATA, FINANCE_DATA, CHARGEPOINT_DATA, ListGlyph, colorForNode, NodeShape, ZoomControls, Minimap, AddNodeFlow, NewEdgeFlow, generateProps, generateRules }
+export { SIDEBAR_NODES, EDGES as GRAPH_EDGES, LOWES_DATA, NIKE_DATA, FINANCE_DATA, CHARGEPOINT_DATA, REVENUE_DATA, ListGlyph, colorForNode, NodeShape, ZoomControls, Minimap, AddNodeFlow, NewEdgeFlow, generateProps, generateRules }
 
 export default function GraphStage({ data }) {
   // Optional `data` ({ nodes, edges }) lets a caller render a different graph

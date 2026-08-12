@@ -16,6 +16,7 @@ import { BuildContext, useBuildDraft, useAgentDraft } from './components/aiBuild
 import { AgentCanvas } from './components/CreateAgentModal'
 import ContextGraphsPage from './components/ContextGraphsPage'
 import RecordsPage from './components/RecordsPage'
+import ApplicationsPage from './components/ApplicationsPage'
 import GraphCanvas from './components/GraphCanvas'
 import AgentChat from './components/AgentChat'
 import BuildWithAIModal from './components/BuildWithAIModal'
@@ -152,6 +153,7 @@ export default function App() {
     else if (label === 'Loops') { setView('loops'); setActiveNav('agents') }
     else if (label === 'Enterprise Context Graph') { setView('context-graphs'); setActiveNav('ontology') }
     else if (label === 'Records') { setView('records'); setActiveNav('ontology') }
+    else if (label === 'Applications') { setView('applications'); setActiveNav('apps') }
   }
 
   return (
@@ -182,6 +184,7 @@ export default function App() {
             <GraphsPage onOpenGraph={g => { setSelectedGraph(g); setView('detail') }} />
           )}
           {view === 'records' && <RecordsPage />}
+          {view === 'applications' && <ApplicationsPage />}
           {view === 'context-graphs' && (
             <ContextGraphsPage onCreate={() => { setSelectedGraph(null); setView('blank-canvas') }} onOpenGraph={g => { setSelectedGraph(g); setView('blank-canvas') }} />
           )}
@@ -189,7 +192,7 @@ export default function App() {
             <AgentCanvas draft={agentDraft} onBack={exitAgentBuild} onCreate={exitAgentBuild} />
           )}
           {view === 'blank-canvas' && (
-            <GraphCanvas title={selectedGraph?.name || 'New graph'} dataset={selectedGraph?.isLowes ? 'lowes' : selectedGraph?.isNike ? 'nike' : selectedGraph?.isFinance ? 'finance' : selectedGraph?.isCP ? 'chargepoint' : undefined} onBack={() => setView('context-graphs')} onAgentAI={startAgentBuild} />
+            <GraphCanvas title={selectedGraph?.name || 'New graph'} dataset={selectedGraph?.isRevenue ? 'revenue' : selectedGraph?.isLowes ? 'lowes' : selectedGraph?.isNike ? 'nike' : selectedGraph?.isFinance ? 'finance' : selectedGraph?.isCP ? 'chargepoint' : undefined} onBack={() => setView('context-graphs')} onAgentAI={startAgentBuild} />
           )}
           {view === 'detail' && (
             <GraphDetailPage graph={selectedGraph} onBack={() => setView('graphs')} />

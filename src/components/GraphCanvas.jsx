@@ -5,7 +5,7 @@ import CreateAgentPage, { ModelIcon, MODELS } from './CreateAgentModal'
 import BuildWithAIModal from './BuildWithAIModal'
 import { ToolGlyph } from './AddToolPanel'
 import { LinkSourceFlow } from './LinkSourceFlow'
-import GraphStage, { SIDEBAR_NODES, GRAPH_EDGES, LOWES_DATA, NIKE_DATA, FINANCE_DATA, CHARGEPOINT_DATA, ListGlyph, colorForNode, AddNodeFlow, NewEdgeFlow, generateProps, generateRules, PropertiesPane } from './GraphStage'
+import GraphStage, { SIDEBAR_NODES, GRAPH_EDGES, LOWES_DATA, NIKE_DATA, FINANCE_DATA, CHARGEPOINT_DATA, REVENUE_DATA, ListGlyph, colorForNode, AddNodeFlow, NewEdgeFlow, generateProps, generateRules, PropertiesPane } from './GraphStage'
 // Make node schema available to LinkSourceFlow.buildEditState (runs at module load time)
 if (typeof window !== 'undefined') { window.NODES = SIDEBAR_NODES; window.EDGES = GRAPH_EDGES; window.generateProps = generateProps; window.ListGlyph = ListGlyph; }
 import RecordsPage from './RecordsPage'
@@ -115,8 +115,15 @@ const CHARGEPOINT_GD = {
   sources: buildDatasetSources(CHARGEPOINT_DATA, { freqMap: CHARGEPOINT_FREQ, owner: 'Rohan Vijay' }),
   data: CHARGEPOINT_DATA,
 }
+const REVENUE_FREQ = { rv_salesforce: 'Hourly', rv_marketo: '15 min', rv_sfmc: 'Hourly', rv_googleads: 'Daily', rv_linkedinads: 'Daily', rv_segmentcdp: 'Streaming', rv_6sense: 'Daily', rv_gong: 'Streaming', rv_outreach: '15 min', rv_gainsight: 'Hourly', rv_zendesk: '15 min', rv_zuora: 'Hourly', rv_clari: 'Hourly', rv_snowflake: 'Hourly', rv_pendo: 'Streaming' }
+const REVENUE_GD = {
+  sidebarNodes: [...REVENUE_DATA.nodes].filter(n => n.type === 'entity').sort((a, b) => a.label.localeCompare(b.label)),
+  edges: REVENUE_DATA.edges,
+  sources: buildDatasetSources(REVENUE_DATA, { freqMap: REVENUE_FREQ, owner: 'Ava Mitchell' }),
+  data: REVENUE_DATA,
+}
 
-const TABS = ['Graph', 'Nodes', 'Edges', 'Sources', 'Agents', 'Records', 'Governance']
+const TABS =['Graph', 'Nodes', 'Edges', 'Sources', 'Agents', 'Records', 'Governance']
 // Tabs shown only in Full production mode (hidden in MVP).
 const FULL_ONLY_TABS = ['Agents']
 
@@ -268,7 +275,7 @@ export default function GraphCanvas(props) {
 
 function GraphCanvasInner({ title = 'New graph', onBack, onAgentAI, dataset }) {
   // Select the active dataset for this render pass (children read GD below).
-  GD = dataset === 'lowes' ? LOWES_GD : dataset === 'nike' ? NIKE_GD : dataset === 'finance' ? FINANCE_GD : dataset === 'chargepoint' ? CHARGEPOINT_GD : DEFAULT_GD
+  GD = dataset === 'revenue' ? REVENUE_GD : dataset === 'lowes' ? LOWES_GD : dataset === 'nike' ? NIKE_GD : dataset === 'finance' ? FINANCE_GD : dataset === 'chargepoint' ? CHARGEPOINT_GD : DEFAULT_GD
   // The source pipeline editor resolves nodes/properties from window.NODES — keep
   // it in sync with the active graph so its mapping aligns to the Lowe's nodes.
   if (typeof window !== 'undefined') { window.NODES = GD.sidebarNodes; window.EDGES = GD.edges }
@@ -362,7 +369,7 @@ function GraphCanvasInner({ title = 'New graph', onBack, onAgentAI, dataset }) {
       ) : tab === 'Agents' && agents.length > 0 ? (
         <AgentsList agents={agents} onAction={onAgentAction} onRemove={i => setAgents(a => a.filter((_, j) => j !== i))} />
       ) : tab === 'Records' ? (
-        <RecordsPage disableDetail dataset={dataset === 'lowes' ? 'lowes' : dataset === 'nike' ? 'nike' : dataset === 'finance' ? 'finance' : dataset === 'chargepoint' ? 'chargepoint' : undefined} />
+        <RecordsPage disableDetail dataset={dataset === 'revenue' ? 'revenue' : dataset === 'lowes' ? 'lowes' : dataset === 'nike' ? 'nike' : dataset === 'finance' ? 'finance' : dataset === 'chargepoint' ? 'chargepoint' : undefined} />
       ) : tab === 'Governance' ? (
         <GovernanceRoles />
       ) : (
@@ -566,6 +573,22 @@ const FAVICON_OVERRIDES = {
   cp_geotab:     _fav('geotab.com'),
   cp_snowflake:  _fav('snowflake.com'),
   cp_ota:        _fav('chargepoint.com'),
+  // Revenue Teams sources
+  rv_salesforce:   _fav('salesforce.com'),
+  rv_marketo:      _fav('marketo.com'),
+  rv_sfmc:         _fav('salesforce.com'),
+  rv_googleads:    _fav('google.com'),
+  rv_linkedinads:  _fav('linkedin.com'),
+  rv_segmentcdp:   _fav('segment.com'),
+  rv_6sense:       _fav('6sense.com'),
+  rv_gong:         _fav('gong.io'),
+  rv_outreach:     _fav('outreach.io'),
+  rv_gainsight:    _fav('gainsight.com'),
+  rv_zendesk:      _fav('zendesk.com'),
+  rv_zuora:        _fav('zuora.com'),
+  rv_clari:        _fav('clari.com'),
+  rv_snowflake:    _fav('snowflake.com'),
+  rv_pendo:        _fav('pendo.io'),
 }
 function SourceIcon({ slug, name, size = 20 }) {
   const [failed, setFailed] = useState(false)
@@ -1542,6 +1565,16 @@ const CP_SEED_ROLES = [
   { id: 'r_steward', name: 'Data Steward',             desc: 'Curates schema, resolves matches, and manages data quality.',                perm: 'Editor', members: 5,  pii: true,  scopes: govAll(...GOV_ENTITY_IDS) },
   { id: 'r_auditor', name: 'Compliance Auditor',       desc: 'Read-only access to everything for NEVI and SLA compliance review.',         perm: 'Viewer', members: 4,  pii: false, scopes: govAll(...GOV_ENTITY_IDS) },
 ]
+// Revenue-team seed roles — same scoping machinery, go-to-market names.
+const RV_SEED_ROLES = [
+  { id: 'r_rv_ae',      name: 'Account Executive',        desc: 'Owns their accounts, opportunities and the people inside them.',              perm: 'Editor', members: 68, pii: true,  scopes: govScoped('account', 'contact', 'opportunity', 'quote', 'proposal', 'meeting', 'subscription') },
+  { id: 'r_rv_mgr',     name: 'Sales Manager',            desc: 'Rolls up the pipeline and forecast for every rep on their team.',             perm: 'Editor', members: 14, pii: true,  scopes: govAll('account', 'opportunity', 'quote', 'contract', 'subscription', 'product') },
+  { id: 'r_rv_mops',    name: 'Marketing Ops',            desc: 'Manages campaigns, segments and attribution wiring across the funnel.',       perm: 'Editor', members: 9,  pii: true,  scopes: govAll('campaign', 'lead', 'contact', 'account', 'opportunity') },
+  { id: 'r_rv_dg',      name: 'Demand Gen Manager',       desc: 'Reads campaign performance and the pipeline it sourced — no PII exports.',    perm: 'Viewer', members: 11, pii: false, scopes: govAll('campaign', 'lead', 'opportunity', 'account', 'product') },
+  { id: 'r_rv_csm',     name: 'Customer Success Manager', desc: 'Sees the subscriptions, tickets and health for the book they manage.',        perm: 'Editor', members: 32, pii: true,  scopes: govScoped('account', 'contact', 'subscription', 'ticket', 'case', 'renewal', 'health_score') },
+  { id: 'r_rv_revops',  name: 'RevOps Analyst',           desc: 'Reads the whole revenue picture — bookings, retention and attribution.',      perm: 'Viewer', members: 7,  pii: false, scopes: govAll('account', 'opportunity', 'subscription', 'invoice', 'contract', 'product', 'renewal', 'churn_risk', 'health_score', 'campaign', 'lead') },
+  { id: 'r_admin',      name: 'Workspace Admin',          desc: 'Full control over the graph schema, data, and governance.',                   perm: 'Admin',  members: 3,  pii: true,  scopes: govAll(...GOV_ENTITY_IDS) },
+]
 const ROLE_SORTERS = {
   'Members': (a, b) => b.members - a.members,
   'Name (A–Z)': (a, b) => a.name.localeCompare(b.name),
@@ -1567,7 +1600,7 @@ const govSelect = { ...govInput, appearance: 'none', cursor: 'pointer', backgrou
 
 // ── Governance container: list ⇄ role detail ────────────────────────────────
 function GovernanceRoles() {
-  const [roles, setRoles] = useState(() => (GD === CHARGEPOINT_GD ? CP_SEED_ROLES : SEED_ROLES))
+  const [roles, setRoles] = useState(() => (GD === REVENUE_GD ? RV_SEED_ROLES : GD === CHARGEPOINT_GD ? CP_SEED_ROLES : SEED_ROLES))
   const [open, setOpen] = useState(null) // role being viewed/edited, or 'new'
 
   const saveRole = role => {
