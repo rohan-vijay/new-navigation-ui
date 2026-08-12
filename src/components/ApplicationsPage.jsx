@@ -415,7 +415,7 @@ function AppList({ onOpen }) {
           </button>
         </div>
         <div style={{ fontSize: 13.5, color: MUTED, paddingBottom: 18 }}>
-          Visual applications built on the ChargePoint Network Graph.
+          Visual applications built on your enterprise context graphs.
         </div>
       </div>
       <div style={{ flex: 1, overflowY: 'auto', padding: '0 26px 26px' }}>
@@ -2139,25 +2139,69 @@ function PersonaGlyph({ id, color }) {
   )
 }
 
-function PersonaRail({ value, onChange }) {
+// Deliberately quiet: a single 34px control in the header, not a banner. The
+// dashboards do the talking; switching lens should feel like changing a filter.
+function PersonaSwitcher({ value, onChange }) {
+  const [open, setOpen] = useState(false)
+  const ref = useRef(null)
+  const p = PERSONAS.find(x => x.id === value)
+  useEffect(() => {
+    if (!open) return
+    const onDown = e => { if (ref.current && !ref.current.contains(e.target)) setOpen(false) }
+    document.addEventListener('mousedown', onDown)
+    return () => document.removeEventListener('mousedown', onDown)
+  }, [open])
   return (
-    <div style={{ display: 'flex', gap: 3, background: '#f4f2ee', border: `1px solid ${LINE}`, borderRadius: 11, padding: 4, flexWrap: 'wrap' }}>
-      {PERSONAS.map(p => {
-        const active = value === p.id
-        return (
-          <button key={p.id} onClick={() => onChange(p.id)} style={{
-            flex: '1 1 150px', border: active ? `1px solid ${LINE2}` : '1px solid transparent',
-            background: active ? '#fff' : 'transparent', color: active ? p.accent : '#6b6455',
-            borderRadius: 8, padding: '7px 12px', fontSize: 12.5, fontWeight: active ? 600 : 500,
-            cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 7,
-            whiteSpace: 'nowrap', transition: 'all .15s',
-            boxShadow: active ? '0 1px 5px rgba(26,26,26,0.08)' : 'none',
-          }}>
-            <PersonaGlyph id={p.id} color={active ? p.accent : '#9a948a'} />
-            {p.name}
-          </button>
-        )
-      })}
+    <div ref={ref} style={{ position: 'relative', display: 'flex', alignItems: 'center', gap: 8 }}>
+      <span style={{ ...mono, fontSize: 9.5, fontWeight: 600, letterSpacing: 0.6, textTransform: 'uppercase', color: MUTED, whiteSpace: 'nowrap' }}>
+        Viewing as
+      </span>
+      <button onClick={() => setOpen(o => !o)} style={{
+        width: 224, height: 34, boxSizing: 'border-box', display: 'inline-flex', alignItems: 'center', gap: 9,
+        background: PLATE, border: `1px solid ${LINE}`, borderRadius: 8, padding: '0 11px',
+        cursor: 'pointer', transition: 'border-color .15s, background .15s',
+      }}
+        onMouseOver={e => e.currentTarget.style.borderColor = '#d8d2c4'}
+        onMouseOut={e => e.currentTarget.style.borderColor = LINE}>
+        <PersonaGlyph id={p.id} color={p.accent} />
+        <span style={{ flex: 1, textAlign: 'left', fontSize: 13, fontWeight: 500, color: INK, whiteSpace: 'nowrap' }}>{p.name}</span>
+        <svg width="9" height="9" viewBox="0 0 9 9" style={{ flexShrink: 0, transform: open ? 'rotate(180deg)' : 'none', transition: 'transform .15s' }}>
+          <path d="M1.5 3l3 3 3-3" stroke={MUTED} strokeWidth="1.3" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+      </button>
+      {open && (
+        <div style={{
+          position: 'absolute', top: 'calc(100% + 6px)', right: 0, zIndex: 41, width: 280,
+          background: '#fff', border: `1px solid ${LINE}`, borderRadius: 10,
+          boxShadow: '0 8px 28px rgba(26,26,26,0.10)', padding: 5,
+        }}>
+          {PERSONAS.map(x => {
+            const active = x.id === value
+            return (
+              <button key={x.id} onClick={() => { onChange(x.id); setOpen(false) }} style={{
+                width: '100%', display: 'flex', alignItems: 'flex-start', gap: 9, textAlign: 'left',
+                border: 'none', background: active ? '#f7f6f2' : 'transparent', borderRadius: 7,
+                padding: '8px 10px', cursor: 'pointer', transition: 'background .12s',
+              }}
+                onMouseOver={e => e.currentTarget.style.background = '#faf9f6'}
+                onMouseOut={e => e.currentTarget.style.background = active ? '#f7f6f2' : 'transparent'}>
+                <span style={{ paddingTop: 1, flexShrink: 0 }}>
+                  <PersonaGlyph id={x.id} color={active ? x.accent : '#9a948a'} />
+                </span>
+                <span style={{ flex: 1, minWidth: 0 }}>
+                  <span style={{ display: 'block', fontSize: 12.5, fontWeight: active ? 600 : 500, color: active ? x.accent : INK }}>{x.name}</span>
+                  <span style={{ display: 'block', fontSize: 11.5, color: MUTED, lineHeight: 1.4, marginTop: 1 }}>{x.blurb}</span>
+                </span>
+                {active && (
+                  <svg width="12" height="12" viewBox="0 0 12 12" style={{ flexShrink: 0, marginTop: 3 }}>
+                    <path d="M2.5 6.2l2.4 2.4 4.6-5" fill="none" stroke={x.accent} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                )}
+              </button>
+            )
+          })}
+        </div>
+      )}
     </div>
   )
 }
@@ -3264,7 +3308,9 @@ function Customer360({ onBack }) {
         title="Customer 360"
         subtitle={`${acct.name} · ${acct.tier} · ${fmtUSD(acct.arr)} ARR · renewal in ${acct.renewalDays} days`}
         right={
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+            <PersonaSwitcher value={personaId} onChange={setPersonaId} />
+            <span style={{ width: 1, height: 22, background: LINE }} />
             <AccountSwitcher accounts={ACCOUNTS} value={acctId} onChange={setAcctId} />
             <LiveBadge />
           </div>
@@ -3272,10 +3318,9 @@ function Customer360({ onBack }) {
       />
 
       <div style={{ flex: 1, overflowY: 'auto', background: CANVAS, minHeight: 0 }}>
-        {/* Persona rail — the whole point of the app */}
-        <div style={{ position: 'sticky', top: 0, zIndex: 20, background: CANVAS, borderBottom: `1px solid ${LINE}`, padding: '14px 26px 12px' }}>
-          <PersonaRail value={personaId} onChange={setPersonaId} />
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 9, flexWrap: 'wrap' }}>
+        {/* One quiet line saying what this lens is looking at */}
+        <div style={{ position: 'sticky', top: 0, zIndex: 20, background: CANVAS, borderBottom: `1px solid ${LINE}`, padding: '11px 26px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
             <span style={{ width: 3, height: 15, borderRadius: 2, background: persona.accent, flexShrink: 0 }} />
             <span style={{ ...serif, fontSize: 13.5, fontStyle: 'italic', color: '#6b6455' }}>
               {persona.context(m)}
