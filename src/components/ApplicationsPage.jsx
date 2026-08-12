@@ -2,34 +2,25 @@ import { useState, useEffect, useMemo, useRef } from 'react'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import * as echarts from 'echarts'
+import {
+  INK, MUTED, LINE, LINE2, CANVAS, PLATE, HEALTH, BLUE, GREEN, CORAL, PURPLE, GOLD,
+  card, mono, serif, fmtK, fmtUSD, clamp,
+  ECH_FONT, AX_LABEL, TT, catAxis, valAxis,
+  Chart, AppHeader, LiveBadge, NodeChip, StatusDot, Spark,
+} from './appsKit'
+import { GREIF_APPS } from './GreifApps'
 
 // ─── AI APPLICATIONS ─────────────────────────────────────────────────────────
-// Visual applications built on the ChargePoint Network Graph. Three demo apps:
+// Visual applications built on the enterprise context graphs. ChargePoint demo
+// apps live here:
 //   'map'      → Network Atlas        — live Leaflet map of station health
 //   'insights' → Network Pulse        — executive insights dashboard (ECharts)
 //   'fleet'    → Fleet Readiness Board — overnight charging vs tomorrow's routes
+//   'c360'     → Customer 360         — one account, six persona lenses
+// The Greif operations apps are contributed by GreifApps.jsx via GREIF_APPS.
+// Shared theme + presentational primitives come from appsKit.jsx.
 // Inline styles only; Leaflet for the map, ECharts for the dashboard charts,
 // hand-drawn SVG for sparklines / thumbnails / small widgets.
-
-const INK = '#1a1a1a'
-const MUTED = '#9a948a'
-const LINE = '#ececea'
-const LINE2 = '#e3ddd1'
-const CANVAS = '#fcfbf7'
-const PLATE = '#FEFDFB'
-const HEALTH = { good: '#2f9e5a', warn: '#d99214', bad: '#c0492f' }
-const BLUE = '#2f6fdb'
-const GREEN = '#0f8a5f'
-const CORAL = '#c2543a'
-const PURPLE = '#6b5aa6'
-
-const card = { background: '#fff', border: `1px solid ${LINE}`, borderRadius: 12 }
-const mono = { fontFamily: 'var(--mono)' }
-const serif = { fontFamily: 'var(--serif)' }
-
-const fmtK = n => n >= 1000000 ? (n / 1000000).toFixed(1).replace(/\.0$/, '') + 'M'
-  : n >= 1000 ? (n / 1000).toFixed(n >= 10000 ? 0 : 1).replace(/\.0$/, '') + 'K'
-  : String(n)
 
 // ─── US SILHOUETTE (used only for the list-view thumbnail) ───────────────────
 const US_PATH =
@@ -148,116 +139,9 @@ const EXPANSION = {
   lax: [74, '79% peak occupancy'],
 }
 
-// ─── ECHARTS SHARED STYLING + HELPER ─────────────────────────────────────────
-
-const ECH_FONT = 'JetBrains Mono, ui-monospace, monospace'
-const AX_LABEL = { fontFamily: ECH_FONT, fontSize: 10, color: MUTED }
-const TT = {
-  backgroundColor: '#fff', borderColor: LINE2, borderWidth: 1, padding: [7, 10],
-  textStyle: { fontFamily: ECH_FONT, fontSize: 11, color: '#4b463d' },
-  extraCssText: 'box-shadow:0 4px 14px rgba(26,26,26,0.09);border-radius:8px;',
-}
-const catAxis = data => ({
-  type: 'category', data,
-  axisLine: { lineStyle: { color: LINE } }, axisTick: { show: false },
-  axisLabel: AX_LABEL, splitLine: { show: false },
-})
-const valAxis = (extra = {}) => ({
-  type: 'value',
-  axisLine: { show: false }, axisTick: { show: false }, axisLabel: AX_LABEL,
-  splitLine: { lineStyle: { color: LINE } },
-  ...extra,
-})
-
-// Shared ECharts host: inits on a ref div, observes resize, disposes on unmount
-// (StrictMode-safe: cleanup disposes, remount re-inits).
-function Chart({ option, height = 220 }) {
-  const ref = useRef(null)
-  useEffect(() => {
-    const el = ref.current
-    if (!el) return
-    let chart = echarts.getInstanceByDom(el)
-    if (!chart) chart = echarts.init(el)
-    chart.setOption(option, true)
-    const ro = new ResizeObserver(() => chart.resize())
-    ro.observe(el)
-    return () => { ro.disconnect(); chart.dispose() }
-  }, [option])
-  return <div ref={ref} style={{ width: '100%', height, minWidth: 0 }} />
-}
-
-// ─── SMALL SHARED PIECES ─────────────────────────────────────────────────────
-
-function BackButton({ onClick }) {
-  return (
-    <button onClick={onClick} aria-label="Back to applications" style={{
-      width: 32, height: 32, borderRadius: '50%', border: `1px solid ${LINE2}`,
-      background: '#fff', color: INK, cursor: 'pointer', flexShrink: 0,
-      display: 'flex', alignItems: 'center', justifyContent: 'center',
-      fontSize: 18, lineHeight: 1, paddingBottom: 2, transition: 'background .15s',
-    }}
-      onMouseOver={e => e.currentTarget.style.background = '#f4f1ea'}
-      onMouseOut={e => e.currentTarget.style.background = '#fff'}>
-      ‹
-    </button>
-  )
-}
-
-function AppHeader({ title, subtitle, onBack, right }) {
-  return (
-    <div style={{ padding: '16px 26px', borderBottom: `1px solid ${LINE}`, display: 'flex', alignItems: 'center', gap: 14, flexShrink: 0 }}>
-      <BackButton onClick={onBack} />
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ ...serif, fontSize: 21, fontWeight: 500, color: INK, letterSpacing: -0.2, lineHeight: 1.15 }}>{title}</div>
-        <div style={{ fontSize: 12.5, color: MUTED, marginTop: 2 }}>{subtitle}</div>
-      </div>
-      {right}
-    </div>
-  )
-}
-
-function LiveBadge() {
-  return (
-    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 11.5, fontWeight: 600, color: HEALTH.good, border: '1px solid #cde7d6', background: '#f2faf5', borderRadius: 20, padding: '3px 10px' }}>
-      <span style={{ width: 6, height: 6, borderRadius: '50%', background: HEALTH.good }} />
-      Live
-    </span>
-  )
-}
-
-function NodeChip({ label }) {
-  return (
-    <span style={{ ...mono, fontSize: 10.5, color: '#6b6455', border: `1px solid ${LINE2}`, background: '#faf8f3', borderRadius: 6, padding: '2px 7px', whiteSpace: 'nowrap' }}>
-      {label}
-    </span>
-  )
-}
-
-function StatusDot({ health }) {
-  return <span style={{ width: 7, height: 7, borderRadius: '50%', background: HEALTH[health] || HEALTH.good, display: 'inline-block', flexShrink: 0 }} />
-}
-
-// Generic SVG sparkline (metro panel + national trend strip).
-function Spark({ values, w = 130, h = 36, color = BLUE, floor = null, lo = null, hi = null }) {
-  const vLo = lo != null ? lo : Math.min(...values) - 0.25
-  const vHi = hi != null ? hi : Math.max(...values) + 0.25
-  const X = i => 3 + i * ((w - 6) / (values.length - 1))
-  const Y = v => 3 + ((vHi - v) / (vHi - vLo)) * (h - 6)
-  const d = values.map((v, i) => `${i ? 'L' : 'M'}${X(i).toFixed(1)} ${Y(v).toFixed(1)}`).join(' ')
-  return (
-    <svg viewBox={`0 0 ${w} ${h}`} style={{ width: w, height: h, display: 'block' }}>
-      {floor != null && floor > vLo && floor < vHi && (
-        <line x1="3" y1={Y(floor)} x2={w - 3} y2={Y(floor)} stroke={CORAL} strokeWidth="1" strokeDasharray="3 3" />
-      )}
-      <path d={d} fill="none" stroke={color} strokeWidth="1.6" strokeLinejoin="round" strokeLinecap="round" />
-      <circle cx={X(values.length - 1)} cy={Y(values[values.length - 1])} r="2.2" fill={color} />
-    </svg>
-  )
-}
-
 // ─── LIST VIEW ───────────────────────────────────────────────────────────────
 
-const APPS = [
+const BASE_APPS = [
   {
     id: 'c360', name: 'Customer 360',
     desc: 'One customer, six lenses — every revenue team sees what they need.',
@@ -357,7 +241,15 @@ function C360Thumb() {
   )
 }
 
-const THUMBS = { c360: C360Thumb, map: AtlasThumb, insights: PulseThumb, fleet: FleetThumb }
+// The four ChargePoint / Revenue apps first, then everything contributed by a
+// domain module (Greif). Merging is generic: each manifest entry brings its own
+// thumbnail and view, so nothing here is hand-wired per app.
+const APPS = [...BASE_APPS, ...GREIF_APPS.map(a => ({ id: a.id, name: a.name, desc: a.desc, stats: a.stats, chips: a.chips, graph: a.graph }))]
+const THUMBS = {
+  c360: C360Thumb, map: AtlasThumb, insights: PulseThumb, fleet: FleetThumb,
+  ...Object.fromEntries(GREIF_APPS.map(a => [a.id, a.Thumb])),
+}
+const EXTRA_VIEWS = Object.fromEntries(GREIF_APPS.map(a => [a.id, a.View]))
 
 function AppCard({ app, onOpen }) {
   const Thumb = THUMBS[app.id]
@@ -1557,8 +1449,6 @@ function FleetBoard({ onBack }) {
 // it — the same $480K pipeline, the same 240/186 seats, the same aging Sev-2
 // appear wherever they are relevant, never re-stated with different numbers.
 
-const GOLD = HEALTH.warn
-
 // Revenue motions — the colour key for the unified timeline and provenance.
 const MOTION = {
   marketing: { label: 'Marketing', color: PURPLE },
@@ -1568,13 +1458,9 @@ const MOTION = {
 }
 
 const MONTHS3 = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
-const fmtUSD = n => n >= 1000000
-  ? '$' + (n / 1000000).toFixed(2).replace(/\.?0+$/, '') + 'M'
-  : '$' + Math.round(n / 1000) + 'K'
 const fmtDate = iso => { const p = iso.split('-'); return `${MONTHS3[+p[1] - 1]} ${+p[2]}` }
 const fmtDateY = iso => { const p = iso.split('-'); return `${MONTHS3[+p[1] - 1]} ${+p[2]}, ${p[0]}` }
 const initials = name => name.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase()
-const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v))
 const healthColor = h => h >= 80 ? HEALTH.good : h >= 60 ? HEALTH.warn : HEALTH.bad
 
 // ── The book of business (account switcher). Northwind is the hero record;
@@ -3354,12 +3240,14 @@ function Customer360({ onBack }) {
 export default function ApplicationsPage() {
   const [openApp, setOpenApp] = useState(null)
   const back = () => setOpenApp(null)
+  const ExtraView = openApp ? EXTRA_VIEWS[openApp] : null
   return (
     <div style={{ flex: 1, background: PLATE, borderRadius: 14, overflow: 'hidden', display: 'flex', flexDirection: 'column', minWidth: 0 }}>
       {openApp === 'c360' && <Customer360 onBack={back} />}
       {openApp === 'map' && <NetworkAtlas onBack={back} />}
       {openApp === 'insights' && <NetworkPulse onBack={back} />}
       {openApp === 'fleet' && <FleetBoard onBack={back} />}
+      {ExtraView && <ExtraView onBack={back} />}
       {!openApp && <AppList onOpen={setOpenApp} />}
     </div>
   )
