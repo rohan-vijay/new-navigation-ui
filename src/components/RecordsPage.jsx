@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
-import { NodeShape, ListGlyph, ZoomControls, Minimap, colorForNode as canvasColorForNode, NIKE_DATA, FINANCE_DATA, CHARGEPOINT_DATA, REVENUE_DATA } from './GraphStage'
+import { NodeShape, ListGlyph, ZoomControls, Minimap, colorForNode as canvasColorForNode, NIKE_DATA, FINANCE_DATA, CHARGEPOINT_DATA, REVENUE_DATA, GREIF_DATA } from './GraphStage'
 
 // ── Color palette (New UI tokens) ──────────────────────────────────────────
 const C = {
@@ -324,6 +324,10 @@ const RV_ENTITY_NODES = REVENUE_DATA.nodes.filter(n => n.type === 'entity')
 const RV_ENTITY_IDS = new Set(RV_ENTITY_NODES.map(n => n.id))
 const RV_PROPS = {}; RV_ENTITY_NODES.forEach(n => { if (n._userProps) RV_PROPS[n.id] = n._userProps })
 const REVENUE_RD = { nodes: RV_ENTITY_NODES, edges: REVENUE_DATA.edges.filter(e => RV_ENTITY_IDS.has(e.s) && RV_ENTITY_IDS.has(e.t)), props: RV_PROPS }
+const GR_ENTITY_NODES = GREIF_DATA.nodes.filter(n => n.type === 'entity')
+const GR_ENTITY_IDS = new Set(GR_ENTITY_NODES.map(n => n.id))
+const GR_PROPS = {}; GR_ENTITY_NODES.forEach(n => { if (n._userProps) GR_PROPS[n.id] = n._userProps })
+const GREIF_RD = { nodes: GR_ENTITY_NODES, edges: GREIF_DATA.edges.filter(e => GR_ENTITY_IDS.has(e.s) && GR_ENTITY_IDS.has(e.t)), props: GR_PROPS }
 let RD = DEFAULT_RD
 
 // Source systems shown in record-level provenance — dataset-aware so the Lowe's
@@ -334,7 +338,8 @@ const NIKE_SOURCE_LABELS = ['SAP ERP', 'Commerce Cloud', 'Retail POS', 'Snowflak
 const FINANCE_SOURCE_LABELS = ['SAP S/4HANA', 'Oracle NetSuite', 'Workday', 'Coupa', 'SAP Concur', 'Anaplan', 'BlackLine', 'Kyriba', 'BILL', 'Snowflake']
 const CP_SOURCE_LABELS = ['NOS Telemetry', 'Salesforce', 'NetSuite', 'Stripe', 'ServiceNow', 'Zendesk', 'Hubject', 'Genability', 'Workday', 'Geotab', 'Snowflake', 'Firmware OTA']
 const REVENUE_SOURCE_LABELS = ['Salesforce', 'Marketo', 'Marketing Cloud', 'Google Ads', 'LinkedIn Ads', 'Segment CDP', '6sense', 'Gong', 'Outreach', 'Gainsight', 'Zendesk', 'Zuora', 'Clari', 'Snowflake', 'Pendo']
-const recordSourcePool = () => (RD === LOWES_RD ? LOWES_SOURCE_LABELS : RD === NIKE_RD ? NIKE_SOURCE_LABELS : RD === FINANCE_RD ? FINANCE_SOURCE_LABELS : RD === CHARGEPOINT_RD ? CP_SOURCE_LABELS : RD === REVENUE_RD ? REVENUE_SOURCE_LABELS : CRM_SOURCE_LABELS)
+const GREIF_SOURCE_LABELS = ['SAP S/4HANA', 'SAP Plant Maintenance', 'MES', 'PI Historian', 'Kinaxis', 'SAP Ariba', 'Blue Yonder', 'project44', 'Salesforce', 'LIMS', 'Cority', 'Workday', 'Snowflake', 'Sphera', 'Fastmarkets']
+const recordSourcePool = () => (RD === LOWES_RD ? LOWES_SOURCE_LABELS : RD === NIKE_RD ? NIKE_SOURCE_LABELS : RD === FINANCE_RD ? FINANCE_SOURCE_LABELS : RD === CHARGEPOINT_RD ? CP_SOURCE_LABELS : RD === REVENUE_RD ? REVENUE_SOURCE_LABELS : RD === GREIF_RD ? GREIF_SOURCE_LABELS : CRM_SOURCE_LABELS)
 const pickSource = seed => { const p = recordSourcePool(); return p[Math.abs(seed) % p.length] }
 
 // ── Colour helpers ──────────────────────────────────────────────────────────
@@ -704,6 +709,191 @@ function revenueValue(p, v, nodeId) {
     default: return null
   }
 }
+// ── Greif operations records vocabulary ─────────────────────────────────────
+const GREIF_PEOPLE = ['Marcus Feld','Rosa Delgado','Tom Vandenberg','Ayesha Rahman','Kevin Boyle','Ingrid Larsen','Diego Ferreira','Hannah Whitmore','Samuel Oyelaran','Wei Zhang','Petra Nowak','Andre Dubois','Nate Kowalski','Fatima Zidane','Colin Murray','Lucia Bianchi','Jonas Reinhardt','Grace Okonkwo']
+const GREIF_NAMES = {
+  gr_plant: ['Lavonia GA — Steel Drum','Diadema BR — Plastic Drum','Mount Vernon OH — URB Mill','Riverville VA — Containerboard','Delta BC — Fibre Drum','Taicang CN — IBC','La Porte TX — Steel Drum','Wingles FR — Plastic Drum','Massillon OH — Sheet Feeder','Rotterdam NL — Reconditioning','Pune IN — Steel Drum','Kaunas LT — Fibre Drum'],
+  gr_line: ['Drum Body Seamer L2','Blow Moulder BM-4','Fibre Winder W1','IBC Cage Assembly A3','Corrugator C1','Paper Machine PM-3','Closure Press CP-2','Lid Curler L5','Reconditioning Wash Line R1'],
+  gr_asset: ['Bliss Press #3','Seam Welder SW-220','Uniloy Blow Moulder','Spiral Winder Head','Corrugator Double Backer','Yankee Dryer Section','Shot Blaster SB-2','Leak Test Rig LT-9','Baler BL-4','Reel Turn-Up Unit'],
+  gr_sku: ['55gal Tight-Head Steel Drum — Red','55gal Open-Head Steel Drum — Blue','275gal IBC — Composite','330gal IBC — Composite','Fibre Drum 30gal — Kraft','Fibre Drum 55gal — Kraft','20L Plastic Pail — HDPE Natural','60gal Plastic Drum — HDPE Black','URB 0.024 Caliper — 72in Roll','Kraft Linerboard 42# — 87in Roll','Tri-Sure Closure Set — 2in','Corrugated RSC 24x18x18 — 32ECT'],
+  gr_material: ['Cold-Rolled Steel Coil G60','Cold-Rolled Steel Coil G90','HDPE Resin — Blow Grade','HDPE Resin — PCR 30%','OCC #11 Bale','OCC #12 Double-Sorted','Kraft Linerboard 42#','Semi-Chem Medium 26#','Epoxy Phenolic Lining','Tri-Sure Flange & Plug','Natural Gas — Mill Feed'],
+  gr_supplier: ['Nucor Steel','ArcelorMittal','Cleveland-Cliffs','LyondellBasell','Dow Polyethylene','Braskem','WestRock Recycling','Sonoco Recycling','Balcones Resources','Sherwin Coatings Supply','Greif Reconditioning Network'],
+  gr_customer: ['Dow Chemical','BASF Coatings','Nutrien Ag Solutions','Shell Lubricants','Cargill Foods','Sherwin-Williams','ExxonMobil Chemical','Corteva Agriscience','PPG Industries','Chevron Lubricants','Ecolab','Bunge Oils','Pfizer Ireland','Univar Solutions'],
+  gr_carrier: ['J.B. Hunt','Schneider','Werner','XPO','Old Dominion','Knight-Swift','C.H. Robinson','BNSF Intermodal','Maersk Line'],
+  gr_lane: ['Lavonia GA → Southeast US','La Porte TX → Gulf Coast','Mount Vernon OH → Midwest US','Diadema BR → São Paulo Metro','Wingles FR → Benelux','Taicang CN → East China','Delta BC → Pacific Northwest','Riverville VA → Mid-Atlantic'],
+  gr_index: ['CRU Cold-Rolled Coil — Midwest','Fastmarkets HDPE Blow Grade — NA','Fastmarkets OCC #11 — Midwest','RISI Kraft Linerboard 42# — East','Henry Hub Natural Gas'],
+  gr_complaint: ['Drums arrived dented — 3 pallets','Leaking closure on 55gal batch','Short ship — 40 units missing','Label misprint on lot code','Delivery 4 days past promise','Wrong SKU shipped — open vs tight head'],
+  gr_ncr: ['Seam leak above spec — Bliss Press #3','Coating void on interior lining','Wall thickness below spec — BM-4','Warped lid — curler misalignment','OCC contamination in URB furnish','Label lot code illegible'],
+  gr_downtime: ['Changeover — 55gal to 30gal','Seam welder contact tip failure','Resin starvation at extruder','Corrugator wet-end break','Operator break — no relief crew','Hydraulic leak on press ram'],
+  gr_maint: ['Quarterly PM — Bliss Press #3','Replace seam welder tip assembly','Predictive bearing swap — BM-4','Annual boiler inspection','Rebuild winder head gearbox','Shot blaster wheel replacement'],
+  gr_workorder: ['WO — 55gal Tight-Head Steel Drum','WO — 275gal IBC Composite','WO — Fibre Drum 30gal Kraft','WO — URB 0.024 Caliper Roll','WO — 20L Plastic Pail HDPE'],
+  gr_recon: ['Rotterdam batch — 55gal steel','La Porte batch — plastic drums','Chicago batch — tight-head steel','Antwerp batch — IBC bottles'],
+}
+const GREIF_MODES = ['Truckload','LTL','Rail','Intermodal','Ocean']
+function greifValue(p, v, nodeId) {
+  // Decorrelate strided seeds so pool picks don't repeat in runs.
+  v = Math.imul(v ^ (v >>> 16), 2654435761) >>> 0
+  const pick = a => a[(v >>> 3) % a.length]
+  const dec = (base, step, span) => (base + (v % span) * step).toFixed(2)
+  if (['name','title','subject','description','comment'].includes(p.name)) {
+    if (nodeId === 'gr_operator') return pick(GREIF_PEOPLE)
+    if (GREIF_NAMES[nodeId]) return pick(GREIF_NAMES[nodeId])
+  }
+  if (['technician','supervisor','inspector','account_manager'].includes(p.name)) return pick(GREIF_PEOPLE)
+  if (p.name === 'price_index_ref') return pick(GREIF_NAMES.gr_index)
+  if (p.name === 'carrier') return pick(GREIF_NAMES.gr_carrier)
+  switch (p.name) {
+    // ── Plant / org ──────────────────────────────────────────────────────
+    case 'business_unit': return pick(['Global Industrial Packaging','Global Industrial Packaging','Paper Packaging & Services'])
+    case 'product_families': return pick(['Steel Drums · Closures','Plastic Drums · IBCs','Fibre Drums · Tubes & Cores','Containerboard · Corrugated','URB · Tubes & Cores','Reconditioning'])
+    case 'country': return pick(['USA','USA','Brazil','Germany','France','Netherlands','China','India','Canada','Poland'])
+    case 'region': case 'destination_region': return pick(['North America','North America','LATAM','EMEA','APAC'])
+    case 'lines_count': return String(3 + v % 12)
+    case 'headcount': return String(48 + v % 420)
+    case 'commissioned_year': return String(1968 + v % 54)
+    case 'safety_days_since_recordable': return String(v % 640)
+    // ── Line / asset ─────────────────────────────────────────────────────
+    case 'process_type': return pick(['Steel Drum Forming','Blow Moulding','Fibre Winding','IBC Assembly','Corrugating','Paper Machine','Closure Forming','Reconditioning'])
+    case 'asset_type': return pick(['Press','Seamer','Extruder','Blow Moulder','Winder','Corrugator','Baler','Dryer Section','Shot Blaster','Leak Tester'])
+    case 'manufacturer': return pick(['Bliss','Uniloy','Fischer & Krecke','Valmet','BW Papersystems','Krones','Sandvik','Rieter'])
+    case 'criticality': return pick(['Critical','Critical','High','Medium','Low'])
+    case 'rated_speed_uph': return String(240 + (v % 40) * 45)
+    case 'runtime_hours': return String(4200 + (v % 90) * 380)
+    case 'mtbf_hours': return String(180 + (v % 60) * 24)
+    // ── Run / downtime ───────────────────────────────────────────────────
+    case 'planned_qty': case 'order_qty': return String(1200 + (v % 60) * 450)
+    case 'actual_qty': case 'confirmed_qty': return String(1100 + (v % 60) * 430)
+    case 'reason_code': return pick(['Mechanical','Electrical','Changeover','Material Starvation','Operator','Quality Hold'])
+    case 'duration_min': return String(6 + (v % 40) * 7)
+    case 'planned': return v % 3 === 0 ? 'true' : 'false'
+    case 'lost_units': case 'expected_lost_units': return String(v % 2400)
+    case 'shift': return pick(['Days','Days','Swing','Nights','Weekend'])
+    // ── SKU / BOM ────────────────────────────────────────────────────────
+    case 'product_family': return pick(['Steel Drum','Plastic Drum','Fibre Drum','IBC','Closures','Containerboard','URB','Corrugated'])
+    case 'capacity': return pick(['55 gal / 210 L','30 gal / 114 L','20 L','275 gal / 1000 L','330 gal / 1250 L','87 in roll','72 in roll'])
+    case 'material_spec': return pick(['G60 galvanized, 1.0mm','G90 galvanized, 1.2mm','HDPE blow grade, 30% PCR','Kraft fibre, 3-ply spiral','42# kraft liner / 26# medium','0.024 caliper URB'])
+    case 'un_rating': return pick(['UN 1A1/X1.8/300','UN 1A2/Y1.5/150','UN 1H1/Y1.9/100','UN 1G/Y50/S','31HA1/Y'])
+    case 'unit_weight_kg': return dec(4.2, 0.9, 40)
+    case 'component_qty': return dec(0.4, 0.15, 30)
+    case 'scrap_allowance_pct': return dec(0.6, 0.2, 18)
+    case 'uom': return nodeId === 'gr_material' || nodeId === 'gr_index' ? pick(['MT','MT','ST','lb','MMBtu']) : pick(['EA','EA','PAL','ROLL','MT'])
+    case 'version': return 'v' + (1 + (v >>> 3) % 6) + '.' + (v % 5)
+    case 'recycled_content_pct': case 'recycled_input_pct': return dec(0.18, 0.01, 55)
+    case 'list_price_usd': case 'unit_price': return dec(18.4, 1.6, 60)
+    // ── Quality ──────────────────────────────────────────────────────────
+    case 'test_type': return pick(['Leak Test','Drop Test','Coating Thickness','Burst Strength','Basis Weight','Dimensional','Torque Retention'])
+    case 'result': return pick(['Pass','Pass','Pass','Pass','Conditional','Fail'])
+    case 'defect_type': return pick(['Seam Leak','Coating Void','Wall Thickness','Label Misprint','Warp','Contamination','Closure Torque'])
+    case 'disposition': return pick(['Rework','Scrap','Use-As-Is','Return to Vendor'])
+    case 'sample_size': return String(5 + (v % 12) * 5)
+    case 'measured_value': return dec(0.82, 0.04, 40)
+    case 'spec_limit': return dec(1.0, 0.05, 12)
+    case 'units_affected': case 'drums_collected': return String(24 + (v % 90) * 32)
+    case 'quality_ppm': case 'claims_ppm': return String(120 + (v % 60) * 45)
+    case 'severity': return nodeId === 'gr_safety' ? pick(['Near Miss','Near Miss','First Aid','Recordable','Lost Time']) : pick(['Minor','Major','Critical'])
+    // ── Supply chain ─────────────────────────────────────────────────────
+    case 'category': return nodeId === 'gr_material' ? pick(['Cold-Rolled Steel','HDPE Resin','OCC','Kraft Liner','Closures','Energy'])
+      : nodeId === 'gr_supplier' ? pick(['Steel','Resin','Recovered Fibre','Coatings','Closures','Energy'])
+      : pick(['Damage in Transit','Short Ship','Leaking Container','Label Error','Late Delivery','Wrong SKU'])
+    case 'commodity': return pick(['Cold-Rolled Steel','HDPE Resin','OCC','Kraft Liner','Natural Gas'])
+    case 'on_hand_tons': case 'qty_tons': case 'order_qty_tons': return dec(180, 42, 60)
+    case 'allocated_tons': return dec(90, 28, 50)
+    case 'safety_stock_tons': return dec(60, 14, 40)
+    case 'days_of_supply': case 'days_of_cover': return dec(4.5, 0.8, 30)
+    case 'lead_time_days': return String(7 + v % 62)
+    case 'delay_hours': return String(v % 46)
+    case 'unit_cost': return dec(420, 18, 60)
+    case 'price': return dec(640, 24, 70)
+    case 'mom_change_pct': case 'yoy_change_pct': case 'bias_pct': return ((v % 2 ? 1 : -1) * (1 + v % 18)) + '%'
+    case 'price_trend': return pick(['Rising','Rising','Flat','Falling'])
+    case 'risk_tier': case 'risk_band': return pick(['Low','Low','Medium','High','Critical'])
+    case 'recycled_flag': case 'otif_flag': case 'on_time': return v % 4 !== 0 ? 'true' : 'false'
+    case 'storage_location': return pick(['RM-01 Coil Yard','RM-04 Resin Silos','RM-07 Fibre Bale Yard','FG-02 Staging','FG-05 Dock Bay'])
+    case 'po_no': return 'PO-' + (400000 + v % 599999)
+    case 'order_no': return 'SO-' + (2600000 + v % 1399999)
+    case 'scac': return pick(['JBHU','SNDR','WERN','XPOL','ODFL','KNXS','CHRW'])
+    // ── Logistics ────────────────────────────────────────────────────────
+    case 'mode': return pick(GREIF_MODES)
+    case 'incoterms': return pick(['FCA','DAP','EXW','CIF','FOB'])
+    case 'distance_miles': return String(85 + (v % 60) * 38)
+    case 'weight_kg': return dec(8400, 320, 50)
+    case 'pallets': return String(8 + v % 26)
+    case 'volume_shipments_ytd': return String(240 + (v % 80) * 46)
+    case 'avg_cost_per_mile': return dec(2.15, 0.06, 30)
+    case 'cost_per_cwt': return dec(9.4, 0.35, 30)
+    case 'freight_cost_usd': case 'avg_cost_usd': return (1240 + (v % 80) * 118).toLocaleString('en-US', { minimumFractionDigits: 2 })
+    case 'handling_cost_usd': case 'returns_cost_usd': case 'credit_issued_usd': case 'parts_cost_usd': return (860 + (v % 70) * 94).toLocaleString('en-US', { minimumFractionDigits: 2 })
+    case 'cost_usd': return (4200 + (v % 90) * 780).toLocaleString('en-US', { minimumFractionDigits: 2 })
+    case 'line_value_usd': return (7400 + (v % 90) * 1180).toLocaleString('en-US', { minimumFractionDigits: 2 })
+    case 'total_value_usd': return (28000 + (v % 90) * 4600).toLocaleString('en-US', { minimumFractionDigits: 2 })
+    case 'value_usd': case 'exposure_usd': return (180000 + (v % 90) * 26000).toLocaleString('en-US', { minimumFractionDigits: 2 })
+    case 'spend_ytd_usd': case 'revenue_ytd_usd': return (1400000 + (v % 90) * 185000).toLocaleString('en-US', { minimumFractionDigits: 2 })
+    // ── Commercial ───────────────────────────────────────────────────────
+    case 'industry': return pick(['Chemicals','Chemicals','Agriculture','Food & Beverage','Lubricants','Pharma','Paints & Coatings'])
+    case 'segment': return pick(['Global Key Account','Regional','Regional','Distributor'])
+    case 'credit_terms': case 'payment_terms': return pick(['Net 30','Net 45','Net 60','2/10 Net 30'])
+    case 'qty': case 'fulfilled_qty': return String(40 + (v % 60) * 24)
+    case 'forecast_units': return String(2400 + (v % 90) * 680)
+    case 'actual_units': return String(2200 + (v % 90) * 640)
+    // ── People & safety ──────────────────────────────────────────────────
+    case 'role': return pick(['Line Operator','Line Operator','Machine Setter','Forklift Driver','QA Technician','Maintenance Tech','Shift Lead'])
+    case 'certifications': case 'certification': return pick(['LOTO · Forklift','Forklift · Fall Protection','Confined Space · Hazcom','Machine Guarding · LOTO','Hazcom / GHS'])
+    case 'course': return pick(['Lockout-Tagout (LOTO)','Forklift Certification','Confined Space Entry','Hazcom / GHS','Machine Guarding','Fall Protection'])
+    case 'incident_type': return pick(['Slip / Trip / Fall','Pinch Point','Lifting Strain','Chemical Exposure','Forklift Near Miss','Laceration'])
+    case 'body_part': return pick(['Hand — right','Hand — left','Lower back','Ankle','Forearm','Eye','—'])
+    case 'root_cause': return pick(['Guard removed for changeover','Housekeeping — spill not contained','Fatigue — third consecutive night shift','Missing refresher certification','Blocked aisle at dock bay','Procedure not followed on LOTO'])
+    case 'lost_days': return String(v % 3 === 0 ? 0 : 1 + v % 21)
+    case 'recordables_ytd': case 'near_miss_count': case 'scrap_drums': return String(v % 14)
+    case 'hours_ytd': return String(820 + v % 1180)
+    case 'hire_date': return '20' + String(10 + v % 15) + '-' + String(1 + v % 12).padStart(2, '0') + '-' + String(1 + v % 28).padStart(2, '0')
+    case 'trir': return dec(0.28, 0.06, 26)
+    case 'dart_rate': return dec(0.12, 0.04, 22)
+    case 'maintenance_type': return pick(['Preventive','Preventive','Corrective','Predictive','Inspection'])
+    case 'labor_hours': return dec(1.5, 0.75, 24)
+    // ── Sustainability & circularity ─────────────────────────────────────
+    case 'scope1_tco2e': return dec(1840, 96, 50)
+    case 'scope2_tco2e': return dec(2260, 118, 50)
+    case 'scope3_freight_tco2e': return dec(980, 64, 50)
+    case 'energy_mwh': return dec(3400, 180, 50)
+    case 'water_m3': return dec(12400, 640, 50)
+    case 'co2_avoided_tons': return dec(88, 12, 40)
+    case 'drums_reconditioned': return String(1800 + (v % 60) * 240)
+    case 'waste_diverted_pct': case 'yield_pct': return dec(0.78, 0.005, 40)
+    // ── Percentages & signals ────────────────────────────────────────────
+    case 'oee_pct': case 'availability_pct': case 'performance_pct': case 'quality_pct': case 'utilization_pct': return dec(0.62, 0.008, 42)
+    case 'scrap_pct': return dec(0.008, 0.002, 30)
+    case 'otif_pct': case 'on_time_pct': case 'in_full_pct': case 'on_time_delivery_pct': case 'tender_accept_pct': case 'training_compliance_pct': case 'accuracy_pct': return dec(0.84, 0.003, 50)
+    case 'cost_to_serve_pct': return dec(0.09, 0.004, 30)
+    case 'margin_after_cts_pct': return dec(0.11, 0.006, 34)
+    case 'score': case 'probability': return dec(0.18, 0.012, 60)
+    case 'horizon_days': return String([14, 30, 60, 90][(v >>> 3) % 4])
+    case 'model': return pick(['Statistical baseline','Attach-rate driven','Customer collaborative','ML ensemble'])
+    case 'model_version': return 'v' + (2 + (v >>> 3) % 3) + '.' + (v % 9)
+    case 'predicted_failure_mode': return pick(['Bearing spall — drive side','Contact tip erosion','Hydraulic seal leak','Screw wear — extruder','Dryer felt failure','Gearbox lubrication loss'])
+    case 'top_loss': return pick(['Unplanned downtime','Changeover time','Reduced speed','Startup scrap','Quality hold'])
+    case 'top_miss_reason': return pick(['Carrier tender rejected','Line downtime at origin','Material shortage','Quality hold on lot','Customer dock appointment'])
+    case 'top_driver': return nodeId === 'gr_supplyrisk' ? pick(['Days of cover below 5','Single-source material','Index up 14% MoM','Supplier OTD below 88%','Port congestion on inbound'])
+      : nodeId === 'gr_dtrisk' ? pick(['Vibration trend on drive bearing','Cycle time drift +7%','Overdue PM interval','Motor current spike pattern','Temperature rise on gearbox'])
+      : nodeId === 'gr_cts' ? pick(['Freight — long-haul lane mix','Small drop sizes','Returns and credits','Expedite premiums','Low pallet density'])
+      : nodeId === 'gr_safetyidx' ? pick(['Refresher training overdue','Night-shift near-miss density','Forklift traffic at dock','Manual handling on pack-off'])
+      : pick(['Unplanned downtime','Material starvation','Changeover time','Crew shortfall'])
+    case 'priority': return pick(['Urgent','High','Normal','Low'])
+    case 'status': return nodeId === 'gr_run' ? pick(['Running','Running','Complete','Held','Cancelled'])
+      : nodeId === 'gr_workorder' ? pick(['Released','Released','In progress','Confirmed','Closed'])
+      : nodeId === 'gr_maint' ? pick(['Scheduled','In progress','Complete','Awaiting parts'])
+      : nodeId === 'gr_ncr' ? pick(['Open','Under review','Dispositioned','Closed'])
+      : nodeId === 'gr_po' ? pick(['Approved','Open','Partially received','Received','Closed'])
+      : nodeId === 'gr_inbound' ? pick(['In transit','In transit','At origin','Delivered','Delayed'])
+      : nodeId === 'gr_order' ? pick(['Open','Open','In production','Shipped','Invoiced'])
+      : nodeId === 'gr_orderline' ? pick(['Confirmed','Confirmed','Partially shipped','Shipped','Backordered'])
+      : nodeId === 'gr_complaint' ? pick(['Open','Investigating','Credit issued','Closed'])
+      : nodeId === 'gr_safety' ? pick(['Open','Investigating','Closed','Closed'])
+      : nodeId === 'gr_training' ? pick(['Current','Current','Expiring soon','Expired'])
+      : nodeId === 'gr_line' ? pick(['Running','Running','Idle','Down','Maintenance'])
+      : pick(['Active','Active','Complete','On hold'])
+    default: return null
+  }
+}
 function generateValueForProp(p, seed, nodeId) {
   const v = Math.abs(seed * (p.name.charCodeAt(0) + 1))
   if (p.pk) return p.name.replace(/_id$/, '').toUpperCase().slice(0,3) + '-' + (10000 + v % 89999)
@@ -711,6 +901,7 @@ function generateValueForProp(p, seed, nodeId) {
   if (RD === FINANCE_RD) { const fv = financeValue(p, v, nodeId); if (fv != null) return fv }
   if (RD === CHARGEPOINT_RD) { const cv = cpValue(p, v, nodeId); if (cv != null) return cv }
   if (RD === REVENUE_RD) { const rv = revenueValue(p, v, nodeId); if (rv != null) return rv }
+  if (RD === GREIF_RD) { const gv = greifValue(p, v, nodeId); if (gv != null) return gv; if (p.type === 'uuid') return p.name.replace(/_id$/, '').toUpperCase().slice(0,3) + '-' + (10000 + v % 89999) }
   // Lowe's-specific labels for the name/title/subject/topic field of each node.
   if (RD === LOWES_RD && ['name','title','subject','summary','topic'].includes(p.name) && LOWES_NAMES[nodeId] && !PERSON_NODES.has(nodeId)) {
     return LOWES_NAMES[nodeId][v % LOWES_NAMES[nodeId].length]
@@ -2803,7 +2994,7 @@ function DocumentViewer({ gnode, prov, onClose, onBack }) {
 
 // ── Page ─────────────────────────────────────────────────────────────────────
 export default function RecordsPage({ disableDetail, dataset }) {
-  RD = dataset === 'revenue' ? REVENUE_RD : dataset === 'lowes' ? LOWES_RD : dataset === 'nike' ? NIKE_RD : dataset === 'finance' ? FINANCE_RD : dataset === 'chargepoint' ? CHARGEPOINT_RD : DEFAULT_RD
+  RD = dataset === 'greif' ? GREIF_RD : dataset === 'revenue' ? REVENUE_RD : dataset === 'lowes' ? LOWES_RD : dataset === 'nike' ? NIKE_RD : dataset === 'finance' ? FINANCE_RD : dataset === 'chargepoint' ? CHARGEPOINT_RD : DEFAULT_RD
   const [selectedRecord, setSelectedRecord] = useState(null)
   const [selectedNode,   setSelectedNode]   = useState(null)
 

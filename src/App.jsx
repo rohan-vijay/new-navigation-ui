@@ -192,7 +192,7 @@ export default function App() {
             <AgentCanvas draft={agentDraft} onBack={exitAgentBuild} onCreate={exitAgentBuild} />
           )}
           {view === 'blank-canvas' && (
-            <GraphCanvas title={selectedGraph?.name || 'New graph'} dataset={selectedGraph?.isRevenue ? 'revenue' : selectedGraph?.isLowes ? 'lowes' : selectedGraph?.isNike ? 'nike' : selectedGraph?.isFinance ? 'finance' : selectedGraph?.isCP ? 'chargepoint' : undefined} onBack={() => setView('context-graphs')} onAgentAI={startAgentBuild} />
+            <GraphCanvas title={selectedGraph?.name || 'New graph'} dataset={selectedGraph?.isGreif ? 'greif' : selectedGraph?.isRevenue ? 'revenue' : selectedGraph?.isLowes ? 'lowes' : selectedGraph?.isNike ? 'nike' : selectedGraph?.isFinance ? 'finance' : selectedGraph?.isCP ? 'chargepoint' : undefined} onBack={() => setView('context-graphs')} onAgentAI={startAgentBuild} />
           )}
           {view === 'detail' && (
             <GraphDetailPage graph={selectedGraph} onBack={() => setView('graphs')} />

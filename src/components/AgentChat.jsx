@@ -1,8 +1,12 @@
 import { useState, useRef, useEffect } from 'react'
 import { NIKE_DATA, CHARGEPOINT_DATA, ListGlyph } from './GraphStage'
+import * as GRAPHS from './GraphStage'
+
+// The Greif operations graph is optional — picked up only once it lands in GraphStage.
+const GREIF_NODES = GRAPHS.GREIF_DATA?.nodes || []
 
 // ── Node lookup (for rendering graph chips in the reasoning trace) ──
-const NODE_BY_ID = (() => { const m = {}; [...NIKE_DATA.nodes, ...CHARGEPOINT_DATA.nodes].forEach(n => { m[n.id] = n }); return m })()
+const NODE_BY_ID = (() => { const m = {}; [...NIKE_DATA.nodes, ...CHARGEPOINT_DATA.nodes, ...GREIF_NODES].forEach(n => { m[n.id] = n }); return m })()
 
 // Synthesize a record's field values from the node's property schema — lets the
 // "View record" action show a real record inspector for a cited source.
@@ -51,6 +55,18 @@ const AGENTS = [
   { id: 'maint',   name: 'Maintenance Agent', color: '#6b5aa6', tagline: 'Plans repairs and preventive maintenance across the network.', graph: 'ChargePoint Network Graph',
     greeting: "I'm grounded in the ChargePoint Network Graph. I plan repairs and preventive maintenance by tracing faults, wear signals, parts stock and SLA windows — ask me what needs fixing, in what order, and what should change in the schedule.",
     starters: ['repair_queue', 'pm_schedule', 'failing_port'] },
+  { id: 'plantops', name: 'Plant Performance Agent', color: '#3a6ea0', tagline: 'Explains OEE swings across lines, assets, shifts and materials.', graph: 'Greif Operations Context Graph',
+    greeting: "I'm grounded in the Greif Operations Context Graph. I decompose OEE into availability, performance and quality, then trace each loss back to the line, asset, shift and crew that produced it — ask me why a plant moved and I'll show you the minutes.",
+    starters: ['oee_drop', 'downtime_pareto', 'changeover_loss'] },
+  { id: 'supplyrisk', name: 'Supply Risk Agent', color: '#8a5a2b', tagline: 'Flags raw-material exposure before it stops a line.', graph: 'Greif Operations Context Graph',
+    greeting: "I'm grounded in the Greif Operations Context Graph. I watch steel coil, resin, OCC and linerboard positions against supplier concentration, index moves and days of cover — ask me what tightening supply actually costs and I'll name the plants, SKUs and customers exposed.",
+    starters: ['resin_exposure', 'oee_drop', 'otif_miss'] },
+  { id: 'otif', name: 'Service & Freight Agent', color: '#0f8a5f', tagline: 'Traces OTIF misses and cost-to-serve to their real cause.', graph: 'Greif Operations Context Graph',
+    greeting: "I'm grounded in the Greif Operations Context Graph. I trace every late or short order line back through quality holds, carrier tenders and forecast error, and price what each lane costs to serve — ask me why a customer's service slipped and I'll split it by cause.",
+    starters: ['otif_miss', 'freight_cost', 'changeover_loss'] },
+  { id: 'ehsq', name: 'Safety & Quality Agent', color: '#c2543a', tagline: 'Connects recordables and non-conformances to plants, shifts and training.', graph: 'Greif Operations Context Graph',
+    greeting: "I'm grounded in the Greif Operations Context Graph. I connect recordables and non-conformances to the plants, shifts, tenure bands, training records and material lots behind them — ask me whether an incident or defect trend has a pattern and I'll show you the evidence.",
+    starters: ['safety_pattern', 'quality_ncr', 'oee_drop'] },
 ]
 
 // ── Scripted, graph-grounded conversations ───────────────────────────────────
@@ -546,6 +562,398 @@ RETURN st.name, count(wo) AS visits_in_window`,
       { n: 5, node: 'cp_site', ref: 'SITE-3320', detail: '29-visit plan vs 46 standalone — 37% fewer rolls' },
     ],
   },
+  oee_drop: {
+    q: "Why did OEE drop at Lavonia this month?",
+    tag: 'OEE · Downtime · Shifts',
+    chain: [
+      { kind: 'cypher', title: 'Decompose OEE line by line', nodes: ['gr_plant', 'gr_line', 'gr_oee'],
+        cypher: `MATCH (p:Plant {name:'Lavonia GA — Steel Drum'})-[:HAS_LINE]->(l:Line)
+      -[:SCORED_BY]->(o:OEEMetric {period:'MTD'})
+RETURN l.name, o.oee, o.availability, o.performance, o.quality, o.prior_oee
+ORDER BY o.oee`,
+        result: `Line 3 → 71.2%  (avail 74.1 · perf 96.8 · qual 99.3)   prior 78.4%\nLine 1 → 79.1% · Line 2 → 80.3% · Line 4 → 78.8%  (all flat vs prior)` },
+      { kind: 'sql', title: 'Split Line 3 downtime by asset and shift', nodes: ['gr_downtime', 'gr_asset', 'gr_shift'],
+        cypher: `SELECT a.asset_id, d.shift, SUM(d.minutes) AS min, COUNT(*) AS events
+FROM   downtime_facts d JOIN dim_asset a ON a.id = d.asset_id
+WHERE  d.line_id = 'LN-LAV-03' AND d.month = CURRENT_MONTH
+GROUP BY 1, 2 ORDER BY min DESC`,
+        result: `PRESS-04 · B-shift → 1,002 min / 154 events (micro-stops < 4 min)\nPRESS-04 · A-shift →   408 min /  64 events\nchangeover, all assets · B-shift → 840 min\nremaining assets → 400 min   →  2,650 lost minutes` },
+      { kind: 'semantic', title: 'Retrieve asset condition history', nodes: ['gr_asset', 'gr_maint'],
+        query: 'PRESS-04 seamer vibration and bearing condition at Lavonia',
+        matches: [
+          { score: 0.94, text: 'PRESS-04 seamer spindle vibration 6.1 mm/s vs 2.8 baseline, rising 6 weeks', src: 'PI Historian' },
+          { score: 0.88, text: 'Notification 10442318 “seamer bearing noise, chuck run-out” — deferred twice', src: 'SAP Plant Maintenance' },
+          { score: 0.80, text: 'Micro-stop signature: seam-fault trip then auto-restart, 4 of 5 on B-shift', src: 'MES' },
+        ] },
+      { kind: 'cypher', title: 'Tie changeover creep to crew certification', nodes: ['gr_shift', 'gr_operator', 'gr_training'],
+        cypher: `MATCH (s:Shift)<-[:WORKED_ON]-(op:Operator)-[:CERTIFIED_BY]->(t:Training)
+MATCH (s)-[:RAN]->(r:ProductionRun {line:'LN-LAV-03'})
+RETURN s.code, avg(r.changeover_min) AS co, count(DISTINCT op) AS crew,
+       sum(CASE WHEN t.status <> 'Current' THEN 1 ELSE 0 END) AS gaps`,
+        result: `B-shift → 62 min avg changeover · 14 operators · 5 without full seamer cert\nA-shift → 41 min avg changeover · 13 operators · 0 gaps\n9 of the 14 B-shift operators are inside their first 90 days` },
+    ],
+    answer: [
+      { kind: 'verdict', text: 'OEE fell 7.2 points on Line 3 alone — it is an availability loss on B-shift, not a speed loss, and it resolves to one seamer plus one under-certified crew.' },
+      { kind: 'para', text: "Lavonia's decline is not plant-wide. Lines 1, 2 and 4 are flat; Line 3 moved 78.4% → 71.2%[1]. The decomposition is what matters: performance still runs 96.8% and quality 99.3%[1], so when the line runs it runs at rate and makes good drums. Availability carries the entire loss, 82.6% → 74.1%[1] — 2,650 minutes the line was scheduled and not producing[2]." },
+      { kind: 'bullet', text: '**PRESS-04 micro-stops — 1,410 minutes across 218 events**[2], 71% of them on B-shift. These are sub-four-minute seam-fault trips with auto-restart, so they never open a work order and never show up as a breakdown. The asset data says why: seamer spindle vibration is at 6.1 mm/s against a 2.8 baseline and has been climbing for six weeks, and the SAP PM notification for bearing noise has been deferred twice[3].' },
+      { kind: 'bullet', text: '**Changeover creep — 840 minutes**[2]. B-shift averages 62 minutes per changeover against A-shift\'s 41[4]. That crew turned over: 9 of 14 operators are inside their first 90 days and 5 are running the seamer without full certification[5].' },
+      { kind: 'bullet', text: '**Not a material or demand problem** — quality held at 99.3%[1] and no coil-related stops appear in the downtime record[2], so the loss is entirely on the plant floor.' },
+      { kind: 'para', text: 'Sizing it: 2,650 minutes at Line 3\'s nine 55gal Tight-Head Steel Drums per minute is roughly **23,800 drums** not made, about **$152K of contribution margin** at $6.40 per drum[1][2]. Roughly 85% of that sits in the two causes above, both of which are fixable inside the next two weeks.' },
+      { kind: 'action', text: 'Recommend: (1) pull PRESS-04 into this weekend\'s planned outage and replace the seamer bearing and chuck before the vibration trend converts into a hard failure[3]; (2) restrict the 5 uncertified operators to supervised changeovers and pair them with A-shift leads until sign-off[5]; (3) set a 4.5 mm/s vibration alert on PRESS-04 so the next drift raises a notification instead of 218 micro-stops[3].' },
+    ],
+    sources: [
+      { n: 1, node: 'gr_oee', ref: 'OEE-LAV-L3', detail: 'Line 3 OEE 71.2% vs 78.4% · availability 74.1 · performance 96.8 · quality 99.3' },
+      { n: 2, node: 'gr_downtime', ref: 'DT-44821', detail: '2,650 lost min · PRESS-04 1,410 (218 events) · changeover 840' },
+      { n: 3, node: 'gr_asset', ref: 'AST-PRESS-04', detail: 'Seamer vibration 6.1 mm/s vs 2.8 baseline · notification 10442318 deferred 2×' },
+      { n: 4, node: 'gr_shift', ref: 'SHF-LAV-B', detail: 'B-shift changeover 62 min avg vs A-shift 41 min' },
+      { n: 5, node: 'gr_training', ref: 'TRN-9902', detail: '5 of 14 B-shift operators without full seamer certification · 9 under 90 days' },
+    ],
+  },
+  downtime_pareto: {
+    q: "Where is unplanned downtime actually costing us the most across the network?",
+    tag: 'Downtime · Cost · Network',
+    chain: [
+      { kind: 'cypher', title: 'Rank assets by unplanned minutes network-wide', nodes: ['gr_plant', 'gr_asset', 'gr_downtime'],
+        cypher: `MATCH (pl:Plant)-[:HAS_LINE]->(:Line)-[:USES_ASSET]->(a:Asset)
+      <-[:ON_ASSET]-(d:DowntimeEvent {classification:'Unplanned'})
+WHERE d.started_at > date('2026-01-01')
+RETURN pl.name, a.asset_id, sum(d.minutes) AS min ORDER BY min DESC LIMIT 6`,
+        result: `Mount Vernon OH — URB Mill · DRYER-02 → 26,800\nMount Vernon OH — URB Mill · DRYER-05 → 21,300\nRiverville VA — Containerboard · WINDER-03 → 18,900\nLavonia GA — Steel Drum · PRESS-04 → 16,200\nDiadema BR — Plastic Drum · BLOW-07 → 14,100\nTaicang CN — IBC · CAGE-WELD-02 → 12,600\n214 plants · 268,000 unplanned min YTD  →  top 6 = 109,900 (41%)` },
+      { kind: 'sql', title: 'Reprice the minutes by cost of downtime', nodes: ['gr_plant', 'gr_cts'],
+        cypher: `SELECT p.business, p.plant_name, c.cost_per_down_min,
+       SUM(d.minutes) * c.cost_per_down_min AS cost
+FROM   downtime_facts d JOIN dim_plant p ON p.id = d.plant_id
+JOIN   plant_cost_rates c ON c.plant_id = p.id
+WHERE  d.asset_id IN (SELECT asset_id FROM top_unplanned_assets)
+GROUP  BY 1, 2, 3 ORDER BY cost DESC`,
+        result: `URB Mill $41/min · Containerboard $37/min · IBC $22/min · Steel Drum $18/min · Plastic Drum $15/min\ntop-6 cost = $3.45M YTD  →  the two Mount Vernon dryers = $1.97M (57%)` },
+      { kind: 'cypher', title: 'Contrast planned vs unplanned mix', nodes: ['gr_maint', 'gr_dtrisk'],
+        cypher: `MATCH (a:Asset)<-[:ON_ASSET]-(d:DowntimeEvent)
+OPTIONAL MATCH (a)<-[:TARGETS]-(m:MaintenanceOrder)
+RETURN a.cohort, sum(CASE WHEN d.classification='Planned' THEN d.minutes END) AS planned,
+       sum(CASE WHEN d.classification='Unplanned' THEN d.minutes END) AS unplanned`,
+        result: `network → 61% planned / 39% unplanned\ntop-6 assets → 34% planned / 66% unplanned (inverted)` },
+      { kind: 'semantic', title: 'Retrieve the maintenance backlog narrative', nodes: ['gr_maint'],
+        query: 'deferred maintenance orders on URB dryer sections and winders',
+        matches: [
+          { score: 0.92, text: '38 maintenance orders deferred past due date; 14 sit on the top-6 assets', src: 'SAP Plant Maintenance' },
+          { score: 0.85, text: 'Mount Vernon dryer section 2 — “felt and bearing rebuild deferred to next annual outage”', src: 'SAP Plant Maintenance' },
+          { score: 0.76, text: 'Reliability review: dryer draw variation drives sheet breaks on URB 0.024 Caliper', src: 'MES' },
+        ] },
+    ],
+    answer: [
+      { kind: 'verdict', text: 'Six assets out of roughly nineteen hundred carry 41% of unplanned minutes — and once you price the minutes, two dryer sections at Mount Vernon carry 57% of the cost.' },
+      { kind: 'para', text: 'Across 214 plants the network lost 268,000 unplanned minutes year to date, and 109,900 of them — 41% — came from six assets[1]. That concentration is the whole finding: the remaining 59% is spread thinly enough that no single intervention touches it, while the top six are addressable with a named list of work.' },
+      { kind: 'para', text: 'Ranking by minutes alone is misleading, because a lost minute is not worth the same everywhere: a URB mill minute costs $41 against $18 on a steel drum line[3]. Repriced, the top six cost **$3.45M year to date**[3]:' },
+      { kind: 'list', n: 1, text: '**Mount Vernon OH — URB Mill · DRYER-02 + DRYER-05** — 48,100 min · **$1.97M**[1][2]. Two dryer sections, one mill, 44% of the top-6 minutes and 57% of the top-6 cost.' },
+      { kind: 'list', n: 2, text: '**Riverville VA — Containerboard · WINDER-03** — 18,900 min · $699K[1][3]' },
+      { kind: 'list', n: 3, text: '**Diadema BR · BLOW-07 and Taicang CN · CAGE-WELD-02** — 26,700 min combined · $489K[1][3]' },
+      { kind: 'list', n: 4, text: '**Lavonia GA — Steel Drum · PRESS-04** — 16,200 min · $292K[1][3] — the same seamer driving the Lavonia OEE decline.' },
+      { kind: 'bullet', text: '**The mix is inverted on exactly these assets** — the network runs 61% planned / 39% unplanned downtime, but the top six run 34% / 66%[5]. They are not being maintained on a plan; they are being reacted to.' },
+      { kind: 'bullet', text: '**The backlog explains it** — 38 maintenance orders are deferred past due, and 14 of them sit on these six assets, including the Mount Vernon dryer felt-and-bearing rebuild pushed to the next annual outage[4].' },
+      { kind: 'action', text: 'Recommend: (1) fund the DRYER-02 and DRYER-05 rebuild into the next Mount Vernon outage rather than deferring again — it is the single largest cost item in the network[2][4]; (2) release the 14 deferred orders on the top-6 assets and block further deferral without COO sign-off[4]; (3) re-rank the reliability capital list on cost-per-minute rather than minute count, which moves the URB and containerboard assets above the drum lines[3].' },
+    ],
+    sources: [
+      { n: 1, node: 'gr_downtime', ref: 'DT-NET-YTD', detail: '268,000 unplanned min across 214 plants · top 6 assets = 109,900 (41%)' },
+      { n: 2, node: 'gr_asset', ref: 'AST-MV-DRYER-02', detail: 'Mount Vernon DRYER-02 + DRYER-05 · 48,100 min · $1.97M' },
+      { n: 3, node: 'gr_plant', ref: 'PLT-MTVERNON-URB', detail: 'URB $41/min · containerboard $37 · IBC $22 · steel drum $18 · top-6 cost $3.45M' },
+      { n: 4, node: 'gr_maint', ref: 'MO-77410', detail: '38 maintenance orders deferred past due · 14 on the top-6 assets' },
+      { n: 5, node: 'gr_dtrisk', ref: 'DTR-1180', detail: 'Top-6 planned/unplanned 34/66 vs network 61/39' },
+    ],
+  },
+  changeover_loss: {
+    q: "How much capacity are we losing to changeovers, and where should we fix it first?",
+    tag: 'Changeover · Scheduling · Capacity',
+    chain: [
+      { kind: 'cypher', title: 'Split scheduled time into run, changeover and downtime', nodes: ['gr_line', 'gr_run'],
+        cypher: `MATCH (l:Line)<-[:RAN_ON]-(r:ProductionRun)
+WHERE l.business = 'Global Industrial Packaging' AND r.quarter = 'Q3'
+RETURN l.name, sum(r.run_min) AS run, sum(r.changeover_min) AS co,
+       sum(r.changeover_min) * 1.0 / sum(r.scheduled_min) AS co_share
+ORDER BY co_share DESC`,
+        result: `6 highest-mix drum & IBC lines → run 236,000 min · changeover 41,600 min (15.0%)\nLavonia GA Line 3 → 18.9%  ·  Diadema BR Line 2 → 17.4%  ·  Taicang CN Line 1 → 15.8%` },
+      { kind: 'sql', title: 'Profile order size against changeover count', nodes: ['gr_sku', 'gr_orderline'],
+        cypher: `SELECT CASE WHEN order_qty < 4000 THEN 'short run' ELSE 'campaign' END AS band,
+       COUNT(*) AS orders, SUM(changeovers) AS cos, AVG(order_qty) AS avg_qty
+FROM   production_order_facts
+WHERE  quarter = 'Q3' AND line_group = 'DRUM'
+GROUP  BY 1`,
+        result: `short run (<4,000) → 41% of orders · 63% of changeovers · avg 1,780 drums\ncampaign (≥4,000) → 59% of orders · 37% of changeovers · avg 11,400 drums\n182 active drum SKUs; 61 of them ran once in the quarter` },
+      { kind: 'semantic', title: 'Retrieve sequencing practice for high-mix drum lines', nodes: ['gr_line', 'gr_sku'],
+        query: 'colour and closure family sequencing to cut drum line changeover time',
+        matches: [
+          { score: 0.91, text: 'Light-to-dark colour sequencing removes full wash-out: 78 min → 34 min per change', src: 'MES' },
+          { score: 0.84, text: 'Blue Yonder sequencing rule set — group by closure family before colour', src: 'Blue Yonder' },
+          { score: 0.75, text: 'Kinaxis scenario: campaign length +40% raises finished-goods cover 1.8 days', src: 'Kinaxis' },
+        ] },
+      { kind: 'cypher', title: 'Simulate colour and closure sequencing', nodes: ['gr_forecast', 'gr_oee'],
+        cypher: `MATCH (r:ProductionRun)-[:PRODUCED]->(s:SKU)
+WITH s.colour AS col, s.closure_family AS fam, count(r) AS changes,
+     avg(r.changeover_min) AS cur
+RETURN col, fam, changes, cur, cur - 44 AS sequenced`,
+        result: `380 colour changes per quarter · avg 78 min → 34 min when sequenced light-to-dark\nrecoverable ≈ 16,720 min/qtr  →  ~150,000 drums  →  ~$960K contribution` },
+    ],
+    answer: [
+      { kind: 'verdict', text: 'Changeovers eat 15% of scheduled time on the six highest-mix lines — sequencing by colour and closure family gives back roughly 150,000 drums a quarter without touching a single asset.' },
+      { kind: 'para', text: 'Last quarter those six lines ran 236,000 productive minutes and spent another 41,600 changing over — 15.0% of scheduled time[1]. Lavonia Line 3 is worst at 18.9%[3]. This is a scheduling loss, not a reliability loss: the lines are healthy, they are simply being asked to change too often.' },
+      { kind: 'para', text: 'The driver is SKU proliferation at the short end. Orders under 4,000 drums are 41% of the order count but consume **63% of all changeovers**[2], averaging 1,780 drums each — and 61 of the 182 active drum SKUs ran exactly once in the quarter[2]. Every one of those single-run SKUs buys a full changeover.' },
+      { kind: 'bullet', text: '**Colour is the expensive dimension** — a change into a lighter colour forces a full wash-out at 78 minutes, while sequencing light-to-dark drops the same change to 34[4]. Across 380 colour changes a quarter that is 44 minutes each, or **16,720 minutes** recovered[4].' },
+      { kind: 'bullet', text: '**Closure family is the cheap dimension** — grouping tight-head and open-head work before colour avoids the tooling swap entirely and costs nothing but sequence discipline[4].' },
+      { kind: 'bullet', text: '**Recovered capacity, not saved cost** — 16,720 minutes at nine drums a minute is roughly 150,000 drums per quarter, about **$960K of contribution margin**, and it lands as 6.2 points of availability back on these lines[5].' },
+      { kind: 'para', text: 'Where to start is settled by concentration, not by percentage: Lavonia Line 3 (5,200 recoverable minutes), Diadema Line 2 (4,400) and Taicang Line 1 (3,100) hold 76% of the opportunity[1][4]. The remaining three lines are worth doing but only after the sequencing rules are proven.' },
+      { kind: 'action', text: 'Recommend: (1) turn on colour-then-closure sequencing rules in the scheduler for Lavonia Line 3 first, measure for two cycles, then roll to Diadema and Taicang[4]; (2) set a 4,000-drum minimum run and consolidate the 61 single-run SKUs into scheduled campaign slots[2]; (3) accept the trade explicitly — longer campaigns raise finished-goods cover by about 1.8 days, which is cheap against $960K a quarter[4].' },
+    ],
+    sources: [
+      { n: 1, node: 'gr_run', ref: 'RUN-Q3-DRUM', detail: '41,600 changeover min vs 236,000 run min across 6 lines (15.0%)' },
+      { n: 2, node: 'gr_sku', ref: 'SKU-55TH-STL', detail: 'Short runs = 41% of orders, 63% of changeovers · 61 of 182 SKUs ran once' },
+      { n: 3, node: 'gr_line', ref: 'LN-LAV-03', detail: 'Lavonia Line 3 · 18.9% of scheduled time in changeover — worst of the six' },
+      { n: 4, node: 'gr_forecast', ref: 'FC-SEQ-Q4', detail: '380 colour changes/qtr · 78 → 34 min sequenced · 16,720 min recovered' },
+      { n: 5, node: 'gr_oee', ref: 'OEE-DRUM-Q3', detail: '6.2 pts availability drag from changeover · ~150,000 drums ≈ $960K/qtr' },
+    ],
+  },
+  resin_exposure: {
+    q: "What's our exposure if HDPE resin tightens next quarter?",
+    tag: 'Raw Material · Supply Risk',
+    chain: [
+      { kind: 'cypher', title: 'Read days of cover by plant', nodes: ['gr_material', 'gr_inventory', 'gr_plant'],
+        cypher: `MATCH (m:Material {name:'HDPE Resin — Blow Grade'})<-[:OF_MATERIAL]-(i:Inventory)
+      -[:HELD_AT]->(p:Plant)
+RETURN p.name, i.on_hand_lb, i.days_of_cover, i.policy_min_days
+ORDER BY i.days_of_cover`,
+        result: `Diadema BR — Plastic Drum →  9 days  (policy 25)\nBaton Rouge LA — Plastic Drum → 14 days  (policy 25)\nTaicang CN — IBC → 21 days  (policy 25)\nnetwork median 18 days · 3 of 7 resin plants below half of policy` },
+      { kind: 'sql', title: 'Measure supplier concentration on blow grade', nodes: ['gr_supplier', 'gr_po'],
+        cypher: `SELECT s.supplier_name, SUM(po.volume_lb) AS lb,
+       SUM(po.volume_lb) / SUM(SUM(po.volume_lb)) OVER () AS share
+FROM   purchase_orders po JOIN dim_supplier s ON s.id = po.supplier_id
+WHERE  po.material = 'HDPE Resin — Blow Grade' AND po.year = 2026
+GROUP  BY 1 ORDER BY lb DESC`,
+        result: `LyondellBasell → 68% of blow-grade volume\nsecondary sources → 22% · spot → 10%\n3 of 7 plastic plants are single-sourced to LyondellBasell (incl. Diadema BR)` },
+      { kind: 'semantic', title: 'Retrieve market and index signals', nodes: ['gr_index', 'gr_supplyrisk'],
+        query: 'HDPE blow grade price direction and Gulf Coast supply next quarter',
+        matches: [
+          { score: 0.95, text: 'HDPE blow moulding grade index +11.4% over 60 days; +6–9% forecast for Q4', src: 'Fastmarkets' },
+          { score: 0.87, text: 'Two Gulf Coast cracker turnarounds scheduled in the quarter — allocation risk noted', src: 'Kinaxis' },
+          { score: 0.79, text: 'Braskem qualified as approved blow-grade vendor for Diadema, never volumed', src: 'SAP Ariba' },
+        ] },
+      { kind: 'cypher', title: 'Trace exposed SKUs through to customers', nodes: ['gr_sku', 'gr_order', 'gr_customer'],
+        cypher: `MATCH (m:Material {name:'HDPE Resin — Blow Grade'})<-[:CONSUMES]-(s:SKU)
+      <-[:FOR_SKU]-(ol:OrderLine)-[:ON_ORDER]->(:Order)-[:FOR_CUSTOMER]->(c:Customer)
+RETURN s.name, c.name, sum(ol.revenue) AS rev ORDER BY rev DESC`,
+        result: `275gal Composite IBC → Nutrien Ag Solutions · $8.9M/qtr\n55gal Tight-Head Plastic Drum → Shell Lubricants · $6.1M/qtr\n30gal Open-Head Plastic Drum → BASF Coatings · $3.4M/qtr   →  $18.4M exposed` },
+    ],
+    answer: [
+      { kind: 'verdict', text: 'A six-week tightening costs about 41,000 units of output and puts $18.4M of quarterly revenue at risk — and the reason is concentration, not price.' },
+      { kind: 'para', text: 'Cover is already thin before anything happens. Diadema BR sits at 9 days against a 25-day policy minimum, Baton Rouge at 14 and Taicang at 21[1]; three of seven resin-consuming plants are below half of policy. The Fastmarkets blow-grade index is up 11.4% in 60 days with another 6–9% forecast for the quarter, and two Gulf Coast cracker turnarounds fall inside the same window[3].' },
+      { kind: 'bullet', text: '**Concentration is the real exposure** — LyondellBasell supplies 68% of blow-grade volume, and three plants including Diadema are single-sourced to them[2]. Price is survivable and passes through on contract; an allocation letter to a single-sourced plant is not.' },
+      { kind: 'bullet', text: '**Modelled impact** — a six-week tightening at current cover leaves the network roughly **41,000 IBC and drum equivalents short**, with a risk score of 0.82 concentrated on Diadema and Baton Rouge[4].' },
+      { kind: 'bullet', text: '**Where it lands commercially** — the shortfall maps to three customers: Nutrien Ag Solutions on the 275gal Composite IBC ($8.9M/qtr), Shell Lubricants on the 55gal Tight-Head Plastic Drum ($6.1M), BASF Coatings on the 30gal Open-Head ($3.4M) — **$18.4M of quarterly revenue**[5]. Nutrien is the acute one: it is single-plant, single-material and inside its ag season.' },
+      { kind: 'bullet', text: '**A second source already exists on paper** — Braskem is qualified in Ariba for Diadema blow grade but has never taken volume[3]. The qualification work is done; only the commercial trial is missing.' },
+      { kind: 'para', text: 'The two levers behave differently. Rebuilding cover to policy at Diadema and Baton Rouge costs working capital now and buys time; volumeing the second source costs a price premium and buys optionality. Given a 0.82 risk score against $18.4M, both are cheap.' },
+      { kind: 'action', text: 'Recommend: (1) rebuild Diadema and Baton Rouge to the 25-day policy minimum before the turnaround window opens[1]; (2) place a trial order with Braskem at Diadema this month so the second source is live rather than qualified[3]; (3) fix pricing on the LyondellBasell base volume through Q4 against the +6–9% index forecast[3]; (4) give Nutrien early visibility on the 275gal IBC — it is the single largest exposed line[5].' },
+    ],
+    sources: [
+      { n: 1, node: 'gr_inventory', ref: 'INV-HDPE-BR', detail: 'Diadema 9 days · Baton Rouge 14 · Taicang 21 vs 25-day policy' },
+      { n: 2, node: 'gr_supplier', ref: 'SUP-LYB', detail: 'LyondellBasell 68% of blow-grade volume · 3 plants single-sourced' },
+      { n: 3, node: 'gr_index', ref: 'IDX-FM-HDPE', detail: 'Fastmarkets blow grade +11.4% in 60d · +6–9% Q4 · 2 cracker turnarounds' },
+      { n: 4, node: 'gr_supplyrisk', ref: 'SRK-2207', detail: 'Exposure score 0.82 · 6-week tightening → ~41,000 units short' },
+      { n: 5, node: 'gr_customer', ref: 'CUST-NUTRIEN', detail: 'Nutrien $8.9M · Shell Lubricants $6.1M · BASF Coatings $3.4M per quarter' },
+    ],
+  },
+  otif_miss: {
+    q: "Why did OTIF slip below 94% for Dow Chemical last quarter?",
+    tag: 'OTIF · Logistics · Quality',
+    chain: [
+      { kind: 'cypher', title: 'Measure OTIF at the order-line level', nodes: ['gr_customer', 'gr_order', 'gr_otif'],
+        cypher: `MATCH (c:Customer {name:'Dow Chemical'})<-[:FOR_CUSTOMER]-(o:Order)
+      -[:HAS_LINE]->(ol:OrderLine)-[:MEASURED_BY]->(m:OTIFMetric {quarter:'Q3'})
+RETURN m.otif_pct, m.target_pct, count(ol) AS lines,
+       sum(CASE WHEN ol.on_time = false THEN 1 ELSE 0 END) AS missed`,
+        result: `91.6% actual vs 94.0% target · 1,842 order lines · 155 missed\nsplit: 98 late · 57 short-shipped` },
+      { kind: 'sql', title: 'Bucket the misses by root cause', nodes: ['gr_orderline', 'gr_otif'],
+        cypher: `SELECT root_cause, COUNT(*) AS lines, AVG(days_late) AS avg_late
+FROM   otif_miss_facts
+WHERE  customer = 'Dow Chemical' AND quarter = 'Q3'
+GROUP  BY 1 ORDER BY lines DESC`,
+        result: `quality hold — closure torque → 61 lines · 6.2d avg\ncarrier tender rejection → 48 lines · 3.1d avg\ndemand above forecast → 39 lines · 4.4d avg\ndocumentation / other → 7 lines   →  155 total` },
+      { kind: 'cypher', title: 'Inspect carrier behaviour on the shipping lane', nodes: ['gr_carrier', 'gr_lane', 'gr_outbound'],
+        cypher: `MATCH (l:Lane {code:'LANE-LAV-FRPT'})<-[:SHIPS_ON]-(s:OutboundShipment)
+      -[:TENDERED_TO]->(ca:Carrier)
+RETURN ca.name, count(s) AS loads, avg(ca.tender_reject_pct) AS reject,
+       avg(s.transit_days) AS transit`,
+        result: `J.B. Hunt (primary) → 22% tender rejection vs 6% network average\nXPO (fallback) → covers rejects, adds 2.4 days transit\nSchneider → 9 spot loads at +$310/load` },
+      { kind: 'semantic', title: 'Retrieve the quality-hold narrative', nodes: ['gr_ncr', 'gr_complaint'],
+        query: 'closure torque non-conformance on Dow Chemical drum orders',
+        matches: [
+          { score: 0.93, text: 'NCR-3341: 55gal Tight-Head closure torque 18.2 Nm against 22–26 Nm spec — lot held', src: 'LIMS' },
+          { score: 0.86, text: 'Dow QA raised 14 complaints in the quarter, 9 citing seal integrity', src: 'Salesforce' },
+          { score: 0.77, text: 'Torque wrench calibration overdue on Lavonia closure station 2', src: 'MES' },
+        ] },
+    ],
+    answer: [
+      { kind: 'verdict', text: 'Three causes, and only one of them is logistics — a closure-torque quality hold is the single largest driver at 61 of 155 missed lines.' },
+      { kind: 'para', text: 'Dow finished the quarter at 91.6% OTIF against a 94.0% target: 155 misses out of 1,842 order lines, 98 late and 57 short-shipped[1]. Treated as one number it looks like a service failure; decomposed, it is three unrelated problems that each need a different owner.' },
+      { kind: 'list', n: 1, text: '**Quality hold — 61 lines, 6.2 days late average**[2]. NCR-3341 caught closure torque at 18.2 Nm against a 22–26 Nm spec on the 55gal Tight-Head, and the affected lots were held at Lavonia[3]. Root cause on the floor is an overdue torque wrench calibration on closure station 2[3]. This is the biggest bucket and it is entirely inside our control.' },
+      { kind: 'list', n: 2, text: '**Carrier tender rejection — 48 lines, 3.1 days late average**[2]. J.B. Hunt is rejecting 22% of tenders on the Lavonia GA → Freeport TX lane against a 6% network average; XPO picks up the rejects but adds 2.4 days of transit[4].' },
+      { kind: 'list', n: 3, text: '**Demand above forecast — 39 lines, 4.4 days late average**[2]. Dow pulled 18% above the forecast the plan was built on, so the shortfall was in finished-goods cover, not in the plant[5].' },
+      { kind: 'bullet', text: '**The remaining 7 lines** are documentation and paperwork misses[2] — real, but noise against the other three.' },
+      { kind: 'bullet', text: '**They compound where they overlap** — Dow logged 14 complaints in the quarter and 9 cite seal integrity[3], which means the torque hold is not only a service miss but is shaping how the customer scores our quality.' },
+      { kind: 'para', text: 'Closing the quality bucket alone lifts Dow to roughly 94.9% and back over target. Fixing the lane on top of that takes it to about 97.5%. The forecast bucket is the slowest to move because it needs a planning change at Dow, not at Greif.' },
+      { kind: 'action', text: 'Recommend: (1) recalibrate Lavonia closure station 2 and add torque verification to first-piece inspection — this recovers the largest bucket[3]; (2) reprice or replace the primary tender on LANE-LAV-FRPT, since a 22% rejection rate is a contract problem, not a capacity problem[4]; (3) move Dow to a collaborative forecast with a shipped-versus-forecast review, and hold safety stock on the top three Dow SKUs until the bias closes[5].' },
+    ],
+    sources: [
+      { n: 1, node: 'gr_otif', ref: 'OTIF-DOW-Q3', detail: '91.6% vs 94.0% target · 155 of 1,842 lines missed (98 late · 57 short)' },
+      { n: 2, node: 'gr_orderline', ref: 'OL-Q3-DOW', detail: 'Quality 61 · carrier 48 · forecast 39 · documentation 7' },
+      { n: 3, node: 'gr_ncr', ref: 'NCR-3341', detail: 'Closure torque 18.2 Nm vs 22–26 Nm spec · station 2 calibration overdue' },
+      { n: 4, node: 'gr_lane', ref: 'LANE-LAV-FRPT', detail: 'J.B. Hunt tender rejection 22% vs 6% network · XPO fallback +2.4 days' },
+      { n: 5, node: 'gr_forecast', ref: 'FC-DOW-Q3', detail: 'Dow actual +18% above forecast · 39 lines short-shipped' },
+    ],
+  },
+  freight_cost: {
+    q: "Where is freight cost per ton rising fastest, and what can we actually do about it?",
+    tag: 'Freight · Cost-to-Serve',
+    chain: [
+      { kind: 'sql', title: 'Rank lanes by cost per ton and quarterly movement', nodes: ['gr_lane', 'gr_cts'],
+        cypher: `SELECT l.lane_code, l.origin_plant, l.dest_metro,
+       AVG(f.cost_per_ton) AS cpt,
+       AVG(f.cost_per_ton) / AVG(f.cost_per_ton_prior) - 1 AS qoq
+FROM   freight_facts f JOIN dim_lane l ON l.id = f.lane_id
+GROUP  BY 1,2,3 ORDER BY qoq DESC LIMIT 5`,
+        result: `network $86.40/ton · +7.2% QoQ\nLavonia GA → Freeport TX  $112 → $131  (+17.0%)\nMount Vernon OH → Chicago IL  $63 → $71  (+12.7%)\nMorris IL → Memphis TN  $78 → $86  (+10.3%)\nRiverville VA → Charlotte NC  $58 → $62  (+6.9%)` },
+      { kind: 'cypher', title: 'Check trailer utilisation and empty miles', nodes: ['gr_outbound', 'gr_carrier'],
+        cypher: `MATCH (s:OutboundShipment)-[:SHIPS_ON]->(l:Lane)
+WHERE l.product_group = 'DRUM'
+RETURN avg(s.weight_util_pct) AS wt, avg(s.cube_util_pct) AS cube,
+       sum(s.empty_miles) * 1.0 / sum(s.total_miles) AS deadhead`,
+        result: `cube utilisation 94% · weight utilisation 62%  →  drums cube out light\ndeadhead 38% of miles on drum lanes vs 19% on board lanes` },
+      { kind: 'cypher', title: 'Find customers served from the wrong plant', nodes: ['gr_plant', 'gr_customer', 'gr_order'],
+        cypher: `MATCH (p:Plant)<-[:SOURCED_FROM]-(o:Order)-[:FOR_CUSTOMER]->(c:Customer)
+MATCH (p2:Plant) WHERE p2.capability = p.capability
+WITH c, p, p2, o, distance(c.ship_to, p.geo) AS cur, distance(c.ship_to, p2.geo) AS alt
+WHERE alt < cur * 0.6 AND p2.available_capacity_pct > 8
+RETURN c.name, p.name, cur, p2.name, alt ORDER BY (cur - alt) DESC`,
+        result: `BASF Coatings — Greenville SC · from Morris IL 782 mi → Lavonia GA 108 mi\nShell Lubricants — Houston TX · from Lavonia GA 874 mi → Baton Rouge LA 271 mi\nNutrien Ag Solutions — Memphis TN · from Morris IL 536 mi → Lavonia GA 395 mi` },
+      { kind: 'semantic', title: 'Retrieve lane and market context', nodes: ['gr_carrier', 'gr_lane'],
+        query: 'why Gulf Coast chemical lane rates are rising and tender coverage is failing',
+        matches: [
+          { score: 0.90, text: 'LANE-LAV-FRPT: primary tender rejection 22%, spot coverage at +$310/load', src: 'project44' },
+          { score: 0.83, text: 'Gulf dry-van capacity tightened on chemical demand; spot up 14% QoQ', src: 'Fastmarkets' },
+          { score: 0.76, text: 'Backhaul pairing model: drum outbound + OCC inbound cuts deadhead to 21%', src: 'Blue Yonder' },
+        ] },
+    ],
+    answer: [
+      { kind: 'verdict', text: 'Cost per ton is up 7.2% network-wide, but the steep lanes are self-inflicted — deadhead on drum lanes and three customers being served from the wrong plant account for most of the increase we can actually control.' },
+      { kind: 'para', text: 'Network freight is $86.40 per ton, up 7.2% quarter over quarter[1]. The rise is not evenly spread: Lavonia GA → Freeport TX moved $112 → $131 per ton (+17%), Mount Vernon OH → Chicago $63 → $71, Morris IL → Memphis $78 → $86[2]. Roughly half the network increase sits in the top decile of lanes.' },
+      { kind: 'bullet', text: '**Freeport is a coverage problem, not a market problem** — the primary tender is being rejected 22% of the time and the spot cover runs +$310 a load[4]. Market spot on Gulf dry van is up 14%, so about half the 17% is market and half is a contract that is no longer being honoured[4].' },
+      { kind: 'bullet', text: '**Drum lanes are structurally empty on the return** — trailers hit 94% cube but only 62% weight, so drums fill the box without paying for it, and deadhead runs 38% of miles against 19% on board lanes[3]. Pairing drum outbound with OCC inbound to the URB mills takes deadhead to about 21%[4].' },
+      { kind: 'bullet', text: '**Three customers are sourced from the wrong plant**[5] — BASF Coatings in Greenville SC is served from Morris IL (782 mi) when Lavonia is 108; Shell Lubricants in Houston from Lavonia (874 mi) when Baton Rouge is 271; Nutrien in Memphis from Morris (536 mi) when Lavonia is 395. That is 1.9M avoidable ton-miles.' },
+      { kind: 'para', text: 'Re-sourcing those three is worth about **$1.4M a year** — $612K on BASF, $497K on Shell Lubricants, $291K on Nutrien[5] — and each destination plant already carries the capability and the spare capacity, so it is a scheduling and allocation change rather than a capital one.' },
+      { kind: 'action', text: 'Recommend: (1) re-source the three customers to their nearest capable plant, starting with BASF Coatings where the mileage delta is largest[5]; (2) rebid the primary tender on LANE-LAV-FRPT and hold the incumbent to a rejection SLA, since spot coverage is pricing the rest[4]; (3) run the drum-outbound / OCC-inbound backhaul pairing on the Southeast lanes to pull deadhead from 38% toward 21%[3][4].' },
+    ],
+    sources: [
+      { n: 1, node: 'gr_cts', ref: 'CTS-Q3-NET', detail: 'Network $86.40/ton · +7.2% QoQ · top-decile lanes +17%' },
+      { n: 2, node: 'gr_lane', ref: 'LANE-LAV-FRPT', detail: 'Lavonia → Freeport $112 → $131/ton (+17.0%) — steepest lane' },
+      { n: 3, node: 'gr_outbound', ref: 'OB-55210', detail: '94% cube / 62% weight utilisation · 38% deadhead on drum lanes' },
+      { n: 4, node: 'gr_carrier', ref: 'CAR-JBH', detail: 'J.B. Hunt 22% rejection · XPO/Schneider spot +$310/load · Gulf spot +14%' },
+      { n: 5, node: 'gr_customer', ref: 'CUST-BASF', detail: '3 mis-sourced customers · 1.9M ton-miles · $1.4M annual saving' },
+    ],
+  },
+  safety_pattern: {
+    q: "Is there a pattern behind our recordables this year?",
+    tag: 'EHS · Shifts · Training',
+    chain: [
+      { kind: 'cypher', title: 'Distribute recordables across plants and shifts', nodes: ['gr_safety', 'gr_plant', 'gr_shift'],
+        cypher: `MATCH (e:SafetyEvent {classification:'Recordable'})-[:AT_PLANT]->(p:Plant)
+MATCH (e)-[:ON_SHIFT]->(s:Shift)
+WHERE e.occurred_at > date('2026-01-01')
+RETURN s.code, count(e) AS events, sum(s.hours_share) AS hours_share,
+       collect(DISTINCT p.name)[..3] AS top_plants`,
+        result: `B-shift → 54 recordables on 33% of hours worked\nA-shift → 41 on 41% of hours · C-shift → 23 on 26% of hours\n118 recordables YTD · TRIR 1.12 (prior year 0.94)\nheaviest plants: Lavonia GA 14 · Diadema BR 11 · Taicang CN 9` },
+      { kind: 'sql', title: 'Test tenure and overtime as factors', nodes: ['gr_operator', 'gr_safety'],
+        cypher: `SELECT tenure_band, COUNT(*) AS events, AVG(ot_ratio) AS ot,
+       COUNT(*) * 1.0 / SUM(headcount_share) AS index
+FROM   safety_event_facts e JOIN dim_worker w ON w.id = e.worker_id
+WHERE  e.year = 2026 GROUP BY 1 ORDER BY events DESC`,
+        result: `under 90 days → 41 events on 11% of headcount (index 3.7)\n90 days–2 yrs → 38 events on 34% of headcount\nover 2 yrs → 39 events on 55% of headcount\nplants above 12% overtime ratio → 2.3× the recordable rate` },
+      { kind: 'cypher', title: 'Check certification currency against incident type', nodes: ['gr_training', 'gr_operator'],
+        cypher: `MATCH (op:Operator)-[:CERTIFIED_BY]->(t:Training {code:'LOTO'})
+OPTIONAL MATCH (op)<-[:INVOLVED]-(e:SafetyEvent {classification:'Recordable'})
+RETURN t.status, count(DISTINCT op) AS workers, count(e) AS events`,
+        result: `Lapsed → 217 workers · 7 recordables\nCurrent → 9,140 workers · 2 recordables of the same type\n9 of 118 recordables involved energy isolation; 7 on lapsed certification` },
+      { kind: 'semantic', title: 'Retrieve incident narratives for common factors', nodes: ['gr_safety'],
+        query: 'common factors in 2026 recordable incident narratives',
+        matches: [
+          { score: 0.91, text: 'Recurring narrative: guard bypassed to clear a jam during changeover, B-shift', src: 'Cority' },
+          { score: 0.84, text: 'Overtime above 12% correlates with hand and pinch-point injuries at drum plants', src: 'Cority' },
+          { score: 0.78, text: 'Three plants flagged for overdue LOTO refresher training in the annual audit', src: 'Sphera' },
+        ] },
+    ],
+    answer: [
+      { kind: 'verdict', text: 'Yes. The 118 recordables this year concentrate on B-shift, on employees inside their first 90 days, and at three plants — and the same three plants carry the overtime and the lapsed lockout/tagout certifications.' },
+      { kind: 'para', text: 'The network recorded 118 recordables year to date, with TRIR at 1.12 against 0.94 last year[1]. The distribution is not uniform. B-shift produced 54 of the 118 while working 33% of total hours; A-shift produced 41 on 41% of hours[2]. Three plants — Lavonia GA (14), Diadema BR (11) and Taicang CN (9) — account for 34 events on roughly 8% of hours worked[5].' },
+      { kind: 'bullet', text: '**Tenure is the strongest single factor** — 41 of 118 recordables involved employees inside their first 90 days, a group that is 11% of headcount[3]. That is an index of 3.7 against exposure.' },
+      { kind: 'bullet', text: '**Overtime tracks with rate** — plants running above a 12% overtime ratio show 2.3× the recordable rate of plants below it[5], and the three concentrated plants are all above that line.' },
+      { kind: 'bullet', text: '**Certification currency shows a direct link** — 217 workers hold lapsed lockout/tagout certification[4]. Nine recordables this year involved energy isolation, and seven of those nine involved a worker whose LOTO certification had lapsed.' },
+      { kind: 'bullet', text: '**The narratives agree with the numbers** — the most frequent recurring description is a guard bypassed to clear a jam during a changeover on B-shift[1], which is the same shift, the same task and the same plants the quantitative data points to.' },
+      { kind: 'para', text: 'These factors are not independent. The three plants are short-staffed, which produces overtime, which is covered with new hires placed on B-shift, where supervision is thinnest and changeovers are most frequent. The Lavonia case is the clearest: the same B-shift crew carrying the changeover time creep is the crew with the certification gaps and the injury concentration.' },
+      { kind: 'action', text: 'Recommend: (1) close the 217 lapsed LOTO certifications with a hard stop — no energy-isolation work without current certification[4]; (2) put a qualified lead on every B-shift changeover at Lavonia, Diadema and Taicang, and treat jam clearing as a stop-and-isolate task rather than a guard-bypass task[5]; (3) cap overtime at 12% at the three plants and staff to the gap rather than covering it[3][5]; (4) extend new-hire supervised work from 30 to 90 days on drum lines, matched to where the events actually occur[3].' },
+    ],
+    sources: [
+      { n: 1, node: 'gr_safety', ref: 'SAF-YTD-2026', detail: '118 recordables YTD · TRIR 1.12 vs 0.94 prior year' },
+      { n: 2, node: 'gr_shift', ref: 'SHF-B-NET', detail: 'B-shift 54 of 118 recordables on 33% of hours worked' },
+      { n: 3, node: 'gr_operator', ref: 'OPR-T90', detail: 'Under-90-day employees: 41 events on 11% of headcount (index 3.7)' },
+      { n: 4, node: 'gr_training', ref: 'TRN-LOTO', detail: '217 lapsed LOTO certifications · 7 of 9 isolation recordables' },
+      { n: 5, node: 'gr_safetyidx', ref: 'SFX-3PLANT', detail: 'Lavonia 14 · Diadema 11 · Taicang 9 · overtime >12% → 2.3× rate' },
+    ],
+  },
+  quality_ncr: {
+    q: "What's driving the rise in non-conformances on steel drums?",
+    tag: 'Quality · NCR · Supplier',
+    chain: [
+      { kind: 'sql', title: 'Trend NCR rate by plant and defect type', nodes: ['gr_ncr', 'gr_qc'],
+        cypher: `SELECT plant_name, defect_type, week,
+       COUNT(*) * 1000.0 / SUM(units_produced) AS ncr_per_1k
+FROM   ncr_facts
+WHERE  product_family = 'Steel Drum' AND week >= CURRENT_WEEK - 9
+GROUP  BY 1,2,3 ORDER BY ncr_per_1k DESC`,
+        result: `network rate 3.1 → 7.4 NCRs per 1,000 drums over 9 weeks\n214 NCRs in window · 168 (79%) seam integrity / double-seam pull-out\nconcentrated at Lavonia GA (96) and Morris IL (72); other plants flat` },
+      { kind: 'cypher', title: 'Trace the NCRs back to material lots', nodes: ['gr_ncr', 'gr_run', 'gr_material', 'gr_po'],
+        cypher: `MATCH (n:NCR)-[:RAISED_ON]->(r:ProductionRun)-[:CONSUMED]->(b:MaterialLot)
+      -[:OF_MATERIAL]->(m:Material {name:'Cold-Rolled Steel Coil G60'})
+MATCH (b)<-[:DELIVERED]-(po:PurchaseOrder)-[:FROM_SUPPLIER]->(s:Supplier)
+RETURN s.name, min(b.lot_id), max(b.lot_id), avg(b.gauge_in), count(n) AS ncrs`,
+        result: `Nucor Steel · lots N4-88210 → N4-88460 · avg gauge 0.0189 in (nominal 0.0210)\n2,410 tons shipped to Lavonia GA and Morris IL\n159 of the 168 seam NCRs trace to runs consuming this lot band` },
+      { kind: 'semantic', title: 'Check incoming inspection and supplier documentation', nodes: ['gr_qc', 'gr_supplier'],
+        query: 'incoming inspection of cold-rolled coil gauge and certificate of analysis',
+        matches: [
+          { score: 0.93, text: 'Coil gauge Cpk 0.71 on the affected lot band against 1.33 requirement', src: 'LIMS' },
+          { score: 0.85, text: 'Incoming inspection accepts G60 coil on supplier COA only — no gauge verification', src: 'LIMS' },
+          { score: 0.79, text: 'Nucor COA reports nominal gauge; no lot-level measured value supplied', src: 'SAP Ariba' },
+        ] },
+      { kind: 'cypher', title: 'Link the defect to customer complaints downstream', nodes: ['gr_complaint', 'gr_customer'],
+        cypher: `MATCH (n:NCR)-[:RAISED_ON]->(r:ProductionRun)-[:PRODUCED]->(:SKU)
+      <-[:ABOUT_SKU]-(cm:Complaint)-[:FROM_CUSTOMER]->(c:Customer)
+RETURN c.name, count(cm) AS complaints,
+       avg(duration.between(r.finished_at, cm.logged_at).days) AS lag_days`,
+        result: `Dow Chemical → 14 complaints · 21.4 day lag\nShell Lubricants → 9 complaints · 19.8 day lag\n23 complaints total, all citing seal or seam integrity` },
+    ],
+    answer: [
+      { kind: 'verdict', text: 'One supplier lot band. Steel drum NCRs more than doubled because Nucor coil in lots N4-88210 to N4-88460 ran 10% under nominal gauge, and thin coil does not form a sound double seam.' },
+      { kind: 'para', text: 'The rate moved from 3.1 to 7.4 NCRs per 1,000 drums over nine weeks — 214 NCRs, of which 168 (79%) are seam integrity or double-seam pull-out[1]. It is not a network trend: Lavonia GA (96) and Morris IL (72) carry almost all of it while the other steel drum plants are flat[1].' },
+      { kind: 'bullet', text: '**The two plants share one input** — 159 of the 168 seam NCRs trace to production runs consuming Cold-Rolled Steel Coil G60 from Nucor Steel lots N4-88210 through N4-88460, 2,410 tons split between the two sites[3].' },
+      { kind: 'bullet', text: '**The material is measurably out of tolerance** — average gauge on the band is 0.0189 inches against a 0.0210 nominal, roughly 10% thin, with Cpk at 0.71 against a 1.33 requirement[2]. Thin coil under-fills the seam roll and the double seam pulls out under stack load, which is exactly the failure mode being written up.' },
+      { kind: 'bullet', text: '**Incoming inspection could not have caught it** — G60 coil is accepted on the supplier certificate of analysis alone, with no gauge verification on receipt, and the Nucor COA reports nominal gauge rather than a lot-level measured value[4]. The specification was met on paper and missed in the coil.' },
+      { kind: 'bullet', text: '**It reaches the customer about three weeks later** — 23 complaints, 14 from Dow Chemical and 9 from Shell Lubricants, all citing seal or seam integrity, logged 19 to 21 days after the runs that produced the drums[5]. That lag is why the internal NCR trend and the complaint trend looked unrelated.' },
+      { kind: 'para', text: 'This also explains part of the Dow OTIF miss: the closure and seam holds at Lavonia sit on the same lot band, so the quality event, the service miss and the complaint trend are one issue counted three ways.' },
+      { kind: 'action', text: 'Recommend: (1) raise a supplier corrective action with Nucor on lots N4-88210 to N4-88460 with the Cpk evidence attached, and quarantine remaining inventory from the band at both plants[2][3]; (2) change incoming inspection for G60 coil from COA acceptance to measured gauge verification per lot, with an SPC chart against the 1.33 Cpk requirement[4]; (3) require lot-level measured gauge on the COA as a purchasing condition going forward[4]; (4) notify Dow and Shell Lubricants proactively with the affected date range rather than waiting for the next complaint[5].' },
+    ],
+    sources: [
+      { n: 1, node: 'gr_ncr', ref: 'NCR-4407', detail: '214 NCRs · 79% seam integrity · 3.1 → 7.4 per 1,000 drums · Lavonia 96 / Morris 72' },
+      { n: 2, node: 'gr_material', ref: 'MAT-CRS-G60', detail: 'Cold-Rolled Steel Coil G60 · 0.0189 in vs 0.0210 nominal · Cpk 0.71 vs 1.33' },
+      { n: 3, node: 'gr_po', ref: 'PO-771204', detail: 'Nucor Steel lots N4-88210 → N4-88460 · 2,410 tons to Lavonia and Morris' },
+      { n: 4, node: 'gr_qc', ref: 'QC-9930', detail: 'Incoming inspection on COA only · no lot-level gauge verification' },
+      { n: 5, node: 'gr_complaint', ref: 'CMP-9041', detail: '23 complaints (Dow 14 · Shell Lubricants 9) at 19–21 day lag' },
+    ],
+  },
 }
 
 const FALLBACK = {
@@ -568,6 +976,16 @@ function matchScript(text) {
   if (/fail|predict|14 day|ignore/.test(t)) return 'failing_port'
   if (/truck roll|backlog|dispatch|p1|socal/.test(t)) return 'truck_rolls'
   if (/demand charge|tariff|fremont|energy|peak/.test(t)) return 'demand_charges'
+  // Greif operations — matched ahead of the generic repair/maintenance catch-alls
+  // below, which would otherwise swallow words like "fix" and "schedule".
+  if (/oee|lavonia|throughput/.test(t)) return 'oee_drop'
+  if (/pareto|unplanned downtime|downtime cost/.test(t)) return 'downtime_pareto'
+  if (/changeover|sequenc|short run/.test(t)) return 'changeover_loss'
+  if (/resin|hdpe|raw material|exposure/.test(t)) return 'resin_exposure'
+  if (/otif|on.?time in full|dow chemical/.test(t)) return 'otif_miss'
+  if (/freight|cost per ton|lane|deadhead/.test(t)) return 'freight_cost'
+  if (/recordable|safety|ehs|injur/.test(t)) return 'safety_pattern'
+  if (/non.?conformance|\bncr\b|quality|defect/.test(t)) return 'quality_ncr'
   if (/repair|broken|fix|what needs|order should/.test(t)) return 'repair_queue'
   if (/maintenance|preventive|\bpm\b|service due|schedule|cadence/.test(t)) return 'pm_schedule'
   return null
@@ -747,7 +1165,7 @@ function SourcePanel({ panel, onClose }) {
                       </div>
                     ))}
                   </div>
-                  <div style={{ marginTop: 7, fontSize: 10.5, color: '#a89e88' }}>Record from the {s.node.startsWith('cp_') ? 'ChargePoint Network Graph' : 'Nike Retail Context Graph'}</div>
+                  <div style={{ marginTop: 7, fontSize: 10.5, color: '#a89e88' }}>Record from the {s.node.startsWith('cp_') ? 'ChargePoint Network Graph' : s.node.startsWith('gr_') ? 'Greif Operations Context Graph' : 'Nike Retail Context Graph'}</div>
                 </div>
               )}
             </div>

@@ -1056,6 +1056,285 @@ function buildRevenue() {
 }
 const REVENUE_DATA = buildRevenue()
 
+// ─── GREIF OPERATIONS CONTEXT GRAPH ──────────────────────────────────────────
+// The office-of-the-COO graph for a global industrial packaging manufacturer —
+// anchored on Plant × Production Run so an OEE dip, a late truck, a customer
+// complaint or a safety recordable can all be traced back to the same asset,
+// shift, material lot and lane. Spans ~200 plants across Global Industrial
+// Packaging (steel / plastic / fibre drums, IBCs, closures, reconditioning) and
+// Paper Packaging & Services (containerboard, corrugated, URB, tubes & cores).
+function buildGreif() {
+  // [id, label, glyph, state, x, y, size, instances, desc]
+  const E = [
+    // ── The spine ──────────────────────────────────────────────────────────
+    ["gr_plant",       "Plant",                 "location",   "core",   -140,  40,   36, 214,      "A manufacturing site — a drum plant, IBC line, reconditioning centre, paper mill or sheet feeder. Co-central: OEE, safety, freight and cost all roll up here."],
+    ["gr_run",         "Production Run",        "workflow",   "core",    200,  30,   36, 4800000,  "One scheduled run of a SKU on a line during a shift, with planned vs actual output and scrap. Co-central anchor — the atomic fact of the factory."],
+    // ── Manufacturing ──────────────────────────────────────────────────────
+    ["gr_line",        "Production Line",       "settings",   "core",    -40, -150,  28, 1840,     "A converting or forming line inside a plant — drum body seamer, blow-moulder, fibre winder, corrugator or paper machine."],
+    ["gr_asset",       "Asset / Machine",       "server",     "core",   -260, -150,  26, 42000,    "An individual machine or critical component on a line — the thing that actually fails, gets serviced and drives unplanned downtime."],
+    ["gr_maint",       "Maintenance Order",     "settings",   "core",   -260, -320,  24, 620000,   "A preventive, predictive or corrective work order against an asset — labour, parts and the downtime it was raised to clear."],
+    ["gr_downtime",    "Downtime Event",        "incident",   "core",    -60, -320,  26, 340000,   "A stoppage on an asset with reason code and duration — planned changeover or the unplanned minutes that eat OEE."],
+    ["gr_dtrisk",      "Downtime Risk",         "trigger",    "signal",  140, -320,  24, 42000,    "Derived per-asset failure probability from PI telemetry drift, fault history and service interval — what turns a truck roll into a planned stop."],
+    ["gr_oee",         "OEE Score",             "dashboard",  "signal",  170, -150,  24, 640000,   "Derived availability × performance × quality per line and period — the number every plant review opens with, and its top loss bucket."],
+    ["gr_workorder",   "Work Order",            "task",       "core",    360, -320,  22, 2100000,  "The released production order that schedules a quantity of a SKU onto a plant and line by a due date."],
+    ["gr_shift",       "Shift",                 "schedule",   "core",    380, -150,  22, 234000,   "A crewed shift at a plant — days, swing, nights or weekend — with its supervisor, headcount and lines running."],
+    ["gr_sku",         "Product SKU",           "cart",       "core",    200,  220,  26, 62000,    "A sellable pack — 55gal tight-head steel drum, 275gal composite IBC, 30gal fibre drum, closure set or a URB roll spec."],
+    ["gr_qc",          "Quality Inspection",    "check",      "core",    390,  110,  24, 1200000,  "A lab or in-line test against spec — leak, drop, coating thickness, burst strength or basis weight — with its measured value."],
+    ["gr_ncr",         "Non-Conformance",       "bug",        "core",    400,  270,  24, 48000,    "A failed inspection escalated into a formal NCR with defect type, units affected, disposition and cost of poor quality."],
+    ["gr_bom",         "Bill of Materials",     "folder",     "core",     30,  210,  22, 74000,    "The recipe behind a SKU — which materials, at what quantity and scrap allowance, on which effective version."],
+    // ── Supply chain ───────────────────────────────────────────────────────
+    ["gr_index",       "Commodity Index",       "trend",      "core",   -680, -280,  22, 96,       "A published price benchmark — cold-rolled steel, HDPE resin, OCC, kraft liner, natural gas — that raw material cost is indexed to."],
+    ["gr_supplier",    "Supplier",              "briefcase",  "core",   -680,  -60,  24, 4200,     "A mill, resin producer, recycler or converter — where on-time delivery, quality PPM and price escalation concentrate."],
+    ["gr_po",          "Purchase Order",        "order",      "core",   -680,  160,  24, 480000,   "Committed raw-material spend before it lands — the earliest warning of input cost and coverage."],
+    ["gr_inbound",     "Inbound Shipment",      "sync",       "core",   -500, -280,  22, 390000,   "A truckload, railcar or container of steel coil, resin or OCC moving to a plant — with ETA and delay against the PO."],
+    ["gr_supplyrisk",  "Supply Risk",           "risk",       "signal", -500,  -60,  24, 8600,     "Derived material-level exposure blending days of cover, supplier performance and index trend — the node a shortage question lands on."],
+    ["gr_material",    "Raw Material",          "database",   "core",   -360,   60,  28, 8600,     "An input grade — cold-rolled steel coil, HDPE blow-grade resin, OCC bales, kraft liner or closures — with cost, cover and lead time."],
+    ["gr_inventory",   "Inventory Position",    "archive",    "core",   -430,  230,  24, 1600000,  "On-hand and allocated stock of a material at a plant, with safety stock and days of supply — where the buffer actually sits."],
+    // ── People & safety ────────────────────────────────────────────────────
+    ["gr_operator",    "Operator",              "employee",   "core",   -250,  250,  24, 16000,    "A line operator, setter, forklift driver or maintenance tech — the crew whose certifications gate what can run."],
+    ["gr_safety",      "Safety Incident",       "shield",     "core",   -420,  360,  24, 890,      "A near miss, first aid, recordable or lost-time event at a plant, with body part, root cause and lost days."],
+    ["gr_training",    "Training Record",       "milestone",  "core",   -620,  290,  22, 128000,   "A completed course and its expiry — LOTO, forklift, confined space, machine guarding — that certifies an operator onto an asset."],
+    ["gr_safetyidx",   "Safety Risk Index",     "target",     "signal", -110,  340,  22, 214,      "Derived plant-level TRIR, DART and near-miss density against training compliance — the EHS number the COO reviews monthly."],
+    // ── Circularity ────────────────────────────────────────────────────────
+    ["gr_emissions",   "Emissions Record",      "pie",        "core",     60,  370,  22, 52000,    "Scope 1, 2 and freight Scope 3 for a plant and period, with energy, water and recycled input — the sustainability ledger."],
+    ["gr_recon",       "Reconditioning Batch",  "sync",       "core",    250,  380,  24, 74000,    "A batch of used drums collected, washed, tested and returned to service — the circularity loop and the CO2 it avoids."],
+    // ── Demand & logistics ─────────────────────────────────────────────────
+    ["gr_otif",        "OTIF Score",            "metric",     "signal",  560, -250,  24, 1900000,  "Derived on-time × in-full performance per order and customer, with the miss reason — the promise the commercial team is judged on."],
+    ["gr_forecast",    "Demand Forecast",       "trend",      "signal",  730, -250,  22, 62000,    "Derived unit projection per SKU, customer and plant with accuracy and bias — what capacity and material cover are planned against."],
+    ["gr_order",       "Sales Order",           "invoice",    "core",    560,  -80,  28, 1900000,  "A customer order with requested, promised and actual dates — where OTIF is won or lost."],
+    ["gr_customer",    "Customer",              "account",    "core",    730,  -80,  26, 21000,    "A chemical, agricultural, food, lubricants, coatings or pharma buyer — global key account, regional or distributor."],
+    ["gr_orderline",   "Order Line",            "note",       "core",    560,   90,  22, 8400000,  "One SKU and quantity on an order, sourced from a specific plant — the grain freight, margin and fill rate are measured at."],
+    ["gr_complaint",   "Customer Complaint",    "flag",       "core",    730,   90,  22, 62000,    "A quality or service claim — damage in transit, leaking container, short ship, label error — with units affected and credit issued."],
+    ["gr_outbound",    "Outbound Shipment",     "map",        "core",    560,  250,  26, 2600000,  "A load leaving a plant on a lane with a carrier — heavy, bulky and where freight cost per unit is decided."],
+    ["gr_cts",         "Cost-to-Serve",         "pie",        "signal",  730,  250,  22, 21000,    "Derived all-in cost of serving a customer — freight, handling and returns against margin — the node a pricing conversation lands on."],
+    ["gr_lane",        "Freight Lane",          "pin",        "core",    560,  420,  22, 18000,    "An origin plant → destination region movement with distance, mode, rate and on-time history."],
+    ["gr_carrier",     "Carrier",               "globe",      "core",    730,  420,  24, 1400,     "A trucking, rail or ocean provider with tender acceptance, on-time performance, claims and rate per mile."],
+  ]
+  const SRCS = [
+    ["gr_sap_s4",      "SAP S/4HANA",       "ERP — orders, inventory, BOM"],
+    ["gr_sap_pm",      "SAP Plant Maintenance", "Assets + maintenance orders"],
+    ["gr_mes",         "MES",               "Manufacturing execution + OEE"],
+    ["gr_pi",          "PI Historian",      "Machine telemetry"],
+    ["gr_kinaxis",     "Kinaxis",           "Supply + demand planning"],
+    ["gr_ariba",       "SAP Ariba",         "Procurement + suppliers"],
+    ["gr_blueyonder",  "Blue Yonder",       "Transportation management"],
+    ["gr_project44",   "project44",         "Freight visibility"],
+    ["gr_salesforce",  "Salesforce",        "CRM + complaints"],
+    ["gr_lims",        "LIMS",              "Quality lab results"],
+    ["gr_cority",      "Cority",            "EHS + safety"],
+    ["gr_workday",     "Workday",           "HR + training records"],
+    ["gr_snowflake",   "Snowflake",         "Operations warehouse"],
+    ["gr_sphera",      "Sphera",            "Sustainability + emissions"],
+    ["gr_fastmarkets", "Fastmarkets",       "Commodity price indices"],
+  ]
+  const fmtK = n => n >= 1000000 ? (n/1000000).toFixed(1).replace(/\.0$/,"")+"M" : n >= 1000 ? (n/1000).toFixed(n>=10000?0:1).replace(/\.0$/,"")+"K" : String(n)
+  const nodes = []
+  E.forEach((e, i) => {
+    const [id, label, glyph, state, x, y, size, inst, desc] = e
+    const seed = label.length*7 + i*13
+    nodes.push({
+      id, label, glyph, type:"entity", state, cat: state==="signal"?"derived":"core",
+      x, y, size, instances: fmtK(inst), instancesN: inst, props: 8 + (seed%14), edges: 0,
+      fill: 80 + (seed%18), conf: 88 + (seed%11), fresh: ["1m","5m","15m","1h","4h","1d"][seed%6],
+      pii: 0, change: ["LOW","MEDIUM","HIGH"][seed%3], desc,
+    })
+  })
+  SRCS.forEach((s, i) => {
+    const [id, label, desc] = s
+    const a = (i/SRCS.length)*Math.PI*2 - Math.PI/2
+    const seed = label.length*5 + i*11
+    nodes.push({
+      id, label, glyph:"database", type:"source", state:"core", cat:"source",
+      x: Math.round(Math.cos(a)*1150), y: Math.round(Math.sin(a)*840), size:24,
+      instances:"—", instancesN:0, props: 10 + (seed%18), edges:0,
+      fresh: ["1m","2m","5m","12m"][seed%4], pii:0, change:"LOW", desc,
+    })
+  })
+  // [s, t, label, kind]
+  const ER = [
+    // Manufacturing — the factory spine
+    ["gr_line","gr_plant","INSTALLED_AT","direct"],
+    ["gr_asset","gr_line","PART_OF","direct"],
+    ["gr_run","gr_line","RAN_ON","direct"],
+    ["gr_run","gr_sku","PRODUCED","direct"],
+    ["gr_run","gr_shift","DURING_SHIFT","direct"],
+    ["gr_run","gr_plant","AT_PLANT","inferred"],
+    ["gr_run","gr_material","CONSUMED","inferred"],
+    ["gr_shift","gr_plant","AT_PLANT","direct"],
+    ["gr_bom","gr_sku","DEFINES","direct"],
+    ["gr_bom","gr_material","CONSUMES","direct"],
+    ["gr_downtime","gr_asset","ON_ASSET","direct"],
+    ["gr_downtime","gr_run","INTERRUPTED","direct"],
+    ["gr_downtime","gr_shift","DURING_SHIFT","inferred"],
+    ["gr_maint","gr_asset","SERVICES","direct"],
+    ["gr_maint","gr_downtime","RESOLVES","direct"],
+    ["gr_workorder","gr_run","SCHEDULES","direct"],
+    ["gr_workorder","gr_line","ON_LINE","direct"],
+    ["gr_workorder","gr_sku","FOR_SKU","inferred"],
+    ["gr_qc","gr_run","INSPECTED","direct"],
+    ["gr_qc","gr_sku","SAMPLES","direct"],
+    ["gr_ncr","gr_qc","RAISED_FROM","direct"],
+    ["gr_ncr","gr_sku","AFFECTS","direct"],
+    ["gr_ncr","gr_plant","AT_PLANT","inferred"],
+    // Supply chain — coil, resin and OCC to the plant floor
+    ["gr_po","gr_supplier","ISSUED_TO","direct"],
+    ["gr_po","gr_material","ORDERS","direct"],
+    ["gr_po","gr_plant","SHIPS_TO","inferred"],
+    ["gr_supplier","gr_material","SUPPLIES","direct"],
+    ["gr_inbound","gr_po","DELIVERS","direct"],
+    ["gr_inbound","gr_plant","ARRIVES_AT","direct"],
+    ["gr_inbound","gr_carrier","CARRIED_BY","inferred"],
+    ["gr_inventory","gr_material","HOLDS","direct"],
+    ["gr_inventory","gr_plant","AT_PLANT","direct"],
+    ["gr_index","gr_material","PRICES","inferred"],
+    // Demand & logistics — order to delivered load
+    ["gr_orderline","gr_order","LINE_OF","direct"],
+    ["gr_order","gr_customer","PLACED_BY","direct"],
+    ["gr_order","gr_plant","FULFILLED_BY","inferred"],
+    ["gr_orderline","gr_sku","FOR_SKU","direct"],
+    ["gr_orderline","gr_workorder","TRIGGERS","inferred"],
+    ["gr_outbound","gr_order","SHIPS","direct"],
+    ["gr_outbound","gr_carrier","CARRIED_BY","direct"],
+    ["gr_outbound","gr_lane","ON_LANE","direct"],
+    ["gr_outbound","gr_plant","SHIPPED_FROM","direct"],
+    ["gr_lane","gr_plant","ORIGINATES_AT","direct"],
+    ["gr_lane","gr_carrier","SERVED_BY","inferred"],
+    ["gr_complaint","gr_order","ABOUT_ORDER","direct"],
+    ["gr_complaint","gr_customer","RAISED_BY","direct"],
+    ["gr_complaint","gr_ncr","TRACES_TO","inferred"],
+    ["gr_customer","gr_sku","BUYS","inferred"],
+    // People & safety
+    ["gr_operator","gr_shift","WORKS","direct"],
+    ["gr_operator","gr_plant","AT_PLANT","direct"],
+    ["gr_operator","gr_line","ASSIGNED_TO","direct"],
+    ["gr_safety","gr_plant","OCCURRED_AT","direct"],
+    ["gr_safety","gr_operator","INVOLVED","inferred"],
+    ["gr_safety","gr_asset","NEAR_ASSET","inferred"],
+    ["gr_training","gr_operator","CERTIFIES","direct"],
+    ["gr_training","gr_asset","QUALIFIES_ON","inferred"],
+    // Circularity
+    ["gr_recon","gr_sku","RECONDITIONS","direct"],
+    ["gr_recon","gr_plant","AT_PLANT","direct"],
+    ["gr_recon","gr_customer","COLLECTED_FROM","inferred"],
+    ["gr_emissions","gr_plant","REPORTED_BY","direct"],
+    ["gr_emissions","gr_run","ATTRIBUTED_TO","inferred"],
+    ["gr_emissions","gr_lane","FROM_FREIGHT","inferred"],
+    // Signals — the "why" anchors
+    ["gr_oee","gr_line","SCORES","direct"],
+    ["gr_oee","gr_run","MEASURES","direct"],
+    ["gr_oee","gr_downtime","LEARNED_FROM","inferred"],
+    ["gr_dtrisk","gr_asset","PREDICTS","direct"],
+    ["gr_dtrisk","gr_downtime","LEARNED_FROM","inferred"],
+    ["gr_dtrisk","gr_maint","TRIGGERS","inferred"],
+    ["gr_otif","gr_order","MEASURES","direct"],
+    ["gr_otif","gr_outbound","FROM_SHIPMENT","inferred"],
+    ["gr_otif","gr_customer","ON_CUSTOMER","inferred"],
+    ["gr_cts","gr_customer","ON_CUSTOMER","direct"],
+    ["gr_cts","gr_lane","INCLUDES_FREIGHT","inferred"],
+    ["gr_cts","gr_sku","PER_SKU","inferred"],
+    ["gr_supplyrisk","gr_material","ON_MATERIAL","direct"],
+    ["gr_supplyrisk","gr_supplier","FROM_SUPPLIER","inferred"],
+    ["gr_supplyrisk","gr_index","LEARNED_FROM","inferred"],
+    ["gr_supplyrisk","gr_inventory","LEARNED_FROM","inferred"],
+    ["gr_forecast","gr_sku","PROJECTS","direct"],
+    ["gr_forecast","gr_customer","FOR_CUSTOMER","inferred"],
+    ["gr_forecast","gr_plant","PLANS_FOR","inferred"],
+    ["gr_safetyidx","gr_plant","SCORES","direct"],
+    ["gr_safetyidx","gr_safety","LEARNED_FROM","inferred"],
+    ["gr_safetyidx","gr_training","LEARNED_FROM","inferred"],
+    // Sources → entities
+    ["gr_sap_s4","gr_order","SOURCES","source"],
+    ["gr_sap_s4","gr_orderline","SOURCES","source"],
+    ["gr_sap_s4","gr_customer","SOURCES","source"],
+    ["gr_sap_s4","gr_sku","SOURCES","source"],
+    ["gr_sap_s4","gr_bom","SOURCES","source"],
+    ["gr_sap_s4","gr_inventory","SOURCES","source"],
+    ["gr_sap_s4","gr_workorder","SOURCES","source"],
+    ["gr_sap_pm","gr_asset","SOURCES","source"],
+    ["gr_sap_pm","gr_maint","SOURCES","source"],
+    ["gr_sap_pm","gr_plant","SOURCES","source"],
+    ["gr_mes","gr_run","SOURCES","source"],
+    ["gr_mes","gr_line","SOURCES","source"],
+    ["gr_mes","gr_shift","SOURCES","source"],
+    ["gr_mes","gr_downtime","SOURCES","source"],
+    ["gr_pi","gr_asset","SOURCES","source"],
+    ["gr_pi","gr_downtime","SOURCES","source"],
+    ["gr_kinaxis","gr_forecast","SOURCES","source"],
+    ["gr_kinaxis","gr_inventory","SOURCES","source"],
+    ["gr_kinaxis","gr_po","SOURCES","source"],
+    ["gr_ariba","gr_po","SOURCES","source"],
+    ["gr_ariba","gr_supplier","SOURCES","source"],
+    ["gr_blueyonder","gr_outbound","SOURCES","source"],
+    ["gr_blueyonder","gr_lane","SOURCES","source"],
+    ["gr_blueyonder","gr_carrier","SOURCES","source"],
+    ["gr_project44","gr_inbound","SOURCES","source"],
+    ["gr_project44","gr_outbound","SOURCES","source"],
+    ["gr_salesforce","gr_customer","SOURCES","source"],
+    ["gr_salesforce","gr_complaint","SOURCES","source"],
+    ["gr_lims","gr_qc","SOURCES","source"],
+    ["gr_lims","gr_ncr","SOURCES","source"],
+    ["gr_cority","gr_safety","SOURCES","source"],
+    ["gr_cority","gr_operator","SOURCES","source"],
+    ["gr_workday","gr_operator","SOURCES","source"],
+    ["gr_workday","gr_training","SOURCES","source"],
+    ["gr_snowflake","gr_oee","SOURCES","source"],
+    ["gr_snowflake","gr_dtrisk","SOURCES","source"],
+    ["gr_snowflake","gr_otif","SOURCES","source"],
+    ["gr_snowflake","gr_cts","SOURCES","source"],
+    ["gr_snowflake","gr_supplyrisk","SOURCES","source"],
+    ["gr_snowflake","gr_safetyidx","SOURCES","source"],
+    ["gr_sphera","gr_emissions","SOURCES","source"],
+    ["gr_sphera","gr_recon","SOURCES","source"],
+    ["gr_fastmarkets","gr_index","SOURCES","source"],
+    ["gr_fastmarkets","gr_material","SOURCES","source"],
+  ]
+  const P = (name, type, o) => Object.assign({ name, type, required:false, indexed:false, pii:false, pk:false, fill:92, conf:96, source:"primary" }, o)
+  const PROPS = {
+    gr_plant:      [P("plant_id","uuid",{pk:1,required:1,indexed:1,source:"SAP S/4HANA"}),P("name","string",{required:1,indexed:1,source:"SAP S/4HANA"}),P("country","string",{indexed:1,source:"SAP S/4HANA"}),P("region","enum",{indexed:1,source:"SAP S/4HANA"}),P("business_unit","enum",{required:1,indexed:1,source:"SAP S/4HANA"}),P("product_families","string",{source:"SAP S/4HANA"}),P("lines_count","int",{source:"MES"}),P("headcount","int",{source:"Workday"}),P("oee_pct","float",{indexed:1,source:"MES"}),P("safety_days_since_recordable","int",{indexed:1,source:"Cority"}),P("commissioned_year","int",{source:"SAP Plant Maintenance"})],
+    gr_run:        [P("run_id","uuid",{pk:1,required:1,indexed:1,source:"MES"}),P("line_id","uuid",{required:1,indexed:1,source:"MES"}),P("sku_id","uuid",{indexed:1,source:"MES"}),P("shift_id","uuid",{indexed:1,source:"MES"}),P("planned_qty","int",{source:"SAP S/4HANA"}),P("actual_qty","int",{indexed:1,source:"MES"}),P("start_at","timestamp",{indexed:1,source:"MES"}),P("end_at","timestamp",{source:"MES"}),P("scrap_pct","float",{indexed:1,source:"MES"}),P("oee_pct","float",{indexed:1,source:"MES"}),P("status","enum",{indexed:1,source:"MES"})],
+    gr_line:       [P("line_id","uuid",{pk:1,required:1,indexed:1,source:"MES"}),P("name","string",{required:1,indexed:1,source:"MES"}),P("plant_id","uuid",{indexed:1,source:"SAP S/4HANA"}),P("process_type","enum",{required:1,indexed:1,source:"MES"}),P("rated_speed_uph","int",{source:"MES"}),P("utilization_pct","float",{indexed:1,source:"MES"}),P("oee_pct","float",{indexed:1,source:"Snowflake"}),P("commissioned_year","int",{source:"SAP Plant Maintenance"}),P("status","enum",{indexed:1,source:"MES"})],
+    gr_asset:      [P("asset_id","uuid",{pk:1,required:1,indexed:1,source:"SAP Plant Maintenance"}),P("name","string",{required:1,indexed:1,source:"SAP Plant Maintenance"}),P("line_id","uuid",{indexed:1,source:"MES"}),P("asset_type","enum",{required:1,indexed:1,source:"SAP Plant Maintenance"}),P("manufacturer","string",{source:"SAP Plant Maintenance"}),P("install_date","date",{source:"SAP Plant Maintenance"}),P("criticality","enum",{indexed:1,source:"SAP Plant Maintenance"}),P("runtime_hours","int",{indexed:1,source:"PI Historian"}),P("mtbf_hours","int",{indexed:1,source:"Snowflake"}),P("last_service_at","date",{indexed:1,source:"SAP Plant Maintenance"})],
+    gr_maint:      [P("maint_order_id","uuid",{pk:1,required:1,indexed:1,source:"SAP Plant Maintenance"}),P("asset_id","uuid",{required:1,indexed:1,source:"SAP Plant Maintenance"}),P("maintenance_type","enum",{required:1,indexed:1,source:"SAP Plant Maintenance"}),P("priority","enum",{indexed:1,source:"SAP Plant Maintenance"}),P("technician","string",{pii:1,source:"Workday"}),P("scheduled_for","date",{indexed:1,source:"SAP Plant Maintenance"}),P("completed_at","timestamp",{source:"SAP Plant Maintenance"}),P("labor_hours","decimal",{source:"SAP Plant Maintenance"}),P("parts_cost_usd","decimal",{indexed:1,source:"SAP S/4HANA"}),P("status","enum",{indexed:1,source:"SAP Plant Maintenance"})],
+    gr_downtime:   [P("event_id","uuid",{pk:1,required:1,indexed:1,source:"MES"}),P("asset_id","uuid",{required:1,indexed:1,source:"MES"}),P("run_id","uuid",{indexed:1,source:"MES"}),P("shift_id","uuid",{indexed:1,source:"MES"}),P("reason_code","enum",{required:1,indexed:1,source:"MES"}),P("duration_min","int",{indexed:1,source:"MES"}),P("started_at","timestamp",{indexed:1,source:"PI Historian"}),P("planned","bool",{indexed:1,source:"MES"}),P("lost_units","int",{indexed:1,source:"Snowflake"}),P("comment","string",{source:"MES"})],
+    gr_workorder:  [P("work_order_id","uuid",{pk:1,required:1,indexed:1,source:"SAP S/4HANA"}),P("sku_id","uuid",{required:1,indexed:1,source:"SAP S/4HANA"}),P("plant_id","uuid",{indexed:1,source:"SAP S/4HANA"}),P("line_id","uuid",{indexed:1,source:"MES"}),P("order_qty","int",{source:"SAP S/4HANA"}),P("confirmed_qty","int",{source:"MES"}),P("due_date","date",{indexed:1,source:"SAP S/4HANA"}),P("priority","enum",{indexed:1,source:"SAP S/4HANA"}),P("released_at","timestamp",{source:"SAP S/4HANA"}),P("status","enum",{indexed:1,source:"SAP S/4HANA"})],
+    gr_shift:      [P("shift_id","uuid",{pk:1,required:1,indexed:1,source:"MES"}),P("plant_id","uuid",{required:1,indexed:1,source:"SAP S/4HANA"}),P("shift","enum",{required:1,indexed:1,source:"MES"}),P("supervisor","string",{pii:1,source:"Workday"}),P("starts_at","timestamp",{indexed:1,source:"MES"}),P("ends_at","timestamp",{source:"MES"}),P("headcount","int",{source:"Workday"}),P("lines_running","int",{source:"MES"}),P("oee_pct","float",{indexed:1,source:"Snowflake"})],
+    gr_sku:        [P("sku_id","uuid",{pk:1,required:1,indexed:1,source:"SAP S/4HANA"}),P("name","string",{required:1,indexed:1,source:"SAP S/4HANA"}),P("product_family","enum",{required:1,indexed:1,source:"SAP S/4HANA"}),P("capacity","string",{indexed:1,source:"SAP S/4HANA"}),P("material_spec","string",{source:"SAP S/4HANA"}),P("un_rating","string",{source:"LIMS"}),P("unit_weight_kg","decimal",{source:"SAP S/4HANA"}),P("recycled_content_pct","float",{indexed:1,source:"Sphera"}),P("list_price_usd","decimal",{indexed:1,source:"SAP S/4HANA"}),P("status","enum",{indexed:1,source:"SAP S/4HANA"})],
+    gr_qc:         [P("inspection_id","uuid",{pk:1,required:1,indexed:1,source:"LIMS"}),P("run_id","uuid",{required:1,indexed:1,source:"MES"}),P("sku_id","uuid",{indexed:1,source:"SAP S/4HANA"}),P("test_type","enum",{required:1,indexed:1,source:"LIMS"}),P("sample_size","int",{source:"LIMS"}),P("result","enum",{required:1,indexed:1,source:"LIMS"}),P("measured_value","decimal",{source:"LIMS"}),P("spec_limit","decimal",{source:"LIMS"}),P("inspector","string",{pii:1,source:"Workday"}),P("inspected_at","timestamp",{indexed:1,source:"LIMS"})],
+    gr_ncr:        [P("ncr_id","uuid",{pk:1,required:1,indexed:1,source:"LIMS"}),P("inspection_id","uuid",{indexed:1,source:"LIMS"}),P("sku_id","uuid",{indexed:1,source:"SAP S/4HANA"}),P("plant_id","uuid",{indexed:1,source:"SAP S/4HANA"}),P("defect_type","enum",{required:1,indexed:1,source:"LIMS"}),P("severity","enum",{indexed:1,source:"Cority"}),P("disposition","enum",{required:1,indexed:1,source:"LIMS"}),P("units_affected","int",{indexed:1,source:"MES"}),P("cost_usd","decimal",{indexed:1,source:"SAP S/4HANA"}),P("opened_at","timestamp",{indexed:1,source:"LIMS"}),P("status","enum",{indexed:1,source:"LIMS"})],
+    gr_bom:        [P("bom_id","uuid",{pk:1,required:1,indexed:1,source:"SAP S/4HANA"}),P("sku_id","uuid",{required:1,indexed:1,source:"SAP S/4HANA"}),P("material_id","uuid",{required:1,indexed:1,source:"SAP S/4HANA"}),P("component_qty","decimal",{source:"SAP S/4HANA"}),P("uom","enum",{indexed:1,source:"SAP S/4HANA"}),P("scrap_allowance_pct","float",{source:"MES"}),P("version","string",{indexed:1,source:"SAP S/4HANA"}),P("effective_from","date",{indexed:1,source:"SAP S/4HANA"}),P("status","enum",{source:"SAP S/4HANA"})],
+    gr_index:      [P("index_id","uuid",{pk:1,required:1,indexed:1,source:"Fastmarkets"}),P("name","string",{required:1,indexed:1,source:"Fastmarkets"}),P("commodity","enum",{required:1,indexed:1,source:"Fastmarkets"}),P("region","enum",{indexed:1,source:"Fastmarkets"}),P("price","decimal",{indexed:1,source:"Fastmarkets"}),P("uom","enum",{source:"Fastmarkets"}),P("mom_change_pct","float",{indexed:1,source:"Fastmarkets"}),P("yoy_change_pct","float",{source:"Fastmarkets"}),P("quoted_on","date",{indexed:1,source:"Fastmarkets"})],
+    gr_supplier:   [P("supplier_id","uuid",{pk:1,required:1,indexed:1,source:"SAP Ariba"}),P("name","string",{required:1,indexed:1,source:"SAP Ariba"}),P("category","enum",{required:1,indexed:1,source:"SAP Ariba"}),P("country","string",{indexed:1,source:"SAP Ariba"}),P("region","enum",{indexed:1,source:"SAP Ariba"}),P("on_time_delivery_pct","float",{indexed:1,source:"Snowflake"}),P("quality_ppm","int",{indexed:1,source:"LIMS"}),P("spend_ytd_usd","decimal",{indexed:1,source:"SAP Ariba"}),P("risk_tier","enum",{indexed:1,source:"Snowflake"}),P("contract_expires","date",{source:"SAP Ariba"})],
+    gr_po:         [P("po_id","uuid",{pk:1,required:1,indexed:1,source:"SAP Ariba"}),P("po_no","string",{indexed:1,source:"SAP Ariba"}),P("supplier_id","uuid",{required:1,indexed:1,source:"SAP Ariba"}),P("material_id","uuid",{indexed:1,source:"SAP Ariba"}),P("plant_id","uuid",{indexed:1,source:"SAP S/4HANA"}),P("order_qty_tons","decimal",{source:"SAP Ariba"}),P("unit_cost","decimal",{indexed:1,source:"SAP Ariba"}),P("requested_date","date",{indexed:1,source:"Kinaxis"}),P("status","enum",{indexed:1,source:"SAP Ariba"}),P("created_at","timestamp",{source:"SAP Ariba"})],
+    gr_inbound:    [P("shipment_id","uuid",{pk:1,required:1,indexed:1,source:"project44"}),P("po_id","uuid",{required:1,indexed:1,source:"SAP Ariba"}),P("plant_id","uuid",{indexed:1,source:"SAP S/4HANA"}),P("carrier","string",{indexed:1,source:"project44"}),P("mode","enum",{required:1,indexed:1,source:"project44"}),P("qty_tons","decimal",{source:"SAP S/4HANA"}),P("eta","timestamp",{indexed:1,source:"project44"}),P("delivered_at","timestamp",{source:"project44"}),P("delay_hours","int",{indexed:1,source:"Snowflake"}),P("status","enum",{indexed:1,source:"project44"})],
+    gr_supplyrisk: [P("risk_id","uuid",{pk:1,required:1,indexed:1,source:"Snowflake"}),P("material_id","uuid",{required:1,indexed:1,source:"Snowflake"}),P("supplier_id","uuid",{indexed:1,source:"Snowflake"}),P("score","float",{required:1,indexed:1,source:"Snowflake"}),P("top_driver","enum",{indexed:1,source:"Snowflake"}),P("days_of_cover","float",{indexed:1,source:"Kinaxis"}),P("exposure_usd","decimal",{indexed:1,source:"Snowflake"}),P("price_trend","enum",{source:"Fastmarkets"}),P("computed_at","timestamp",{indexed:1,source:"Snowflake"})],
+    gr_material:   [P("material_id","uuid",{pk:1,required:1,indexed:1,source:"SAP S/4HANA"}),P("name","string",{required:1,indexed:1,source:"SAP S/4HANA"}),P("category","enum",{required:1,indexed:1,source:"SAP S/4HANA"}),P("uom","enum",{source:"SAP S/4HANA"}),P("on_hand_tons","decimal",{indexed:1,source:"SAP S/4HANA"}),P("days_of_supply","float",{indexed:1,source:"Kinaxis"}),P("unit_cost","decimal",{indexed:1,source:"SAP Ariba"}),P("price_index_ref","string",{indexed:1,source:"Fastmarkets"}),P("lead_time_days","int",{indexed:1,source:"Kinaxis"}),P("recycled_flag","bool",{source:"Sphera"})],
+    gr_inventory:  [P("position_id","uuid",{pk:1,required:1,indexed:1,source:"SAP S/4HANA"}),P("material_id","uuid",{required:1,indexed:1,source:"SAP S/4HANA"}),P("plant_id","uuid",{required:1,indexed:1,source:"SAP S/4HANA"}),P("on_hand_tons","decimal",{indexed:1,source:"SAP S/4HANA"}),P("allocated_tons","decimal",{source:"Kinaxis"}),P("days_of_supply","float",{indexed:1,source:"Kinaxis"}),P("safety_stock_tons","decimal",{source:"Kinaxis"}),P("storage_location","string",{source:"SAP S/4HANA"}),P("value_usd","decimal",{indexed:1,source:"SAP S/4HANA"}),P("updated_at","timestamp",{source:"SAP S/4HANA"})],
+    gr_operator:   [P("operator_id","uuid",{pk:1,required:1,indexed:1,source:"Workday"}),P("name","string",{required:1,indexed:1,pii:1,source:"Workday"}),P("plant_id","uuid",{indexed:1,source:"Workday"}),P("role","enum",{required:1,indexed:1,source:"Workday"}),P("shift","enum",{indexed:1,source:"MES"}),P("certifications","string",{source:"Workday"}),P("hire_date","date",{source:"Workday"}),P("hours_ytd","int",{source:"Workday"}),P("recordables_ytd","int",{indexed:1,source:"Cority"})],
+    gr_safety:     [P("incident_id","uuid",{pk:1,required:1,indexed:1,source:"Cority"}),P("plant_id","uuid",{required:1,indexed:1,source:"Cority"}),P("operator_id","uuid",{indexed:1,source:"Workday"}),P("incident_type","enum",{required:1,indexed:1,source:"Cority"}),P("severity","enum",{required:1,indexed:1,source:"Cority"}),P("body_part","string",{source:"Cority"}),P("occurred_at","timestamp",{indexed:1,source:"Cority"}),P("lost_days","int",{indexed:1,source:"Cority"}),P("root_cause","string",{source:"Cority"}),P("status","enum",{indexed:1,source:"Cority"})],
+    gr_training:   [P("record_id","uuid",{pk:1,required:1,indexed:1,source:"Workday"}),P("operator_id","uuid",{required:1,indexed:1,source:"Workday"}),P("course","enum",{required:1,indexed:1,source:"Workday"}),P("certification","string",{indexed:1,source:"Cority"}),P("completed_on","date",{indexed:1,source:"Workday"}),P("expires_on","date",{indexed:1,source:"Workday"}),P("score","int",{source:"Workday"}),P("status","enum",{indexed:1,source:"Workday"})],
+    gr_safetyidx:  [P("index_id","uuid",{pk:1,required:1,indexed:1,source:"Snowflake"}),P("plant_id","uuid",{required:1,indexed:1,source:"Snowflake"}),P("period","date",{required:1,indexed:1,source:"Snowflake"}),P("trir","float",{indexed:1,source:"Cority"}),P("dart_rate","float",{indexed:1,source:"Cority"}),P("near_miss_count","int",{source:"Cority"}),P("training_compliance_pct","float",{indexed:1,source:"Workday"}),P("risk_band","enum",{indexed:1,source:"Snowflake"}),P("top_driver","enum",{source:"Snowflake"}),P("computed_at","timestamp",{source:"Snowflake"})],
+    gr_emissions:  [P("record_id","uuid",{pk:1,required:1,indexed:1,source:"Sphera"}),P("plant_id","uuid",{required:1,indexed:1,source:"Sphera"}),P("period","date",{required:1,indexed:1,source:"Sphera"}),P("scope1_tco2e","decimal",{indexed:1,source:"Sphera"}),P("scope2_tco2e","decimal",{indexed:1,source:"Sphera"}),P("scope3_freight_tco2e","decimal",{source:"Sphera"}),P("energy_mwh","decimal",{indexed:1,source:"Sphera"}),P("water_m3","decimal",{source:"Sphera"}),P("waste_diverted_pct","float",{source:"Sphera"}),P("recycled_input_pct","float",{indexed:1,source:"Sphera"})],
+    gr_recon:      [P("batch_id","uuid",{pk:1,required:1,indexed:1,source:"SAP S/4HANA"}),P("plant_id","uuid",{required:1,indexed:1,source:"SAP S/4HANA"}),P("sku_id","uuid",{indexed:1,source:"SAP S/4HANA"}),P("drums_collected","int",{source:"MES"}),P("drums_reconditioned","int",{indexed:1,source:"MES"}),P("yield_pct","float",{indexed:1,source:"MES"}),P("scrap_drums","int",{source:"MES"}),P("co2_avoided_tons","decimal",{indexed:1,source:"Sphera"}),P("processed_on","date",{indexed:1,source:"SAP S/4HANA"}),P("status","enum",{source:"SAP S/4HANA"})],
+    gr_otif:       [P("score_id","uuid",{pk:1,required:1,indexed:1,source:"Snowflake"}),P("order_id","uuid",{required:1,indexed:1,source:"Snowflake"}),P("customer_id","uuid",{indexed:1,source:"Snowflake"}),P("period","date",{indexed:1,source:"Snowflake"}),P("on_time_pct","float",{indexed:1,source:"Snowflake"}),P("in_full_pct","float",{source:"Snowflake"}),P("otif_pct","float",{required:1,indexed:1,source:"Snowflake"}),P("top_miss_reason","enum",{indexed:1,source:"Snowflake"}),P("computed_at","timestamp",{source:"Snowflake"})],
+    gr_forecast:   [P("forecast_id","uuid",{pk:1,required:1,indexed:1,source:"Kinaxis"}),P("sku_id","uuid",{required:1,indexed:1,source:"Kinaxis"}),P("customer_id","uuid",{indexed:1,source:"Kinaxis"}),P("plant_id","uuid",{indexed:1,source:"Kinaxis"}),P("period","date",{required:1,indexed:1,source:"Kinaxis"}),P("forecast_units","int",{indexed:1,source:"Kinaxis"}),P("actual_units","int",{source:"SAP S/4HANA"}),P("accuracy_pct","float",{indexed:1,source:"Snowflake"}),P("bias_pct","float",{source:"Snowflake"}),P("model","enum",{source:"Kinaxis"})],
+    gr_order:      [P("order_id","uuid",{pk:1,required:1,indexed:1,source:"SAP S/4HANA"}),P("order_no","string",{indexed:1,source:"SAP S/4HANA"}),P("customer_id","uuid",{required:1,indexed:1,source:"SAP S/4HANA"}),P("plant_id","uuid",{indexed:1,source:"SAP S/4HANA"}),P("order_date","date",{indexed:1,source:"SAP S/4HANA"}),P("requested_date","date",{indexed:1,source:"SAP S/4HANA"}),P("promised_date","date",{indexed:1,source:"Kinaxis"}),P("total_value_usd","decimal",{indexed:1,source:"SAP S/4HANA"}),P("incoterms","enum",{source:"SAP S/4HANA"}),P("otif_flag","bool",{indexed:1,source:"Snowflake"}),P("status","enum",{indexed:1,source:"SAP S/4HANA"})],
+    gr_customer:   [P("customer_id","uuid",{pk:1,required:1,indexed:1,source:"SAP S/4HANA"}),P("name","string",{required:1,indexed:1,source:"Salesforce"}),P("industry","enum",{required:1,indexed:1,source:"Salesforce"}),P("region","enum",{indexed:1,source:"SAP S/4HANA"}),P("country","string",{source:"SAP S/4HANA"}),P("segment","enum",{indexed:1,source:"Salesforce"}),P("credit_terms","enum",{source:"SAP S/4HANA"}),P("otif_pct","float",{indexed:1,source:"Snowflake"}),P("revenue_ytd_usd","decimal",{indexed:1,source:"SAP S/4HANA"}),P("account_manager","string",{pii:1,source:"Salesforce"})],
+    gr_orderline:  [P("order_line_id","uuid",{pk:1,required:1,indexed:1,source:"SAP S/4HANA"}),P("order_id","uuid",{required:1,indexed:1,source:"SAP S/4HANA"}),P("sku_id","uuid",{required:1,indexed:1,source:"SAP S/4HANA"}),P("qty","int",{source:"SAP S/4HANA"}),P("uom","enum",{source:"SAP S/4HANA"}),P("unit_price","decimal",{source:"SAP S/4HANA"}),P("line_value_usd","decimal",{indexed:1,source:"SAP S/4HANA"}),P("requested_date","date",{indexed:1,source:"SAP S/4HANA"}),P("confirmed_date","date",{source:"Kinaxis"}),P("fulfilled_qty","int",{source:"SAP S/4HANA"}),P("status","enum",{indexed:1,source:"SAP S/4HANA"})],
+    gr_complaint:  [P("complaint_id","uuid",{pk:1,required:1,indexed:1,source:"Salesforce"}),P("customer_id","uuid",{required:1,indexed:1,source:"Salesforce"}),P("order_id","uuid",{indexed:1,source:"SAP S/4HANA"}),P("category","enum",{required:1,indexed:1,source:"Salesforce"}),P("severity","enum",{indexed:1,source:"Salesforce"}),P("units_affected","int",{source:"Salesforce"}),P("credit_issued_usd","decimal",{indexed:1,source:"SAP S/4HANA"}),P("opened_at","timestamp",{indexed:1,source:"Salesforce"}),P("resolved_at","timestamp",{source:"Salesforce"}),P("status","enum",{indexed:1,source:"Salesforce"})],
+    gr_outbound:   [P("shipment_id","uuid",{pk:1,required:1,indexed:1,source:"Blue Yonder"}),P("order_id","uuid",{required:1,indexed:1,source:"SAP S/4HANA"}),P("plant_id","uuid",{indexed:1,source:"SAP S/4HANA"}),P("carrier_id","uuid",{indexed:1,source:"Blue Yonder"}),P("lane_id","uuid",{indexed:1,source:"Blue Yonder"}),P("mode","enum",{indexed:1,source:"Blue Yonder"}),P("weight_kg","decimal",{source:"Blue Yonder"}),P("pallets","int",{source:"SAP S/4HANA"}),P("freight_cost_usd","decimal",{indexed:1,source:"Blue Yonder"}),P("shipped_at","timestamp",{indexed:1,source:"project44"}),P("delivered_at","timestamp",{source:"project44"}),P("on_time","bool",{indexed:1,source:"project44"})],
+    gr_cts:        [P("cost_id","uuid",{pk:1,required:1,indexed:1,source:"Snowflake"}),P("customer_id","uuid",{required:1,indexed:1,source:"Snowflake"}),P("period","date",{indexed:1,source:"Snowflake"}),P("freight_cost_usd","decimal",{indexed:1,source:"Blue Yonder"}),P("handling_cost_usd","decimal",{source:"SAP S/4HANA"}),P("returns_cost_usd","decimal",{source:"Salesforce"}),P("cost_to_serve_pct","float",{required:1,indexed:1,source:"Snowflake"}),P("margin_after_cts_pct","float",{indexed:1,source:"Snowflake"}),P("top_driver","enum",{source:"Snowflake"}),P("computed_at","timestamp",{source:"Snowflake"})],
+    gr_lane:       [P("lane_id","uuid",{pk:1,required:1,indexed:1,source:"Blue Yonder"}),P("origin_plant_id","uuid",{required:1,indexed:1,source:"Blue Yonder"}),P("destination_region","enum",{indexed:1,source:"Blue Yonder"}),P("distance_miles","int",{indexed:1,source:"Blue Yonder"}),P("mode","enum",{indexed:1,source:"Blue Yonder"}),P("avg_cost_usd","decimal",{indexed:1,source:"Blue Yonder"}),P("cost_per_cwt","decimal",{source:"Snowflake"}),P("volume_shipments_ytd","int",{source:"Blue Yonder"}),P("on_time_pct","float",{indexed:1,source:"project44"}),P("primary_carrier_id","uuid",{source:"Blue Yonder"})],
+    gr_carrier:    [P("carrier_id","uuid",{pk:1,required:1,indexed:1,source:"Blue Yonder"}),P("name","string",{required:1,indexed:1,source:"Blue Yonder"}),P("scac","string",{indexed:1,source:"Blue Yonder"}),P("mode","enum",{required:1,indexed:1,source:"Blue Yonder"}),P("on_time_pct","float",{indexed:1,source:"project44"}),P("tender_accept_pct","float",{indexed:1,source:"Blue Yonder"}),P("avg_cost_per_mile","decimal",{indexed:1,source:"Blue Yonder"}),P("claims_ppm","int",{source:"Salesforce"}),P("contract_expires","date",{source:"SAP Ariba"})],
+    gr_oee:        [P("score_id","uuid",{pk:1,required:1,indexed:1,source:"Snowflake"}),P("line_id","uuid",{required:1,indexed:1,source:"Snowflake"}),P("plant_id","uuid",{indexed:1,source:"Snowflake"}),P("period","date",{required:1,indexed:1,source:"Snowflake"}),P("availability_pct","float",{indexed:1,source:"MES"}),P("performance_pct","float",{indexed:1,source:"MES"}),P("quality_pct","float",{indexed:1,source:"LIMS"}),P("oee_pct","float",{required:1,indexed:1,source:"Snowflake"}),P("top_loss","enum",{indexed:1,source:"Snowflake"}),P("computed_at","timestamp",{source:"Snowflake"})],
+    gr_dtrisk:     [P("risk_id","uuid",{pk:1,required:1,indexed:1,source:"Snowflake"}),P("asset_id","uuid",{required:1,indexed:1,source:"Snowflake"}),P("probability","float",{required:1,indexed:1,source:"Snowflake"}),P("horizon_days","int",{indexed:1,source:"Snowflake"}),P("top_driver","enum",{indexed:1,source:"PI Historian"}),P("predicted_failure_mode","string",{source:"Snowflake"}),P("expected_lost_units","int",{indexed:1,source:"Snowflake"}),P("model_version","string",{source:"Snowflake"}),P("computed_at","timestamp",{source:"Snowflake"})],
+  }
+  const ids = {}; nodes.forEach(n => { ids[n.id] = n; if (PROPS[n.id]) { n._userProps = PROPS[n.id]; n.props = PROPS[n.id].length } })
+  const edges = ER.filter(e => ids[e[0]] && ids[e[1]]).map(e => ({ s:e[0], t:e[1], label:e[2], kind:e[3] }))
+  edges.forEach(e => { if (ids[e.s]) ids[e.s].edges++; if (ids[e.t] && e.t !== e.s) ids[e.t].edges++ })
+  return { nodes, edges }
+}
+const GREIF_DATA = buildGreif()
+
 const SIDEBAR_NODES =[...NODES].filter(n => n.type !== "agent" && n.type !== "source").sort((a, b) => a.label.localeCompare(b.label));
 
 // ---------- HELPERS ---------------------------------------------------------
@@ -2308,7 +2587,7 @@ function Sidebar({ open, onToggle, filter, setFilter, query, setQuery, selected,
 
 
 // ── Stage 1 host: provides graph state + view/edit toggle, renders the canvas ──
-export { SIDEBAR_NODES, EDGES as GRAPH_EDGES, LOWES_DATA, NIKE_DATA, FINANCE_DATA, CHARGEPOINT_DATA, REVENUE_DATA, ListGlyph, colorForNode, NodeShape, ZoomControls, Minimap, AddNodeFlow, NewEdgeFlow, generateProps, generateRules }
+export { SIDEBAR_NODES, EDGES as GRAPH_EDGES, LOWES_DATA, NIKE_DATA, FINANCE_DATA, CHARGEPOINT_DATA, REVENUE_DATA, GREIF_DATA, ListGlyph, colorForNode, NodeShape, ZoomControls, Minimap, AddNodeFlow, NewEdgeFlow, generateProps, generateRules }
 
 export default function GraphStage({ data }) {
   // Optional `data` ({ nodes, edges }) lets a caller render a different graph

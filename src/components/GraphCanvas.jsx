@@ -5,7 +5,7 @@ import CreateAgentPage, { ModelIcon, MODELS } from './CreateAgentModal'
 import BuildWithAIModal from './BuildWithAIModal'
 import { ToolGlyph } from './AddToolPanel'
 import { LinkSourceFlow } from './LinkSourceFlow'
-import GraphStage, { SIDEBAR_NODES, GRAPH_EDGES, LOWES_DATA, NIKE_DATA, FINANCE_DATA, CHARGEPOINT_DATA, REVENUE_DATA, ListGlyph, colorForNode, AddNodeFlow, NewEdgeFlow, generateProps, generateRules, PropertiesPane } from './GraphStage'
+import GraphStage, { SIDEBAR_NODES, GRAPH_EDGES, LOWES_DATA, NIKE_DATA, FINANCE_DATA, CHARGEPOINT_DATA, REVENUE_DATA, GREIF_DATA, ListGlyph, colorForNode, AddNodeFlow, NewEdgeFlow, generateProps, generateRules, PropertiesPane } from './GraphStage'
 // Make node schema available to LinkSourceFlow.buildEditState (runs at module load time)
 if (typeof window !== 'undefined') { window.NODES = SIDEBAR_NODES; window.EDGES = GRAPH_EDGES; window.generateProps = generateProps; window.ListGlyph = ListGlyph; }
 import RecordsPage from './RecordsPage'
@@ -121,6 +121,13 @@ const REVENUE_GD = {
   edges: REVENUE_DATA.edges,
   sources: buildDatasetSources(REVENUE_DATA, { freqMap: REVENUE_FREQ, owner: 'Ava Mitchell' }),
   data: REVENUE_DATA,
+}
+const GREIF_FREQ = { gr_sap_s4: 'Hourly', gr_sap_pm: 'Hourly', gr_mes: 'Streaming', gr_pi: 'Streaming', gr_kinaxis: 'Daily', gr_ariba: 'Hourly', gr_blueyonder: '15 min', gr_project44: '15 min', gr_salesforce: 'Hourly', gr_lims: '15 min', gr_cority: 'Daily', gr_workday: 'Daily', gr_snowflake: 'Hourly', gr_sphera: 'Daily', gr_fastmarkets: 'Daily' }
+const GREIF_GD = {
+  sidebarNodes: [...GREIF_DATA.nodes].filter(n => n.type === 'entity').sort((a, b) => a.label.localeCompare(b.label)),
+  edges: GREIF_DATA.edges,
+  sources: buildDatasetSources(GREIF_DATA, { freqMap: GREIF_FREQ, owner: 'Marcus Feld' }),
+  data: GREIF_DATA,
 }
 
 const TABS =['Graph', 'Nodes', 'Edges', 'Sources', 'Agents', 'Records', 'Governance']
@@ -275,7 +282,7 @@ export default function GraphCanvas(props) {
 
 function GraphCanvasInner({ title = 'New graph', onBack, onAgentAI, dataset }) {
   // Select the active dataset for this render pass (children read GD below).
-  GD = dataset === 'revenue' ? REVENUE_GD : dataset === 'lowes' ? LOWES_GD : dataset === 'nike' ? NIKE_GD : dataset === 'finance' ? FINANCE_GD : dataset === 'chargepoint' ? CHARGEPOINT_GD : DEFAULT_GD
+  GD = dataset === 'greif' ? GREIF_GD : dataset === 'revenue' ? REVENUE_GD : dataset === 'lowes' ? LOWES_GD : dataset === 'nike' ? NIKE_GD : dataset === 'finance' ? FINANCE_GD : dataset === 'chargepoint' ? CHARGEPOINT_GD : DEFAULT_GD
   // The source pipeline editor resolves nodes/properties from window.NODES — keep
   // it in sync with the active graph so its mapping aligns to the Lowe's nodes.
   if (typeof window !== 'undefined') { window.NODES = GD.sidebarNodes; window.EDGES = GD.edges }
@@ -369,7 +376,7 @@ function GraphCanvasInner({ title = 'New graph', onBack, onAgentAI, dataset }) {
       ) : tab === 'Agents' && agents.length > 0 ? (
         <AgentsList agents={agents} onAction={onAgentAction} onRemove={i => setAgents(a => a.filter((_, j) => j !== i))} />
       ) : tab === 'Records' ? (
-        <RecordsPage disableDetail dataset={dataset === 'revenue' ? 'revenue' : dataset === 'lowes' ? 'lowes' : dataset === 'nike' ? 'nike' : dataset === 'finance' ? 'finance' : dataset === 'chargepoint' ? 'chargepoint' : undefined} />
+        <RecordsPage disableDetail dataset={dataset === 'greif' ? 'greif' : dataset === 'revenue' ? 'revenue' : dataset === 'lowes' ? 'lowes' : dataset === 'nike' ? 'nike' : dataset === 'finance' ? 'finance' : dataset === 'chargepoint' ? 'chargepoint' : undefined} />
       ) : tab === 'Governance' ? (
         <GovernanceRoles />
       ) : (
@@ -589,6 +596,22 @@ const FAVICON_OVERRIDES = {
   rv_clari:        _fav('clari.com'),
   rv_snowflake:    _fav('snowflake.com'),
   rv_pendo:        _fav('pendo.io'),
+  // Greif operations sources
+  gr_sap_s4:       _fav('sap.com'),
+  gr_sap_pm:       _fav('sap.com'),
+  gr_mes:          _fav('rockwellautomation.com'),
+  gr_pi:           _fav('aveva.com'),
+  gr_kinaxis:      _fav('kinaxis.com'),
+  gr_ariba:        _fav('ariba.com'),
+  gr_blueyonder:   _fav('blueyonder.com'),
+  gr_project44:    _fav('project44.com'),
+  gr_salesforce:   _fav('salesforce.com'),
+  gr_lims:         _fav('labware.com'),
+  gr_cority:       _fav('cority.com'),
+  gr_workday:      _fav('workday.com'),
+  gr_snowflake:    _fav('snowflake.com'),
+  gr_sphera:       _fav('sphera.com'),
+  gr_fastmarkets:  _fav('fastmarkets.com'),
 }
 function SourceIcon({ slug, name, size = 20 }) {
   const [failed, setFailed] = useState(false)
@@ -1575,6 +1598,16 @@ const RV_SEED_ROLES = [
   { id: 'r_rv_revops',  name: 'RevOps Analyst',           desc: 'Reads the whole revenue picture — bookings, retention and attribution.',      perm: 'Viewer', members: 7,  pii: false, scopes: govAll('account', 'opportunity', 'subscription', 'invoice', 'contract', 'product', 'renewal', 'churn_risk', 'health_score', 'campaign', 'lead') },
   { id: 'r_admin',      name: 'Workspace Admin',          desc: 'Full control over the graph schema, data, and governance.',                   perm: 'Admin',  members: 3,  pii: true,  scopes: govAll(...GOV_ENTITY_IDS) },
 ]
+// Greif COO-org seed roles — same scoping machinery, manufacturing-ops names.
+const GR_SEED_ROLES = [
+  { id: 'r_gr_plant',   name: 'Plant Manager',         desc: 'Sees everything running inside their own plant — lines, runs, downtime, crews and quality.',   perm: 'Editor', members: 214, pii: true,  scopes: govScoped('account', 'ticket', 'case', 'invoice', 'contract', 'meeting') },
+  { id: 'r_gr_vpmfg',   name: 'VP Manufacturing',      desc: 'Rolls up OEE, downtime and scrap across every plant in the business unit.',                    perm: 'Editor', members: 8,   pii: false, scopes: govAll('account', 'subscription', 'product', 'ticket', 'case', 'health_score') },
+  { id: 'r_gr_planner', name: 'Supply Chain Planner',  desc: 'Owns material coverage, purchase orders and supplier performance for their commodity.',        perm: 'Editor', members: 46,  pii: false, scopes: govAll('product', 'invoice', 'contract', 'subscription') },
+  { id: 'r_gr_logi',    name: 'Logistics Manager',     desc: 'Manages carriers, lanes and outbound shipments for their region — no customer PII.',           perm: 'Editor', members: 31,  pii: false, scopes: govAll('account', 'invoice', 'contract', 'product') },
+  { id: 'r_gr_quality', name: 'Quality Manager',       desc: 'Works inspections, non-conformances and the complaints that trace back to them.',              perm: 'Editor', members: 62,  pii: true,  scopes: govScoped('ticket', 'case', 'account', 'product') },
+  { id: 'r_gr_ehs',     name: 'EHS Manager',           desc: 'Sees safety incidents, training compliance and the crews behind them across their plants.',    perm: 'Editor', members: 24,  pii: true,  scopes: govScoped('account', 'contact', 'ticket', 'case') },
+  { id: 'r_admin',      name: 'Workspace Admin',       desc: 'Full control over the graph schema, data, and governance.',                                    perm: 'Admin',  members: 3,   pii: true,  scopes: govAll(...GOV_ENTITY_IDS) },
+]
 const ROLE_SORTERS = {
   'Members': (a, b) => b.members - a.members,
   'Name (A–Z)': (a, b) => a.name.localeCompare(b.name),
@@ -1600,7 +1633,7 @@ const govSelect = { ...govInput, appearance: 'none', cursor: 'pointer', backgrou
 
 // ── Governance container: list ⇄ role detail ────────────────────────────────
 function GovernanceRoles() {
-  const [roles, setRoles] = useState(() => (GD === REVENUE_GD ? RV_SEED_ROLES : GD === CHARGEPOINT_GD ? CP_SEED_ROLES : SEED_ROLES))
+  const [roles, setRoles] = useState(() => (GD === GREIF_GD ? GR_SEED_ROLES : GD === REVENUE_GD ? RV_SEED_ROLES : GD === CHARGEPOINT_GD ? CP_SEED_ROLES : SEED_ROLES))
   const [open, setOpen] = useState(null) // role being viewed/edited, or 'new'
 
   const saveRole = role => {
