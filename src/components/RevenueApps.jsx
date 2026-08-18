@@ -445,8 +445,10 @@ const SEG_LOGOS = SEGMENTS.reduce((s, x) => s + x.logos, 0)
 // ─── SMALL SHARED PIECES (Revenue apps only) ─────────────────────────────────
 
 const sect = { fontSize: 10.5, fontWeight: 600, letterSpacing: 0.6, textTransform: 'uppercase', color: MUTED, marginBottom: 8 }
-const thStyle = { textAlign: 'left', padding: '0 0 7px', fontSize: 10, fontWeight: 600, letterSpacing: 0.5, textTransform: 'uppercase', color: MUTED, borderBottom: `1px solid ${LINE}`, whiteSpace: 'nowrap' }
-const tdStyle = { padding: '8px 0', verticalAlign: 'middle', whiteSpace: 'nowrap', fontSize: 12.5 }
+// Every cell carries a right gutter so adjacent columns — especially the
+// right-aligned numeric ones — never run into their neighbour's label.
+const thStyle = { textAlign: 'left', padding: '0 14px 7px 0', fontSize: 10, fontWeight: 600, letterSpacing: 0.5, textTransform: 'uppercase', color: MUTED, borderBottom: `1px solid ${LINE}`, whiteSpace: 'nowrap' }
+const tdStyle = { padding: '8px 14px 8px 0', verticalAlign: 'middle', whiteSpace: 'nowrap', fontSize: 12.5 }
 
 const usdM = n => '$' + (Math.abs(n) >= 100 ? Math.round(n) : n.toFixed(1)) + 'M'
 const pct = n => `${n}%`
