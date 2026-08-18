@@ -4,9 +4,11 @@ import * as GRAPHS from './GraphStage'
 
 // The Greif operations graph is optional — picked up only once it lands in GraphStage.
 const GREIF_NODES = GRAPHS.GREIF_DATA?.nodes || []
+// Same for the revenue teams graph.
+const REVENUE_NODES = GRAPHS.REVENUE_DATA?.nodes || []
 
 // ── Node lookup (for rendering graph chips in the reasoning trace) ──
-const NODE_BY_ID = (() => { const m = {}; [...NIKE_DATA.nodes, ...CHARGEPOINT_DATA.nodes, ...GREIF_NODES].forEach(n => { m[n.id] = n }); return m })()
+const NODE_BY_ID = (() => { const m = {}; [...NIKE_DATA.nodes, ...CHARGEPOINT_DATA.nodes, ...GREIF_NODES, ...REVENUE_NODES].forEach(n => { m[n.id] = n }); return m })()
 
 // Synthesize a record's field values from the node's property schema — lets the
 // "View record" action show a real record inspector for a cited source.
@@ -67,6 +69,21 @@ const AGENTS = [
   { id: 'ehsq', name: 'Safety & Quality Agent', color: '#c2543a', tagline: 'Connects recordables and non-conformances to plants, shifts and training.', graph: 'Greif Operations Context Graph',
     greeting: "I'm grounded in the Greif Operations Context Graph. I connect recordables and non-conformances to the plants, shifts, tenure bands, training records and material lots behind them — ask me whether an incident or defect trend has a pattern and I'll show you the evidence.",
     starters: ['safety_pattern', 'quality_ncr', 'oee_drop'] },
+  { id: 'pipeline', name: 'Pipeline Agent', color: '#16341f', tagline: 'Tests the forecast against what the graph actually shows.', graph: 'Revenue Teams Context Graph',
+    greeting: "I'm grounded in the Revenue Teams Context Graph. I test the number against the evidence underneath it — logged activity on the deals in commit, close dates that have already moved, threading and stage velocity — ask me whether the forecast survives contact with the graph.",
+    starters: ['forecast_call', 'deal_slippage', 'stage_conversion'] },
+  { id: 'attribution', name: 'Attribution Agent', color: '#8a5a2b', tagline: 'Separates campaigns that create pipeline from ones that take credit.', graph: 'Revenue Teams Context Graph',
+    greeting: "I'm grounded in the Revenue Teams Context Graph. I trace pipeline back through touches, web sessions, ad spend and intent, then re-run the credit under multi-touch — ask me which campaigns created pipeline and which ones only stood next to it.",
+    starters: ['campaign_pipeline', 'channel_mix', 'forecast_call'] },
+  { id: 'retention', name: 'Retention Agent', color: '#c2543a', tagline: 'Finds churn early, in usage and engagement, not at renewal.', graph: 'Revenue Teams Context Graph',
+    greeting: "I'm grounded in the Revenue Teams Context Graph. I read churn in seat utilization, champion silence and ageing Sev-2s months before anyone opens a renewal conversation — ask me which accounts are leaving and I'll show you the tell that fired first.",
+    starters: ['churn_watch', 'renewal_risk', 'health_drivers'] },
+  { id: 'expansion', name: 'Expansion Agent', color: '#0f8a5f', tagline: 'Surfaces whitespace and upsell the usage data already proves.', graph: 'Revenue Teams Context Graph',
+    greeting: "I'm grounded in the Revenue Teams Context Graph. I join product telemetry to entitlements, third-party intent and pricing-page behaviour to find accounts that are already buying before anyone has asked them — ask me where the whitespace is and I'll size it.",
+    starters: ['whitespace', 'expansion_signals', 'churn_watch'] },
+  { id: 'winloss', name: 'Win-Loss Agent', color: '#6b5aa6', tagline: 'Explains why deals are actually won and lost.', graph: 'Revenue Teams Context Graph',
+    greeting: "I'm grounded in the Revenue Teams Context Graph. I take won and lost deals apart across competitor mentions, discount depth, threading and call transcripts — ask me why we lose and I'll tell you whether it was really the price.",
+    starters: ['competitive_loss', 'discount_leak', 'stage_conversion'] },
 ]
 
 // ── Scripted, graph-grounded conversations ───────────────────────────────────
@@ -954,6 +971,610 @@ RETURN c.name, count(cm) AS complaints,
       { n: 5, node: 'gr_complaint', ref: 'CMP-9041', detail: '23 complaints (Dow 14 · Shell Lubricants 9) at 19–21 day lag' },
     ],
   },
+  forecast_call: {
+    q: "Is the Q3 commit real?",
+    tag: 'Forecast · Pipeline · Risk',
+    chain: [
+      { kind: 'cypher', title: 'Read the submitted commit against quota', nodes: ['rv_forecast', 'rv_ae', 'rv_territory'],
+        cypher: `MATCH (f:ForecastSubmission {period:'FY26-Q3'})-[:SUBMITTED_BY]->(ae:AccountExecutive)
+      -[:COVERS]->(t:Territory)
+RETURN sum(f.commit_usd) AS commit, sum(f.best_case_usd) AS best_case,
+       sum(t.quota_usd) AS quota, sum(f.closed_usd) AS closed`,
+        result: `commit $8.40M · best case $11.20M · quota $9.20M · closed-won $3.10M\nopen pipeline $21.8M → 2.4× coverage on the remaining gap` },
+      { kind: 'cypher', title: 'Test every commit deal for logged activity', nodes: ['rv_opportunity', 'rv_activity', 'rv_pipeline'],
+        cypher: `MATCH (o:Opportunity {forecast_category:'Commit'})<-[:ADVANCED]-(a:Activity)
+WITH o, max(a.occurred_at) AS last_touch
+WHERE last_touch < date() - duration('P21D')
+RETURN count(o) AS deals, sum(o.amount_usd) AS amount`,
+        result: `19 of 61 commit deals dark → $2.60M of $8.40M (31%) with no logged activity in 21 days` },
+      { kind: 'sql', title: 'Count close-date pushes per commit deal', nodes: ['rv_opportunity', 'rv_forecast'],
+        cypher: `SELECT o.name, o.amount_usd, o.owner_name, COUNT(*) AS pushes
+FROM   opportunity_field_history h JOIN dim_opportunity o ON o.id = h.opportunity_id
+WHERE  h.field = 'CloseDate' AND o.forecast_category = 'Commit'
+GROUP  BY 1,2,3 HAVING COUNT(*) >= 2 ORDER BY o.amount_usd DESC`,
+        result: `Meridian Labs $680K → pushed 2× (Sofia Marchetti)\nCascade Analytics $520K → pushed 2× (Daniel Osei)\nNorthwind Logistics — Expansion $410K → pushed 2× (Priya Raman)\n→ $1.61M of the commit has already moved twice` },
+      { kind: 'semantic', title: 'Read the call record on the commit deals', nodes: ['rv_activity', 'rv_opportunity'],
+        query: 'agreed next steps and buyer commitments on Q3 commit deals',
+        matches: [
+          { score: 0.93, text: 'Meridian Labs 08-06: “legal review not started, no date agreed”', src: 'Gong' },
+          { score: 0.88, text: 'Cascade Analytics: procurement sponsor changed, sequence paused 12 days', src: 'Outreach' },
+          { score: 0.81, text: '3 commit deals scored slip-risk High two weeks running', src: 'Clari' },
+        ] },
+    ],
+    answer: [
+      { kind: 'verdict', text: 'No — $8.40M is not the number. Strip out what the graph shows is not moving and the realistic commit is about **$7.6M**, roughly $1.6M short of the $9.20M quota.' },
+      { kind: 'para', text: 'The submitted call is $8.40M commit and $11.20M best case against a $9.20M quota, with $3.10M already closed-won[1]. On its face that is a normal, slightly-short quarter. The graph disagrees with the composition of the commit, not the arithmetic — a third of it has no evidence underneath it.' },
+      { kind: 'bullet', text: '**31% of the commit has gone dark** — 19 of 61 commit deals, worth $2.60M, have no logged call, meeting or email in 21 days[2]. These are not early-stage deals being neglected; they are deals a rep has personally committed to close inside 45 days.' },
+      { kind: 'bullet', text: '**$1.61M has already moved twice** — Meridian Labs $680K (Sofia Marchetti), Cascade Analytics $520K (Daniel Osei) and the Northwind Logistics expansion $410K (Priya Raman) have each pushed their close date two times[3][5]. A second push is the strongest single predictor of a third.' },
+      { kind: 'bullet', text: '**The calls corroborate the silence** — Meridian ended on “legal review not started, no date agreed”, Cascade lost its procurement sponsor and has been paused 12 days, and Clari has flagged the same three deals slip-risk High for two consecutive weeks[4].' },
+      { kind: 'para', text: "Re-pricing the commit on the graph's own historical conversion: the $5.80M with live activity converts at 94% ($5.45M), and the $2.60M dark block converts at 38% ($0.99M)[2][4]. Add the $1.20M of best case that is genuinely running ahead of schedule and the realistic landing is **$7.6M** — a $1.6M gap, not the $0.8M gap the submitted call implies." },
+      { kind: 'action', text: 'Recommend: (1) move Meridian, Cascade and the Northwind expansion out of Commit until a mutual close plan with a dated legal step is logged[3]; (2) gate the Commit category on 21-day activity so a dark deal cannot carry the number[2]; (3) call $7.6M now and work the $11.20M best case for pull-forward — the gap is findable this quarter, but only if it is named this week[1].' },
+    ],
+    sources: [
+      { n: 1, node: 'rv_forecast', ref: 'FCS-Q3-0442', detail: 'Q3 commit $8.40M · best case $11.20M · quota $9.20M · closed-won $3.10M' },
+      { n: 2, node: 'rv_activity', ref: 'ACT-771204', detail: '19 of 61 commit deals · $2.60M · no logged activity in 21 days' },
+      { n: 3, node: 'rv_opportunity', ref: 'OPP-44210', detail: 'Meridian $680K · Cascade $520K · Northwind expansion $410K — each pushed 2×' },
+      { n: 4, node: 'rv_pipeline', ref: 'PH-3312', detail: 'Slip-risk High on 3 commit deals, two consecutive weeks' },
+      { n: 5, node: 'rv_ae', ref: 'AE-1188', detail: 'Sofia Marchetti · Daniel Osei · Priya Raman own the three twice-pushed deals' },
+    ],
+  },
+  deal_slippage: {
+    q: "Which deals are about to slip, and why?",
+    tag: 'Deal Risk · Activity',
+    chain: [
+      { kind: 'cypher', title: 'Score late-stage deals for slip risk', nodes: ['rv_pipeline', 'rv_opportunity', 'rv_ae'],
+        cypher: `MATCH (ph:PipelineHealth)-[:ON_PIPELINE]->(o:Opportunity)-[:OWNED_BY]->(ae:AccountExecutive)
+WHERE o.stage IN ['Proposal','Negotiation'] AND o.close_date <= date() + duration('P45D')
+RETURN o.name, o.amount_usd, ae.name, ph.slip_risk, ph.stage_velocity_days
+ORDER BY ph.slip_risk DESC, o.amount_usd DESC`,
+        result: `Meridian Labs $680K · Sofia Marchetti · High · 41d in Proposal\nCascade Analytics $520K · Daniel Osei · High · 38d\nHorizon Tech $445K · Tom Bradley · High · 29d\nNorthwind — Expansion $410K · Priya Raman · Medium · 24d\nSummit Partners $390K · Elena Ruiz · Low · 11d` },
+      { kind: 'cypher', title: 'Count engaged contacts per deal (threading)', nodes: ['rv_opportunity', 'rv_contact', 'rv_activity'],
+        cypher: `MATCH (o:Opportunity)-[:HAS_BUYER]->(c:Contact)<-[:WITH_CONTACT]-(a:Activity)
+WHERE a.occurred_at > date() - duration('P30D')
+RETURN o.name, count(DISTINCT c) AS threads, collect(DISTINCT c.title)[..3] AS roles`,
+        result: `Meridian Labs → 1 (Director, Analytics)\nHorizon Tech → 1 (Solutions Architect)\nCascade Analytics → 2 (VP Engineering, Manager)\nNorthwind — Expansion → 2 (VP Ops, Admin)\nSummit Partners → 5 (CFO, VP Ops, Security, 2 users)` },
+      { kind: 'sql', title: 'Measure champion silence and next-step staleness', nodes: ['rv_activity', 'rv_contact'],
+        cypher: `SELECT o.name, MAX(a.occurred_at) AS last_touch,
+       DATEDIFF('day', MAX(a.occurred_at), CURRENT_DATE) AS quiet_days,
+       DATEDIFF('day', MAX(o.next_step_updated_at), CURRENT_DATE) AS next_step_age
+FROM   activity_facts a JOIN dim_opportunity o ON o.id = a.opportunity_id
+WHERE  a.contact_role = 'Champion' GROUP BY 1 ORDER BY quiet_days DESC`,
+        result: `Northwind — Expansion → Maya Chen quiet 34d · next step age 28d\nMeridian Labs → champion quiet 22d · next step unchanged 19d\nCascade Analytics → quiet 17d · next step “follow up” unchanged 26d\nSummit Partners → quiet 3d · next step age 4d` },
+      { kind: 'semantic', title: 'Read what the last calls actually agreed', nodes: ['rv_activity', 'rv_competitor'],
+        query: 'agreed next steps and competitor mentions on late-stage deals',
+        matches: [
+          { score: 0.92, text: 'Meridian Labs: “we will circle back after budget planning” — no date set', src: 'Gong' },
+          { score: 0.86, text: 'Horizon Tech: Atlas Data Cloud named on the last two calls', src: 'Gong' },
+          { score: 0.79, text: 'Cascade Analytics: 12-day sequence gap, no reply to the last 3 steps', src: 'Outreach' },
+        ] },
+    ],
+    answer: [
+      { kind: 'verdict', text: 'Four deals worth $2.06M are slipping, and in every case the tell is structural — one contact, a stale next step, or a champion who stopped replying — not a pricing objection.' },
+      { kind: 'para', text: 'Five deals close inside 45 days. Four of them carry at least two of the three failure signatures the graph tracks: single-threading, a next step that has not changed in weeks, and champion silence[1][2][3]. Ranked by slip probability:' },
+      { kind: 'list', n: 1, text: '**Meridian Labs — $680K · Sofia Marchetti · 0.78** — 41 days in Proposal, single-threaded to one Director of Analytics[2], champion quiet 22 days with the next step untouched for 19[3], and the last call closed on “circle back after budget planning” with no date attached[4]. It has already pushed twice[1].' },
+      { kind: 'list', n: 2, text: '**Cascade Analytics — $520K · Daniel Osei · 0.71** — two contacts, both below the buying line[2]; the Outreach sequence has been stalled 12 days with no reply to the last three steps[4], and the next step has read “follow up” for 26 days[3].' },
+      { kind: 'list', n: 3, text: '**Horizon Tech — $445K · Tom Bradley · 0.66** — single-threaded to a solutions architect[2] with Atlas Data Cloud named on the last two calls[4]. The deal is being shopped and we are talking to the one person who cannot decide it.' },
+      { kind: 'list', n: 4, text: "**Northwind Logistics — Expansion $410K · Priya Raman · 0.63** — champion Maya Chen has been quiet 34 days[3]. The same silence shows up on the retention side: Northwind's renewal is 112 days out at health 72[5], so this is one account problem being counted as two." },
+      { kind: 'bullet', text: '**Summit Partners is the control** — same stage, comparable size at $390K, but five engaged contacts spanning CFO, VP Ops and Security, champion touched 3 days ago and only 11 days in stage[1][2][3]. None of the signals fire.' },
+      { kind: 'bullet', text: '**Single-threading is the strongest predictor in the set** — deals with one engaged contact slip 3.1× more often than deals with four or more[1][2], and every High-risk deal here has one or two.' },
+      { kind: 'action', text: 'Recommend: (1) run a multi-thread play on Meridian and Horizon this week — an exec-to-exec touch above the current contact, not another email to the same person[2]; (2) treat a next step older than 14 days as an automatic stage review rather than a reporting field[3]; (3) put Horizon into the competitive motion now that Atlas is named, rather than after the proposal[4]; (4) hand Northwind to the CSM and the AE together — the expansion and the renewal are the same conversation[5].' },
+    ],
+    sources: [
+      { n: 1, node: 'rv_pipeline', ref: 'PH-3318', detail: 'Slip-risk High: Meridian, Cascade, Horizon · 41/38/29 days in stage' },
+      { n: 2, node: 'rv_contact', ref: 'CON-55120', detail: 'Meridian 1 engaged contact · Horizon 1 · Summit 5 across CFO/VP Ops/Security' },
+      { n: 3, node: 'rv_activity', ref: 'ACT-771318', detail: 'Maya Chen quiet 34d · Meridian next step unchanged 19d · Cascade 26d' },
+      { n: 4, node: 'rv_competitor', ref: 'CMP-ATLAS', detail: 'Atlas Data Cloud named on the last two Horizon Tech calls' },
+      { n: 5, node: 'rv_health', ref: 'HS-NORTHWIND', detail: 'Northwind Logistics · health 72 · $1.24M ARR · renewal in 112 days' },
+    ],
+  },
+  stage_conversion: {
+    q: "Where is the funnel actually leaking?",
+    tag: 'Funnel · Conversion',
+    chain: [
+      { kind: 'sql', title: 'Compute stage-to-stage conversion by segment', nodes: ['rv_opportunity', 'rv_territory'],
+        cypher: `SELECT t.segment, s.stage_from, s.stage_to,
+       COUNT(*) FILTER (WHERE s.advanced) * 1.0 / COUNT(*) AS conv
+FROM   stage_transition_facts s JOIN dim_territory t ON t.id = s.territory_id
+WHERE  s.quarter IN ('FY26-Q2','FY26-Q3')
+GROUP  BY 1,2,3 ORDER BY conv`,
+        result: `Discovery → Proposal      Ent 58% · MM 54% · SMB 51%\nProposal → Negotiation    Ent 62% · MM 31% · SMB 49%\nNegotiation → Closed Won  Ent 74% · MM 71% · SMB 69%\n→ one cell sits 31 points below its peer; every other gap is inside 7` },
+      { kind: 'cypher', title: 'Check who is engaged before the proposal goes out', nodes: ['rv_opportunity', 'rv_contact', 'rv_activity'],
+        cypher: `MATCH (o:Opportunity)-[:HAS_BUYER]->(c:Contact)<-[:WITH_CONTACT]-(a:Activity)
+WHERE a.occurred_at < o.proposal_sent_at
+RETURN o.segment,
+       sum(CASE WHEN c.persona = 'Economic Buyer' THEN 1 ELSE 0 END) * 1.0
+       / count(DISTINCT o) AS eb_rate`,
+        result: `Enterprise → economic buyer engaged pre-Proposal on 81% of deals\nSMB → 47%\nMid-Market → 34%` },
+      { kind: 'sql', title: 'Test whether the buyer explains the gap', nodes: ['rv_opportunity', 'rv_quote'],
+        cypher: `SELECT eb_engaged, COUNT(*) AS deals,
+       AVG(advanced_to_negotiation::int) AS conv, AVG(days_in_proposal) AS days
+FROM   proposal_stage_facts
+WHERE  segment = 'Mid-Market' AND quarter IN ('FY26-Q2','FY26-Q3')
+GROUP  BY 1`,
+        result: `EB engaged pre-Proposal →  64 deals · 71% advance · 12 days in stage\nno EB engaged          → 126 deals · 29% advance · 34 days in stage` },
+      { kind: 'semantic', title: 'Read the stall language on Mid-Market proposals', nodes: ['rv_activity', 'rv_opportunity'],
+        query: 'why mid-market proposals stall before negotiation',
+        matches: [
+          { score: 0.94, text: '“I need to take this to my VP” — in 58% of stalled MM proposal calls', src: 'Gong' },
+          { score: 0.85, text: 'MM opportunities average 2.1 engaged contacts vs 4.6 in Enterprise', src: 'Salesforce' },
+          { score: 0.77, text: 'MM sequences target practitioner titles over VP+ by 4:1', src: 'Outreach' },
+        ] },
+    ],
+    answer: [
+      { kind: 'verdict', text: "The funnel leaks in exactly one cell — Proposal → Negotiation in Mid-Market, 31% against Enterprise's 62% — and the cause is that nobody who can sign has been in the room before the proposal goes out." },
+      { kind: 'para', text: 'Every other transition is within seven points across segments: Discovery → Proposal runs 51–58%, Negotiation → Closed Won runs 69–74%[1]. There is no general conversion problem and no segment that is broadly weaker. One cell is 31 points below its peer, and that is worth explaining before anyone reworks the top of the funnel.' },
+      { kind: 'bullet', text: '**The economic buyer is missing** — Enterprise engages an economic buyer before Proposal on 81% of deals; Mid-Market manages 34%[2]. That is the largest structural difference between the two motions, and it lands exactly at the stage that leaks.' },
+      { kind: 'bullet', text: '**Within Mid-Market the split is decisive** — proposals with an economic buyer engaged advance 71% of the time in 12 days; proposals without advance 29% of the time and sit 34 days in stage[3]. Same segment, same product, same reps: the only variable is who was in the room.' },
+      { kind: 'bullet', text: '**The calls say it out loud** — “I need to take this to my VP” appears in 58% of stalled Mid-Market proposal calls[4]. The proposal is not being rejected; it is being handed to someone who has never heard the pitch.' },
+      { kind: 'bullet', text: '**It is a targeting artefact, not a skill gap** — Mid-Market sequences aim at practitioner titles over VP+ by four to one[4], so the pipeline is built bottom-up and then asked to close top-down.' },
+      { kind: 'para', text: 'Sizing it: Mid-Market ran 190 proposals over two quarters, 126 of them without an economic buyer[3][5]. Lifting that cohort from 29% to 50% is about 13 extra deals into Negotiation per quarter — roughly $2.4M of incremental late-stage pipeline at the $185K Mid-Market average, or about $1.7M of bookings at the 71% negotiation-to-close rate[1][5].' },
+      { kind: 'action', text: 'Recommend: (1) make an engaged economic buyer an exit criterion for Discovery in Mid-Market — no proposal without one[2]; (2) rebalance Mid-Market sequences toward VP+ titles so the buyer is reachable before the proposal exists[4]; (3) enforce the gate against the graph rather than a checkbox — the contact and activity records already prove it[3]; (4) leave Enterprise and SMB alone, they are converting normally[1].' },
+    ],
+    sources: [
+      { n: 1, node: 'rv_opportunity', ref: 'OPP-STG-Q3', detail: 'Proposal → Negotiation: Enterprise 62% · Mid-Market 31% · SMB 49%' },
+      { n: 2, node: 'rv_contact', ref: 'CON-EB-MM', detail: 'Economic buyer engaged pre-Proposal: Enterprise 81% · SMB 47% · Mid-Market 34%' },
+      { n: 3, node: 'rv_activity', ref: 'ACT-MM-PROP', detail: 'MM: EB-engaged 71% advance in 12 days vs 29% in 34 days' },
+      { n: 4, node: 'rv_pipeline', ref: 'PH-MM-3402', detail: '“Take this to my VP” in 58% of stalled MM calls · sequences 4:1 practitioner' },
+      { n: 5, node: 'rv_territory', ref: 'TER-MM-NA', detail: 'Mid-Market NA · 190 proposals over two quarters · avg deal $185K' },
+    ],
+  },
+  campaign_pipeline: {
+    q: "Which campaigns actually created pipeline last quarter?",
+    tag: 'Attribution · Campaigns',
+    chain: [
+      { kind: 'cypher', title: 'Credit pipeline under the last-touch model', nodes: ['rv_attrib', 'rv_touch', 'rv_campaign'],
+        cypher: `MATCH (cr:AttributionCredit {model:'Last Touch'})-[:CREDITS]->(t:Touch)
+      -[:FROM_CAMPAIGN]->(c:Campaign)
+MATCH (cr)-[:ATTRIBUTES_TO]->(o:Opportunity)
+RETURN c.name, sum(cr.credited_amount_usd) AS credited
+ORDER BY credited DESC LIMIT 4`,
+        result: `“State of Ops” webinar series → $4.10M\nCompetitor paid search (Atlas terms) → $1.10M\nABM / intent-triggered outbound → $0.86M\nLinkedIn paid social → $0.74M` },
+      { kind: 'cypher', title: 'Re-run multi-touch and split sourced from influenced', nodes: ['rv_touch', 'rv_opportunity', 'rv_attrib'],
+        cypher: `MATCH (t:Touch)-[:FROM_CAMPAIGN]->(c:Campaign)
+MATCH (t)-[:INFLUENCED]->(o:Opportunity)
+WITH c, o, min(t.touched_at) AS first_touch, o.created_at AS opened
+RETURN c.name,
+       sum(CASE WHEN first_touch < opened THEN o.amount_usd END) AS sourced,
+       sum(CASE WHEN first_touch >= opened THEN o.amount_usd END) AS influenced`,
+        result: `“State of Ops” webinar → sourced $0.90M · influenced $3.20M (78% of touches landed on deals already open)\nCompetitor paid search → sourced $2.90M · influenced $0.31M\nABM / intent outbound → sourced $1.80M · influenced $0.42M` },
+      { kind: 'sql', title: 'Count net-new logos and cost per sourced dollar', nodes: ['rv_adspend', 'rv_account', 'rv_campaign'],
+        cypher: `SELECT c.name, SUM(s.spend_usd) AS spend,
+       COUNT(DISTINCT a.account_id) AS new_logos,
+       SUM(s.spend_usd) / NULLIF(SUM(p.sourced_usd), 0) AS cost_per_sourced_dollar
+FROM   dim_campaign c JOIN adspend_facts s ON s.campaign_id = c.id
+JOIN   sourced_pipeline p ON p.campaign_id = c.id
+LEFT   JOIN dim_account a ON a.first_touch_campaign_id = c.id AND a.is_new_logo
+GROUP  BY 1 ORDER BY cost_per_sourced_dollar`,
+        result: `ABM / intent outbound → $108K spend ·  9 net-new logos · $0.06 per $1 sourced\nCompetitor paid search → $232K spend · 14 net-new logos · $0.08\n“State of Ops” webinar → $279K spend ·  2 net-new logos · $0.31` },
+      { kind: 'semantic', title: 'Read the journey behind the webinar credit', nodes: ['rv_websession', 'rv_content', 'rv_touch'],
+        query: 'who attends the State of Ops webinar and where they sit in the journey',
+        matches: [
+          { score: 0.93, text: '78% of webinar registrants map to accounts with an open opportunity', src: 'Marketo' },
+          { score: 0.87, text: 'Registration traffic is 61% direct and email — almost no new discovery', src: 'Segment CDP' },
+          { score: 0.80, text: '“Atlas Data Cloud alternative” ad group: 3.4× the visit-to-MQL rate', src: 'Google Ads' },
+        ] },
+    ],
+    answer: [
+      { kind: 'verdict', text: 'The webinar is a scoreboard artefact. It banks $4.10M on last touch but sources only $0.90M — the campaign actually creating pipeline is competitor paid search, at $2.90M sourced and 14 net-new logos for $0.08 per sourced dollar.' },
+      { kind: 'para', text: 'Under last touch the ranking looks settled: the “State of Ops” webinar series takes $4.10M of credit, nearly four times the next campaign[1]. Re-run the same touches under multi-touch, splitting pipeline a campaign *sourced* from pipeline it merely *touched*, and the ranking inverts completely[2].' },
+      { kind: 'list', n: 1, text: '**Competitor paid search — the real creator.** $2.90M sourced against $0.31M influenced[2], 14 net-new logos on $232K of spend, $0.08 per sourced dollar[3][5]. The “Atlas Data Cloud alternative” ad group converts visits to MQLs at 3.4× the account average[4] — it buys in-market demand at the exact moment a buyer is comparing us to the competitor we lose to most.' },
+      { kind: 'list', n: 2, text: '**ABM / intent-triggered outbound — the efficient one.** $1.80M sourced on $108K of spend and 9 net-new logos, the cheapest sourced dollar in the mix at $0.06[2][3][5]. It takes the least last-touch credit ($0.86M) precisely because it works accounts long before a form fill exists to be credited[1].' },
+      { kind: 'list', n: 3, text: '**“State of Ops” webinar — influence, not creation.** $0.90M sourced against $3.20M influenced[2]. 78% of registrants already had an open opportunity and 61% of registration traffic arrives direct or by email[4] — it re-touches pipeline sales already built, then collects the last-touch credit for it. Two net-new logos on $279K[3][5].' },
+      { kind: 'bullet', text: '**The webinar is still worth running — just not for sourcing.** Re-touching open deals is a legitimate job; it should be measured on stage progression in the accounts it touches, not on sourced pipeline, and it should stop being the reason paid search is under-funded[2][3].' },
+      { kind: 'bullet', text: '**The model choice is the entire finding.** Nothing about the campaigns changed between the two views. Last touch systematically rewards whatever ran closest to the close, which is exactly the campaign that did the least to create the deal[1][2].' },
+      { kind: 'action', text: 'Recommend: (1) move sourcing budget to competitor paid search and intent-triggered outbound, which together sourced $4.70M on $340K[2][3]; (2) retire last touch as the reporting default and publish sourced against influenced side by side[1]; (3) re-scope the webinar as a late-stage program measured on progression[4]; (4) raise impression share on the competitor ad group before a rival buys the term[4].' },
+    ],
+    sources: [
+      { n: 1, node: 'rv_attrib', ref: 'ATC-Q3-LT', detail: 'Last touch: webinar $4.10M · paid search $1.10M · ABM $0.86M · social $0.74M' },
+      { n: 2, node: 'rv_touch', ref: 'TCH-Q3-MTA', detail: 'Multi-touch: webinar sourced $0.90M / influenced $3.20M · search sourced $2.90M' },
+      { n: 3, node: 'rv_adspend', ref: 'ADS-PS-4412', detail: 'Paid search $232K at $0.08 per sourced $1 · webinar $279K at $0.31' },
+      { n: 4, node: 'rv_campaign', ref: 'CMP-SOO-26', detail: '“State of Ops” webinar · 78% of registrants already on an open opportunity' },
+      { n: 5, node: 'rv_account', ref: 'ACC-NEWLOGO-Q3', detail: '14 net-new logos from paid search · 9 from ABM · 2 from the webinar' },
+    ],
+  },
+  channel_mix: {
+    q: "Where should the next $500K of spend go?",
+    tag: 'Channel · Spend · ROI',
+    chain: [
+      { kind: 'sql', title: 'Rank channels by cost per sourced pipeline dollar', nodes: ['rv_adspend', 'rv_campaign'],
+        cypher: `SELECT c.channel, SUM(s.spend_usd) AS spend, SUM(p.sourced_usd) AS sourced,
+       SUM(s.spend_usd) / NULLIF(SUM(p.sourced_usd), 0) AS cost_per_sourced_dollar
+FROM   adspend_facts s JOIN dim_campaign c ON c.id = s.campaign_id
+JOIN   sourced_pipeline p ON p.campaign_id = c.id
+GROUP  BY 1 ORDER BY cost_per_sourced_dollar`,
+        result: `ABM / intent-triggered outbound → $0.06 per $1 sourced ($108K spend)\nCompetitor paid search → $0.08 ($232K)\nPartner co-marketing → $0.14 ($64K)\nLinkedIn paid social → $0.24 ($196K)\n“State of Ops” webinar → $0.31 ($279K)` },
+      { kind: 'cypher', title: 'Fit the saturation curve on paid social', nodes: ['rv_adspend', 'rv_touch', 'rv_campaign'],
+        cypher: `MATCH (s:AdSpend)-[:FUNDS]->(c:Campaign {channel:'Paid Social'})
+MATCH (t:Touch)-[:FROM_CAMPAIGN]->(c)
+WITH s.week AS wk, sum(s.spend_usd) AS spend, sum(t.attributed_amount_usd) AS sourced
+RETURN wk, spend, sourced, sourced / spend AS return_per_dollar
+ORDER BY spend`,
+        result: `up to $20K/wk → $5.10 sourced per $1\n$20–35K/wk → $4.20\n$35–50K/wk → $2.30\nabove $50K/wk → $1.60\n→ marginal return breaks down past roughly $35K per week` },
+      { kind: 'cypher', title: 'Size the unworked in-market headroom', nodes: ['rv_intent', 'rv_account', 'rv_segment'],
+        cypher: `MATCH (i:IntentSignal)-[:ON_ACCOUNT]->(a:Account)
+WHERE i.intent_score > 70 AND i.buying_stage IN ['Consideration','Decision']
+OPTIONAL MATCH (a)<-[:TOUCHED]-(t:Touch)
+WHERE t.touched_at > date() - duration('P30D')
+RETURN count(DISTINCT a) AS accounts, count(DISTINCT t) AS touched,
+       sum(a.modelled_potential_usd) AS headroom`,
+        result: `486 in-market accounts scored above 70 · only 137 touched in the last 30 days\n349 unworked → $18.4M of modelled potential` },
+      { kind: 'semantic', title: 'Retrieve platform and channel constraints', nodes: ['rv_adspend', 'rv_intent'],
+        query: 'channel saturation, ad fatigue and unbought demand this quarter',
+        matches: [
+          { score: 0.91, text: 'LinkedIn frequency 4.8 per member per week — above the 3.0 fatigue threshold', src: 'LinkedIn Ads' },
+          { score: 0.86, text: '349 in-market accounts with no outbound sequence attached', src: '6sense' },
+          { score: 0.78, text: 'Competitor-term impression share 41% — 59% of available demand unbought', src: 'Google Ads' },
+        ] },
+    ],
+    answer: [
+      { kind: 'verdict', text: 'Not into paid social. Put **$260K into intent-triggered outbound, $180K into competitor paid search and hold $60K on the webinar** — the same $500K poured into paid social buys roughly a third of the pipeline.' },
+      { kind: 'para', text: 'Cost per sourced pipeline dollar spreads five-fold across the channel set: $0.06 on ABM and intent-triggered outbound and $0.08 on competitor paid search, against $0.24 on paid social and $0.31 on the webinar[1]. That spread alone would settle the allocation — provided the cheap channels have somewhere to put the money, which the graph confirms they do.' },
+      { kind: 'bullet', text: '**Paid social is already past its knee.** Return falls from $5.10 per dollar below $20K a week to $1.60 above $50K[2], and LinkedIn frequency is at 4.8 impressions per member per week against a 3.0 fatigue threshold[5]. Adding budget here buys repetition, not reach.' },
+      { kind: 'bullet', text: '**Intent outbound has the deepest headroom.** 486 accounts score above 70 in Consideration or Decision, and only 137 have been touched in 30 days — 349 unworked accounts carrying $18.4M of modelled potential[3]. This is demand we already pay 6sense to identify and then do not act on.' },
+      { kind: 'bullet', text: '**Competitor search is capacity-constrained, not demand-constrained.** Impression share on the competitor terms is 41%, so 59% of available demand goes unbought[4] — the same query set that produced 14 net-new logos last quarter. Raising share is the lowest-risk incremental dollar in the plan.' },
+      { kind: 'para', text: 'Modelled outcome of the split: $260K into intent outbound at a degrading $0.09 marginal cost sources about $2.9M; $180K into competitor search at a marginal $0.11 sources about $1.6M; the $60K webinar hold protects late-stage touch coverage. Total ≈ **$4.5M of sourced pipeline**, against roughly $1.6M if the same $500K went to paid social at its current marginal return[1][2][3].' },
+      { kind: 'action', text: 'Recommend: (1) allocate $260K / $180K / $60K to intent outbound, competitor search and webinar, with zero incremental paid social[1]; (2) cap paid social at $35K a week rather than cutting it — it is efficient below the knee[2]; (3) attach a sequence to the 349 unworked in-market accounts before buying any new demand[3]; (4) re-check impression share monthly, since the competitor term is the one input a rival can take away from us[4][5].' },
+    ],
+    sources: [
+      { n: 1, node: 'rv_adspend', ref: 'ADS-Q3-MIX', detail: 'Cost per sourced $1: ABM $0.06 · search $0.08 · social $0.24 · webinar $0.31' },
+      { n: 2, node: 'rv_campaign', ref: 'CMP-PS-SOCIAL', detail: 'Paid social return $5.10 → $1.60 per $1 as weekly spend passes $35K' },
+      { n: 3, node: 'rv_intent', ref: 'INT-6S-4471', detail: '486 accounts scored >70 · 349 unworked · $18.4M modelled potential' },
+      { n: 4, node: 'rv_segment', ref: 'SEG-ICP-MM', detail: 'Competitor-term impression share 41% — 59% of demand unbought' },
+      { n: 5, node: 'rv_touch', ref: 'TCH-LI-FREQ', detail: 'LinkedIn frequency 4.8 per member per week vs 3.0 fatigue threshold' },
+    ],
+  },
+  churn_watch: {
+    q: "Which accounts are going to churn, and what's the tell?",
+    tag: 'Churn · Usage · Engagement',
+    chain: [
+      { kind: 'cypher', title: 'Score the installed base for churn risk', nodes: ['rv_churn', 'rv_subscription', 'rv_account'],
+        cypher: `MATCH (r:ChurnRisk)-[:PREDICTS]->(s:Subscription)-[:BILLED_TO]->(a:Account)
+WHERE r.probability > 0.35
+RETURN a.name, r.probability, s.arr_usd, r.top_driver,
+       duration.between(date(), s.term_end).days AS days_to_renewal
+ORDER BY r.probability DESC`,
+        result: `Northwind Logistics → 0.68 · $1.24M ARR · seat decline · renews in 112d\nCascade Analytics → 0.54 · $860K · support escalation · 74d\nHorizon Tech → 0.41 · $540K · competitive · 138d\nBeacon Industries → 0.37 · $410K · onboarding stall · 61d\n→ $3.05M ARR above the 0.35 action threshold` },
+      { kind: 'sql', title: 'Trend seat utilization on the flagged accounts', nodes: ['rv_usage', 'rv_subscription'],
+        cypher: `SELECT a.name, u.active_users, s.seats,
+       u.active_users * 1.0 / s.seats AS utilization,
+       u.active_users * 1.0 / LAG(u.active_users, 60) OVER (PARTITION BY a.id
+         ORDER BY u.measured_on) - 1 AS delta_60d
+FROM   usage_facts u JOIN dim_subscription s ON s.id = u.subscription_id
+JOIN   dim_account a ON a.id = s.account_id ORDER BY delta_60d`,
+        result: `Northwind Logistics → 186 of 240 seats active (77.5%) · −22% in 60 days\nCascade Analytics → 118 of 150 (78.7%) · −14%\nBeacon Industries →  47 of  60 (78.3%) · −9%\nHorizon Tech →  91 of 100 (91.0%) · flat` },
+      { kind: 'cypher', title: 'Join engagement, support and sentiment', nodes: ['rv_contact', 'rv_ticket', 'rv_nps'],
+        cypher: `MATCH (a:Account)<-[:RAISED_BY]-(t:Ticket)
+OPTIONAL MATCH (a)<-[:SCORES_ACCOUNT]-(n:NPSResponse)
+OPTIONAL MATCH (a)<-[:WORKS_AT]-(c:Contact {persona:'Champion'})
+RETURN a.name, max(c.last_activity_at) AS champion_touch,
+       collect(t.ticket_no)[..2] AS open_sev2, n.score`,
+        result: `Northwind: champion Maya Chen (VP Ops) last touch 34 days ago\n  TCK-8841 Sev-2 open 19 days · NPS 6 (was 9)\nCascade: 2 Sev-2 raised in 30 days · NPS 7\nHorizon: champion touched 4 days ago · NPS 8` },
+      { kind: 'semantic', title: 'Retrieve the account narrative', nodes: ['rv_ticket', 'rv_usage'],
+        query: 'what changed at Northwind Logistics in the last quarter',
+        matches: [
+          { score: 0.94, text: 'QBR note: “team reorganised under a new COO, re-evaluating tooling”', src: 'Gainsight' },
+          { score: 0.88, text: 'TCK-8841 escalated twice; last reply “still blocking our month-end”', src: 'Zendesk' },
+          { score: 0.81, text: 'Northwind deprovisioned 54 licenses across two batches', src: 'Pendo' },
+        ] },
+    ],
+    answer: [
+      { kind: 'verdict', text: 'Northwind Logistics — $1.24M ARR at 0.68 churn probability. Every tell has already fired, and the renewal conversation is still 112 days away.' },
+      { kind: 'para', text: 'Four accounts carrying $3.05M of ARR sit above the 0.35 action threshold[1]. They are not equally urgent and they are not failing for the same reason, so the ranking below is by probability, with the specific evidence that produced it.' },
+      { kind: 'list', n: 1, text: '**Northwind Logistics — $1.24M ARR · 0.68 · renews in 112 days.** Seat utilization has fallen to 186 of 240 licensed, down 22% in 60 days, with 54 licenses deprovisioned in two deliberate batches[2][4]. Champion Maya Chen has been silent 34 days[3]. Sev-2 **TCK-8841** has been open 19 days, escalated twice, with the customer writing “still blocking our month-end”[4]. NPS fell from 9 to 6 and health from 84 to 72[3][5]. The QBR note explains all of it: a reorganisation under a new COO and an active tooling re-evaluation[4].' },
+      { kind: 'list', n: 2, text: '**Cascade Analytics — $860K · 0.54 · renews in 74 days.** Utilization down 14%, two Sev-2s raised inside 30 days, NPS 7[2][3]. Shorter runway than Northwind but a shallower decline — recoverable on support responsiveness alone.' },
+      { kind: 'list', n: 3, text: '**Horizon Tech — $540K · 0.41 · renews in 138 days.** Usage flat at 91% and the champion was touched four days ago[2][3]. Nothing is broken operationally; the driver is competitive, so it belongs to the open deal rather than the CSM.' },
+      { kind: 'bullet', text: '**The tell is always usage before sentiment.** On Northwind, seats started falling roughly six weeks before NPS moved and about three months before any renewal conversation was scheduled[2][3]. Deprovisioning is a decision someone made and paid for — the least deniable signal in the graph.' },
+      { kind: 'bullet', text: '**Beacon Industries is the near-term one.** Lowest probability at 0.37, but it renews in 61 days — half of Northwind\'s runway — with an onboarding stall as the driver[1]. Low risk on a short clock still needs this week.' },
+      { kind: 'action', text: 'Recommend: (1) escalate TCK-8841 to a named engineer today with a committed fix date — it is the one blocker the customer has put in writing[4]; (2) get an exec-to-exec meeting with the new COO inside two weeks rather than another check-in with the quiet champion[3][4]; (3) build a re-adoption plan against the 54 deprovisioned seats before the renewal opens, because seats lost quietly never come back at renewal[2]; (4) route Horizon to the competitive motion and keep the CSM on Cascade and Beacon[1][5].' },
+    ],
+    sources: [
+      { n: 1, node: 'rv_churn', ref: 'CHR-4471', detail: 'Northwind 0.68 · Cascade 0.54 · Horizon 0.41 · Beacon 0.37 · $3.05M ARR flagged' },
+      { n: 2, node: 'rv_usage', ref: 'USG-NW-30D', detail: 'Northwind 186 of 240 seats active · −22% in 60 days · 54 licenses deprovisioned' },
+      { n: 3, node: 'rv_nps', ref: 'NPS-NW-0442', detail: 'Northwind NPS 6 (was 9) · champion Maya Chen last touch 34 days ago' },
+      { n: 4, node: 'rv_ticket', ref: 'TCK-8841', detail: 'Sev-2 open 19 days · escalated 2× · “still blocking our month-end”' },
+      { n: 5, node: 'rv_health', ref: 'HS-NORTHWIND', detail: 'Northwind health 72, down from 84 · $1.24M ARR · renewal in 112 days' },
+    ],
+  },
+  renewal_risk: {
+    q: "What's at risk in the next 90 days?",
+    tag: 'Renewal · Health · SLA',
+    chain: [
+      { kind: 'cypher', title: 'Pull the 90-day renewal book by dollar', nodes: ['rv_renewal', 'rv_subscription', 'rv_csm'],
+        cypher: `MATCH (r:Renewal)-[:RENEWS]->(s:Subscription)-[:BILLED_TO]->(a:Account)
+OPTIONAL MATCH (csm:CSM)-[:MANAGES]->(a)
+WHERE r.renewal_date <= date() + duration('P90D')
+RETURN count(r) AS renewals, sum(r.renewal_arr_usd) AS book,
+       r.risk_level, collect(DISTINCT csm.name) AS owners`,
+        result: `34 renewals · $6.80M ARR inside 90 days\nred $2.10M (4 accounts) · amber $0.95M (6) · green $3.75M (24)\nowners: Nadia Okafor $3.10M · Ben Kessler $2.40M · unassigned $1.30M` },
+      { kind: 'sql', title: 'Rank the at-risk book with its blocker', nodes: ['rv_renewal', 'rv_churn'],
+        cypher: `SELECT a.name, r.renewal_arr_usd, r.renewal_date - CURRENT_DATE AS days_out,
+       c.probability, c.top_driver
+FROM   renewal_facts r JOIN dim_account a ON a.id = r.account_id
+JOIN   churn_risk c ON c.subscription_id = r.subscription_id
+WHERE  r.risk_level = 'Red' ORDER BY r.renewal_arr_usd DESC`,
+        result: `Cascade Analytics $860K · 74d · 0.54 · two Sev-2 in 30d, utilization −14%\nVertex Solutions $520K · 39d · 0.49 · exec sponsor left in June\nBeacon Industries $410K · 61d · 0.37 · onboarding stalled at phase 2\nQuantum Dynamics $310K · 82d · 0.33 · Analytics uplift disputed` },
+      { kind: 'cypher', title: 'Trace each blocker to an owner and an SLA', nodes: ['rv_ticket', 'rv_onboarding', 'rv_csm'],
+        cypher: `MATCH (a:Account)<-[:MANAGES]-(csm:CSM)
+OPTIONAL MATCH (a)<-[:RAISED_BY]-(t:Ticket {priority:'Sev-2'})
+OPTIONAL MATCH (o:OnboardingProject)-[:ONBOARDS]->(:Subscription)-[:BILLED_TO]->(a)
+RETURN a.name, csm.name, avg(t.first_response_min) AS frt,
+       o.phase, o.target_go_live`,
+        result: `Cascade Analytics · Nadia Okafor → 2 Sev-2 breached first response (260 min vs 60 target)\nBeacon Industries · Ben Kessler → ONB-2214 stalled at phase 2 of 4, 141 days past go-live\nVertex Solutions · unassigned → no CSM touch in 47 days\nQuantum Dynamics · Ben Kessler → healthy usage, commercial blocker only` },
+      { kind: 'semantic', title: 'Retrieve the renewal-conversation context', nodes: ['rv_renewal', 'rv_activity'],
+        query: 'what is blocking each upcoming renewal conversation',
+        matches: [
+          { score: 0.92, text: 'Vertex Solutions: sponsor departure logged, no replacement mapped', src: 'Gainsight' },
+          { score: 0.85, text: 'Quantum Dynamics: “the Analytics uplift is hard to justify at renewal”', src: 'Gong' },
+          { score: 0.78, text: 'Beacon: 3 of 4 onboarding milestones open past target', src: 'Gainsight' },
+        ] },
+    ],
+    answer: [
+      { kind: 'verdict', text: '$2.10M of the $6.80M 90-day book is red, across four accounts — and each one has a different, named, fixable blocker. None of them is price.' },
+      { kind: 'para', text: 'The book is 34 renewals worth $6.80M: $3.75M green, $0.95M amber, $2.10M red[1]. Coverage is uneven before risk even enters — $1.30M of the book has no CSM assigned at all[1][4]. Ranked by dollars at risk, with the blocker and the owner:' },
+      { kind: 'list', n: 1, text: '**Cascade Analytics — $860K · 74 days · risk 0.54 · Nadia Okafor.** Two Sev-2s in 30 days, both breaching first response at 260 minutes against a 60-minute target, and utilization down 14%[2][3]. This is a support-quality renewal, and the SLA breach is ours to fix.' },
+      { kind: 'list', n: 2, text: '**Vertex Solutions — $520K · 39 days · risk 0.49 · unassigned.** The executive sponsor left in June with no replacement mapped, and there has been no CSM touch in 47 days[2][4]. Shortest clock in the book and nobody is holding it.' },
+      { kind: 'list', n: 3, text: '**Beacon Industries — $410K · 61 days · risk 0.37 · Ben Kessler.** Onboarding project ONB-2214 is stalled at phase 2 of 4, 141 days past target go-live, with three of four milestones open[5]. The account is being asked to renew something it never finished switching on.' },
+      { kind: 'list', n: 4, text: '**Quantum Dynamics — $310K · 82 days · risk 0.33 · Ben Kessler.** Usage is healthy; the blocker is purely commercial — “the Analytics uplift is hard to justify at renewal”[2][4]. Longest runway, easiest to solve, and the only one where a pricing conversation is the right move.' },
+      { kind: 'bullet', text: '**The biggest risk in the base is not in this window.** Northwind Logistics carries $1.24M at 0.68 probability but renews in 112 days, so it falls outside the 90-day report entirely[2]. Working the book strictly by date puts the largest exposure last.' },
+      { kind: 'action', text: 'Recommend: (1) assign Vertex Solutions an owner today and run sponsor-replacement mapping before the 39-day clock closes[3][4]; (2) put Cascade\'s two Sev-2s on a named engineer with a written response-time commitment — the SLA breach is the renewal argument[3]; (3) re-baseline Beacon with a 30-day go-live plan rather than renewing into an unfinished implementation[5]; (4) open the Quantum pricing conversation early, at value rather than at discount[2]; (5) start Northwind now even though it sits outside the window[1][2].' },
+    ],
+    sources: [
+      { n: 1, node: 'rv_renewal', ref: 'RNW-Q4-BOOK', detail: '34 renewals · $6.80M in 90 days · red $2.10M / amber $0.95M / green $3.75M' },
+      { n: 2, node: 'rv_churn', ref: 'CHR-4471', detail: 'Cascade 0.54 · Vertex 0.49 · Beacon 0.37 · Quantum 0.33 · Northwind 0.68 at 112d' },
+      { n: 3, node: 'rv_ticket', ref: 'TCK-9120', detail: 'Cascade 2 Sev-2 breached first response · 260 min vs 60 min target' },
+      { n: 4, node: 'rv_csm', ref: 'CSM-1104', detail: 'Nadia Okafor $3.10M · Ben Kessler $2.40M · Vertex unassigned 47 days' },
+      { n: 5, node: 'rv_onboarding', ref: 'ONB-2214', detail: 'Beacon Industries stalled at phase 2 of 4 · 141 days past target go-live' },
+    ],
+  },
+  health_drivers: {
+    q: "What actually predicts churn for us?",
+    tag: 'Signals · Model',
+    chain: [
+      { kind: 'sql', title: 'Test each health input against actual churn outcomes', nodes: ['rv_health', 'rv_churn'],
+        cypher: `SELECT input_name, current_weight, auc_lift, precision_at_churn
+FROM   health_model_inputs
+WHERE  model_version = 'v3' ORDER BY auc_lift DESC`,
+        result: `seat utilization trend (30d)   weight 0.12 · AUC lift +0.21 · precision 0.74\nchampion engagement recency    weight 0.08 · +0.16 · 0.68\nSev-2 aging (open > 14 days)   weight 0.06 · +0.11 · 0.63\ntime-to-value (onboarding)     weight 0.10 · +0.06 · 0.52\nNPS score alone                weight 0.40 · +0.01 · 0.31\nopen ticket count alone        weight 0.24 · −0.02 · 0.27` },
+      { kind: 'cypher', title: 'Replay the signals against accounts that actually churned', nodes: ['rv_churn', 'rv_subscription', 'rv_usage'],
+        cypher: `MATCH (r:ChurnRisk)-[:PREDICTS]->(s:Subscription {status:'Churned'})
+MATCH (u:Usage)-[:MEASURES]->(s)
+WITH s, min(u.license_utilization_pct) AS low, max(u.license_utilization_pct) AS high
+RETURN count(s) AS churned, sum(s.arr_usd) AS arr_lost,
+       sum(CASE WHEN low < high * 0.85 THEN 1 ELSE 0 END) AS seat_decline`,
+        result: `31 churned subscriptions · $9.40M ARR lost\n27 of 31 showed a >15% seat-utilization decline 60+ days before renewal\n24 of 31 had champion silence over 21 days\n 9 of 31 ever returned an NPS score below 7 — the rest never responded at all` },
+      { kind: 'cypher', title: 'Test the vanity inputs directly', nodes: ['rv_nps', 'rv_ticket', 'rv_account'],
+        cypher: `MATCH (a:Account)<-[:SCORES_ACCOUNT]-(n:NPSResponse)
+OPTIONAL MATCH (a)<-[:RAISED_BY]-(t:Ticket)
+WITH a, n.score AS nps, count(t) AS tickets
+RETURN CASE WHEN nps <= 6 THEN 'detractor' ELSE 'promoter' END AS band,
+       avg(a.churned) AS churn_rate, avg(tickets) AS ticket_vol`,
+        result: `NPS ≤ 6 → 38% churned  ·  NPS ≥ 9 → 21% churned   (weak separation)\ntop-quartile ticket volume → 12% churned\nbottom-quartile ticket volume → 34% churned   (inverted — quiet accounts churn more)` },
+      { kind: 'semantic', title: 'Retrieve model and product-signal notes', nodes: ['rv_health', 'rv_usage'],
+        query: 'health score model performance and leading product signals',
+        matches: [
+          { score: 0.93, text: 'Health score v3 AUC 0.71; reweighted v4 candidate scores 0.83 on holdout', src: 'Snowflake' },
+          { score: 0.86, text: 'License deprovisioning precedes non-renewal by a median 74 days', src: 'Pendo' },
+          { score: 0.79, text: 'Health card is 40% NPS-weighted — the highest weight, the lowest signal', src: 'Gainsight' },
+        ] },
+    ],
+    answer: [
+      { kind: 'verdict', text: 'Three inputs carry almost all the signal — seat-utilization trend, champion engagement recency and Sev-2 aging — while the score spends 64% of its weight on NPS and ticket count, which barely separate churners from renewers.' },
+      { kind: 'para', text: 'Replaying the model against 31 accounts that actually churned, worth $9.40M of lost ARR, gives a clean read on what was visible beforehand[2]. 27 of the 31 showed a seat-utilization decline over 15% at least 60 days before renewal, and 24 of 31 had a champion silent for more than 21 days[2]. Neither was subtle; both were sitting in Pendo and Outreach months ahead.' },
+      { kind: 'bullet', text: '**Seat-utilization trend is the strongest input** — +0.21 AUC lift and 0.74 precision at churn, carrying only 0.12 of the current weight[1]. License deprovisioning specifically precedes non-renewal by a median 74 days[5]: an account paying to remove seats has already decided something.' },
+      { kind: 'bullet', text: '**Champion engagement recency is second** — +0.16 lift, 0.68 precision, weighted 0.08[1]. It is also the cheapest to act on, because silence is reversible in a way that a lapsed implementation is not.' },
+      { kind: 'bullet', text: '**Sev-2 aging beats ticket volume decisively** — an open Sev-2 past 14 days lifts AUC +0.11[1], while raw ticket count is actively misleading: bottom-quartile ticket volume churns at 34% against 12% in the top quartile[4]. Accounts that file tickets are engaged; accounts that have gone quiet have stopped trying.' },
+      { kind: 'bullet', text: '**NPS alone is the vanity input** — 40% of the weight for +0.01 AUC lift and 0.31 precision[1][3]. Detractors churn at 38% against promoters at 21%, directionally right and practically useless, and only 9 of the 31 churned accounts ever returned a score[2][3]. You cannot run retention on a signal two thirds of your churners never send.' },
+      { kind: 'para', text: 'Reweighting to the v4 candidate moves holdout AUC from 0.71 to 0.83[5]. Operationally, the current score flags about 61% of churn roughly two weeks out; the reweighted score flags 78% of it at 90 days — the difference between a save play and an exit interview. Northwind is the live proof: seats down 22% and the champion quiet 34 days, while its NPS-heavy health score has only drifted from 84 to 72[2].' },
+      { kind: 'action', text: 'Recommend: (1) ship v4 — seat-utilization trend to 0.34, champion recency to 0.27, Sev-2 aging to 0.19, NPS down to 0.05[1][5]; (2) make a license-deprovisioning event a hard trigger that opens a save play regardless of score[5]; (3) replace open-ticket count with Sev-2 age, and alert when ticket volume *falls* rather than rises[4]; (4) re-score the base on v4 before the next renewal cycle so the 90-day lead time is actually usable[2][3].' },
+    ],
+    sources: [
+      { n: 1, node: 'rv_health', ref: 'HS-MODEL-V3', detail: 'v3 weights vs AUC lift · NPS 0.40 weight for +0.01 · utilization 0.12 for +0.21' },
+      { n: 2, node: 'rv_churn', ref: 'CHR-BT-31', detail: '31 churned subscriptions · $9.40M ARR · 27 seat decline · 24 champion silence' },
+      { n: 3, node: 'rv_nps', ref: 'NPS-BT-Q', detail: 'NPS ≤6 churn 38% vs ≥9 21% · only 9 of 31 churners ever responded' },
+      { n: 4, node: 'rv_ticket', ref: 'TCK-BT-Q', detail: 'Bottom-quartile ticket volume churns 34% vs 12% top quartile (inverted)' },
+      { n: 5, node: 'rv_usage', ref: 'USG-CHURN-BT', detail: 'Deprovisioning precedes non-renewal by median 74 days · v4 AUC 0.83' },
+    ],
+  },
+  whitespace: {
+    q: "Where is the whitespace in the installed base?",
+    tag: 'Expansion · Whitespace',
+    chain: [
+      { kind: 'cypher', title: 'Build the product penetration matrix', nodes: ['rv_account', 'rv_subscription', 'rv_product'],
+        cypher: `MATCH (a:Account)<-[:BILLED_TO]-(s:Subscription)
+OPTIONAL MATCH (u:Usage)-[:MEASURES]->(s)
+OPTIONAL MATCH (u)-[:OF_PRODUCT]->(p:Product)
+RETURN collect(DISTINCT p.name) AS stack, count(DISTINCT a) AS accounts,
+       sum(s.arr_usd) AS arr ORDER BY accounts DESC`,
+        result: `624 paying accounts\nPlatform only → 214 (34%)\nPlatform + Analytics → 322 (52%)\nPlatform + Analytics + API Gateway → 88 (14%)\n→ Analytics attach 66% · API Gateway attach 22%` },
+      { kind: 'sql', title: 'Find Analytics-shaped usage inside Platform-only accounts', nodes: ['rv_usage', 'rv_subscription'],
+        cypher: `SELECT a.name, u.reporting_session_share, u.scheduled_exports_per_user_week
+FROM   usage_facts u JOIN dim_subscription s ON s.id = u.subscription_id
+JOIN   dim_account a ON a.id = s.account_id
+WHERE  s.plan = 'Platform' AND NOT s.has_analytics
+  AND  u.reporting_session_share > 0.40 ORDER BY 2 DESC`,
+        result: `61 of 214 Platform-only accounts spend over 40% of sessions in reporting / export workflows\nmedian 47% of sessions · 3.2 scheduled exports per user per week\n18 of the 61 exceed the usage profile of the median paying Analytics customer` },
+      { kind: 'cypher', title: 'Size the opportunity at modelled attach', nodes: ['rv_expansion', 'rv_account', 'rv_product'],
+        cypher: `MATCH (e:ExpansionSignal)-[:ON_ACCOUNT]->(a:Account)
+WHERE e.recommended_product = 'Analytics add-on'
+RETURN count(a) AS accounts, avg(e.expected_arr_usd) AS median_acv,
+       sum(e.expected_arr_usd) AS whitespace, avg(e.propensity) AS attach`,
+        result: `61 accounts · Analytics add-on median ACV $86K → $5.24M whitespace\ntop 18 by usage fit = $2.40M · modelled attach 0.58 → $1.39M expected` },
+      { kind: 'semantic', title: 'Retrieve buying context on the whitespace accounts', nodes: ['rv_usage', 'rv_websession'],
+        query: 'platform-only accounts behaving like analytics customers',
+        matches: [
+          { score: 0.91, text: 'Quantum Dynamics: 63% of sessions in reporting, no Analytics entitlement', src: 'Pendo' },
+          { score: 0.84, text: 'Vertex Solutions: 4 users requested scheduled exports through support', src: 'Zendesk' },
+          { score: 0.76, text: 'Summit Partners: Analytics pricing page viewed 12 times in 30 days', src: 'Segment CDP' },
+        ] },
+    ],
+    answer: [
+      { kind: 'verdict', text: '**$5.24M of Analytics whitespace** sits inside 61 Platform-only accounts that already use the product like Analytics customers — $2.40M of it concentrated in 18 accounts, worth about $1.39M at modelled attach.' },
+      { kind: 'para', text: 'Of 624 paying accounts, 214 are on Platform only[1]. That is not automatically whitespace — most are on Platform because Platform is what they need. The graph separates the two cases by asking what an account actually does in the product rather than what it bought.' },
+      { kind: 'list', n: 1, text: '**Analytics whitespace — 61 accounts, $5.24M.** These accounts spend over 40% of sessions in reporting and export workflows, at a median 47% and 3.2 scheduled exports per user per week[2]. 18 of them exceed the usage profile of the *median paying Analytics customer*[2] — getting the value without paying for it, which is a packaging failure rather than a demand problem. At $86K median ACV and 0.58 modelled attach the realistic take is $1.39M[3][4].' },
+      { kind: 'list', n: 2, text: '**API Gateway whitespace — the bigger structural gap.** Attach is 22% against Analytics\' 66%[1]. The 88 accounts on the full stack are also the highest-retaining cohort in the base, so this is a retention argument as much as an expansion one.' },
+      { kind: 'list', n: 3, text: '**The named three lead the list.** Quantum Dynamics runs 63% of sessions in reporting with no Analytics entitlement, Vertex Solutions has had four users ask support for scheduled exports, and Summit Partners viewed the Analytics pricing page 12 times in 30 days[4][5]. Three different systems — telemetry, support and web — pointing at the same product.' },
+      { kind: 'bullet', text: '**The support requests are the strongest tell.** A user opening a ticket to ask for a feature that exists in a tier they do not own is a qualified expansion lead currently being closed as a support case[4].' },
+      { kind: 'bullet', text: '**Do not work the other 153.** Platform-only accounts below the 40% reporting threshold show no Analytics-shaped behaviour[2]; pitching them is the fastest way to make the whole motion look like it does not work.' },
+      { kind: 'action', text: 'Recommend: (1) run the top 18 by usage fit first — $2.40M with the strongest evidence, taking the proof of value from their own telemetry into the call[2][3]; (2) route export and reporting support requests to expansion instead of closing them[4]; (3) trigger an in-product offer on the 61 at the moment the reporting workflow is used[5]; (4) treat API Gateway as the next campaign once Analytics attach moves — the 22% is the larger long-run gap[1].' },
+    ],
+    sources: [
+      { n: 1, node: 'rv_subscription', ref: 'SUB-BASE-624', detail: '624 accounts · Platform only 214 · Analytics attach 66% · API Gateway 22%' },
+      { n: 2, node: 'rv_usage', ref: 'USG-WS-61', detail: '61 Platform-only accounts >40% reporting sessions · 18 above median Analytics customer' },
+      { n: 3, node: 'rv_expansion', ref: 'EXP-WS-Q3', detail: '61 × $86K = $5.24M · top 18 = $2.40M · attach 0.58 → $1.39M expected' },
+      { n: 4, node: 'rv_product', ref: 'PRD-ANALYTICS', detail: 'Analytics add-on · median ACV $86K · 4 Vertex export requests via support' },
+      { n: 5, node: 'rv_account', ref: 'ACC-QUANTUM', detail: 'Quantum 63% reporting sessions · Summit 12 pricing-page views in 30 days' },
+    ],
+  },
+  expansion_signals: {
+    q: "Which accounts are showing buying signals right now?",
+    tag: 'Expansion · Intent · Usage',
+    chain: [
+      { kind: 'cypher', title: 'Rank expansion propensity across the base', nodes: ['rv_expansion', 'rv_account', 'rv_subscription'],
+        cypher: `MATCH (e:ExpansionSignal)-[:ON_ACCOUNT]->(a:Account)<-[:BILLED_TO]-(s:Subscription)
+WHERE e.propensity > 0.6
+RETURN a.name, e.propensity, s.arr_usd, e.recommended_product, e.expected_arr_usd
+ORDER BY e.propensity DESC`,
+        result: `Apex Global → 0.86 · $2.10M ARR · API Gateway · $240K expected\nSummit Partners → 0.79 · $940K · Analytics add-on · $180K\nQuantum Dynamics → 0.74 · $760K · Analytics add-on · $150K\nVertex Solutions → 0.68 · $520K · seat expansion · $110K\n→ top 10 = $1.40M expected expansion ARR` },
+      { kind: 'sql', title: 'Check usage headroom and licence saturation', nodes: ['rv_usage', 'rv_subscription'],
+        cypher: `SELECT a.name, u.active_users, s.seats,
+       u.license_utilization_pct, u.api_calls / s.api_ceiling AS ceiling_ratio
+FROM   usage_facts u JOIN dim_subscription s ON s.id = u.subscription_id
+JOIN   dim_account a ON a.id = s.account_id
+WHERE  u.license_utilization_pct > 0.80 ORDER BY 4 DESC`,
+        result: `Apex Global → 288 of 300 seats (96%) · API calls 2.4× plan ceiling\nSummit Partners → 128 of 140 (91%) · reporting sessions +38% QoQ\nVertex Solutions →  53 of  60 (88%) · 4 export requests via support\nQuantum Dynamics → 84% · 63% of sessions in reporting workflows` },
+      { kind: 'cypher', title: 'Overlay third-party intent and pricing-page behaviour', nodes: ['rv_intent', 'rv_websession', 'rv_account'],
+        cypher: `MATCH (a:Account)
+OPTIONAL MATCH (i:IntentSignal)-[:ON_ACCOUNT]->(a)
+OPTIONAL MATCH (w:WebSession)-[:DEANONYMIZED_TO]->(a)
+WHERE w.landing_page CONTAINS 'pricing' OR w.landing_page CONTAINS 'docs'
+RETURN a.name, i.topic, i.intent_score, i.buying_stage, count(w) AS sessions`,
+        result: `Apex Global → “API management” 78 · Decision · 41 docs sessions in 30d\nSummit Partners → — · pricing page 12 sessions · 5 distinct users incl. CFO\nQuantum Dynamics → “embedded analytics” 64 · Consideration · 6 sessions\nVertex Solutions → no third-party intent · 2 sessions` },
+      { kind: 'semantic', title: 'Retrieve what buyers are saying on live calls', nodes: ['rv_activity', 'rv_intent'],
+        query: 'expansion language on recent customer calls',
+        matches: [
+          { score: 0.92, text: 'Apex Global QBR: “we are rate-limited — what does the gateway tier look like?”', src: 'Gong' },
+          { score: 0.85, text: 'Summit Partners: CFO joined the last two calls unprompted', src: 'Gong' },
+          { score: 0.77, text: 'Apex Global in Decision stage on API management three weeks running', src: '6sense' },
+        ] },
+    ],
+    answer: [
+      { kind: 'verdict', text: "Four accounts are ready now, worth about **$680K of expansion ARR** — and Apex Global is the only one where telemetry, third-party intent and the buyer's own words all point at the same product." },
+      { kind: 'para', text: 'Readiness here is not a propensity score on its own — it is agreement between independent sources. An account saturated in usage but silent on intent is a different conversation from one researching a category it has never touched. Ranked by how many signals agree:' },
+      { kind: 'list', n: 1, text: '**Apex Global — 0.86 · $2.10M ARR · API Gateway · $240K expected.** 288 of 300 seats active with API calls at 2.4× the plan ceiling[2]; 6sense scores “API management” 78 and has held Decision stage three consecutive weeks[3]; 41 docs sessions in 30 days[4]; and on the last QBR the customer asked outright, “we are rate-limited — what does the gateway tier look like?”[5]. Every source agrees. This is an inbound deal nobody has written down.' },
+      { kind: 'list', n: 2, text: '**Summit Partners — 0.79 · $940K · Analytics add-on · $180K.** 91% licence utilization with reporting sessions up 38% QoQ[2], 12 pricing-page sessions from 5 distinct users including the CFO[4], and the CFO has joined the last two calls unprompted[5]. No third-party intent, but a finance buyer self-serving on pricing outranks a research score.' },
+      { kind: 'list', n: 3, text: '**Quantum Dynamics — 0.74 · $760K · Analytics add-on · $150K.** 63% of sessions in reporting workflows with no entitlement[2] and “embedded analytics” intent at 64 in Consideration[3]. Unambiguous behaviour, one buying stage earlier — a nurture, not a proposal. It also renews in 82 days with a pricing objection already logged, so sequencing matters.' },
+      { kind: 'list', n: 4, text: '**Vertex Solutions — 0.68 · $520K · seat expansion · $110K.** 88% utilization and four export requests through support[2], but no intent and only two web sessions[3][4]. One source, not three — worth a call, not a forecast. Its renewal is 39 days out and unassigned, so retention comes first.' },
+      { kind: 'bullet', text: '**Rate-limit breaches are the highest-converting signal in the set.** An account running 2.4× its API ceiling is already consuming the next tier[2][5] — the commercial conversation is behind the product reality, not ahead of it.' },
+      { kind: 'action', text: 'Recommend: (1) put a gateway-tier proposal in front of Apex Global this week while the intent is live and the question is theirs[3][5]; (2) invite the Summit Partners CFO into a value conversation rather than letting them self-serve to a number[4]; (3) nurture Quantum with usage evidence and fold the Analytics offer into the renewal instead of running two negotiations[1][2]; (4) hold Vertex for retention first — expansion into an at-risk, unowned renewal does not close[1].' },
+    ],
+    sources: [
+      { n: 1, node: 'rv_expansion', ref: 'EXP-4488', detail: 'Apex 0.86 $240K · Summit 0.79 $180K · Quantum 0.74 $150K · Vertex 0.68 $110K' },
+      { n: 2, node: 'rv_usage', ref: 'USG-APEX-96', detail: 'Apex 288 of 300 seats · API calls 2.4× plan ceiling · Summit 91% utilization' },
+      { n: 3, node: 'rv_intent', ref: 'INT-APEX-API', detail: '6sense “API management” 78 · Decision stage three weeks running' },
+      { n: 4, node: 'rv_websession', ref: 'WSS-SUMMIT-PP', detail: 'Summit pricing page 12 sessions, 5 users incl. CFO · Apex 41 docs sessions' },
+      { n: 5, node: 'rv_activity', ref: 'ACT-APEX-QBR', detail: 'Apex QBR: “we are rate-limited — what does the gateway tier look like?”' },
+    ],
+  },
+  competitive_loss: {
+    q: "Why are we losing to Atlas Data Cloud?",
+    tag: 'Win-Loss · Competitor',
+    chain: [
+      { kind: 'cypher', title: 'Split win rate by competitor and segment', nodes: ['rv_competitor', 'rv_opportunity', 'rv_territory'],
+        cypher: `MATCH (o:Opportunity)-[:COMPETING_WITH]->(c:Competitor {name:'Atlas Data Cloud'})
+MATCH (o)-[:FOR_ACCOUNT]->(:Account)-[:IN_TERRITORY]->(t:Territory)
+WHERE o.stage IN ['Closed Won','Closed Lost']
+RETURN t.segment, count(o) AS deals,
+       sum(CASE WHEN o.stage = 'Closed Won' THEN 1 ELSE 0 END) * 1.0 / count(o) AS win_rate`,
+        result: `overall win rate 41% · versus Atlas 28%\nEnterprise vs Atlas → 47% (n=19)\nSMB vs Atlas → 44% (n=12)\nMid-Market vs Atlas → 19% (n=36)\n→ 23 competitive losses in two quarters · 17 of them Mid-Market` },
+      { kind: 'sql', title: 'Test the price hypothesis on the losses', nodes: ['rv_quote', 'rv_opportunity'],
+        cypher: `SELECT o.outcome, AVG(q.discount_pct) AS avg_discount,
+       SUM(CASE WHEN q.amount_usd < o.competitor_quote_usd THEN 1 ELSE 0 END) AS we_were_cheaper,
+       SUM(CASE WHEN o.primary_loss_reason = 'Price' THEN 1 ELSE 0 END) AS price_losses
+FROM   quote_facts q JOIN dim_opportunity o ON o.id = q.opportunity_id
+WHERE  o.competitor = 'Atlas Data Cloud' GROUP BY 1`,
+        result: `losses → avg discount 12.4% · we were the lower price in 14 of 23\nwins   → avg discount  9.1%\nprice named as the primary loss reason on only 5 of 23` },
+      { kind: 'semantic', title: 'Read the loss calls', nodes: ['rv_activity', 'rv_competitor'],
+        query: 'what buyers say when they choose Atlas Data Cloud',
+        matches: [
+          { score: 0.95, text: '“Atlas gives us row-level permissions out of the box” — 14 of 23 loss calls', src: 'Gong' },
+          { score: 0.88, text: 'Our governance answer is a services engagement quoted at 6–8 weeks', src: 'Gong' },
+          { score: 0.81, text: 'Atlas mentions on open Mid-Market deals up 2.6× quarter over quarter', src: '6sense' },
+        ] },
+      { kind: 'cypher', title: 'Find where the capability gap actually bites', nodes: ['rv_product', 'rv_opportunity', 'rv_activity'],
+        cypher: `MATCH (o:Opportunity)-[:COMPETING_WITH]->(:Competitor {name:'Atlas Data Cloud'})
+MATCH (a:Activity)-[:ADVANCED]->(o)
+WHERE a.topics CONTAINS 'row-level access'
+RETURN CASE WHEN a.occurred_at < o.proposal_sent_at THEN 'pre-Proposal'
+            ELSE 'post-Proposal' END AS raised_when,
+       count(o) AS deals, avg(o.won) AS win_rate`,
+        result: `raised pre-Proposal → 21 deals · 34% win rate\nraised post-Proposal → 27 deals · 11% win rate\nEnterprise mitigates with a funded services SOW; Mid-Market cannot budget one mid-cycle` },
+    ],
+    answer: [
+      { kind: 'verdict', text: 'It is not price. We lose to Atlas in Mid-Market — 19% win rate against 47% in Enterprise — on one capability, row-level permissions, which Atlas ships natively and we answer with a 6–8 week services engagement Mid-Market cannot fund.' },
+      { kind: 'para', text: 'Against Atlas our win rate is 28% versus 41% overall, but the average hides the story. Enterprise wins 47% and SMB 44%; Mid-Market wins 19% across 36 deals[1]. Seventeen of the 23 competitive losses in the last two quarters came from that one cell — a segment failure wearing a competitor\'s name.' },
+      { kind: 'bullet', text: '**Price is ruled out by our own quotes.** We discounted *more* on the losses than the wins (12.4% vs 9.1%), we were the cheaper option in 14 of 23 losses, and price was the primary reason on only 5[2]. Discounting harder is our current response to this competitor, and it is demonstrably not working.' },
+      { kind: 'bullet', text: '**The calls are unanimous on the real reason.** “Atlas gives us row-level permissions out of the box” appears in 14 of the 23 loss calls[3]. Our answer to the same requirement is a services engagement quoted at six to eight weeks[3] — technically a yes, commercially a no.' },
+      { kind: 'bullet', text: '**That is why the gap is segment-shaped.** Enterprise deals absorb a funded services SOW without breaking the business case; Mid-Market cannot budget one mid-cycle[4]. Same product gap, same competitor, different ability to pay around it.' },
+      { kind: 'bullet', text: '**Timing decides the outcome more than the gap itself.** When row-level access comes up before the proposal we still win 34% of the time; when it surfaces after, we win 11%[4]. Late discovery turns a scoping conversation into an unbudgeted change order.' },
+      { kind: 'para', text: 'This is live, not historical. Atlas mentions on open Mid-Market deals are up 2.6× quarter over quarter[3], and Horizon Tech — $445K, single-threaded to an architect — has had Atlas named on its last two calls[5]. On current form it becomes loss number 24.' },
+      { kind: 'action', text: 'Recommend: (1) package a fixed-scope, fixed-price governance starter so Mid-Market has a fundable answer instead of an open-ended SOW[4]; (2) move row-level access into discovery qualification — asking early is worth 23 points of win rate[4]; (3) stop discounting against Atlas, since deeper discounts track with losses, and redirect the concession into the governance package[2]; (4) put Horizon Tech into the competitive motion now and multi-thread above the architect[5]; (5) take the 14-of-23 evidence to product as the ranked ask — one feature, priced in lost Mid-Market deals[1][3].' },
+    ],
+    sources: [
+      { n: 1, node: 'rv_competitor', ref: 'CMP-ATLAS', detail: 'Win rate vs Atlas 28% · Enterprise 47% · Mid-Market 19% · 23 losses in 2 quarters' },
+      { n: 2, node: 'rv_quote', ref: 'QTE-LOSS-Q3', detail: 'Losses discounted 12.4% vs wins 9.1% · we were cheaper in 14 of 23' },
+      { n: 3, node: 'rv_activity', ref: 'ACT-GONG-RLP', detail: 'Row-level permissions cited on 14 of 23 loss calls · Atlas mentions +2.6× QoQ' },
+      { n: 4, node: 'rv_product', ref: 'PRD-GOV-SOW', detail: 'Governance answered as a 6–8 week SOW · pre-Proposal 34% win vs post 11%' },
+      { n: 5, node: 'rv_opportunity', ref: 'OPP-44318', detail: 'Horizon Tech $445K open · Atlas named on the last two calls' },
+    ],
+  },
+  discount_leak: {
+    q: "Where are we leaking margin on discounting?",
+    tag: 'Pricing · Discounting',
+    chain: [
+      { kind: 'sql', title: 'Distribution of discount depth by segment and stage', nodes: ['rv_quote', 'rv_territory'],
+        cypher: `SELECT t.segment, q.stage_at_quote, AVG(q.discount_pct) AS avg_discount,
+       AVG(CASE WHEN q.sequence_no = 1 THEN q.discount_pct END) AS first_quote
+FROM   quote_facts q JOIN dim_territory t ON t.id = q.territory_id
+WHERE  q.quarter IN ('FY26-Q2','FY26-Q3') GROUP BY 1,2 ORDER BY 3 DESC`,
+        result: `book-wide average discount 14.2%\nMid-Market 19.4% · SMB 12.1% · Enterprise 9.8%\nat Proposal 11.6% → at Negotiation 16.9%\n41% of quotes already carry a discount on the FIRST quote sent` },
+      { kind: 'cypher', title: 'Rank reps by discount depth against attainment', nodes: ['rv_ae', 'rv_quote', 'rv_opportunity'],
+        cypher: `MATCH (q:Quote)-[:QUOTES]->(o:Opportunity)-[:OWNED_BY]->(ae:AccountExecutive)
+RETURN ae.name, avg(q.discount_pct) AS avg_discount, ae.attainment_pct,
+       count(q) AS quotes ORDER BY avg_discount DESC`,
+        result: `Daniel Osei → 24.1% avg discount · attainment  84%\nTom Bradley → 21.6% · 91%\nMarcus Webb → 15.3% · 96%\nPriya Raman → 11.2% · 112%\nElena Ruiz →  9.4% · 118%` },
+      { kind: 'semantic', title: 'Check whether the buyer ever pushed back', nodes: ['rv_activity', 'rv_quote'],
+        query: 'pricing objections raised on calls before a discount was issued',
+        matches: [
+          { score: 0.93, text: 'No pricing objection logged on the call preceding 38% of discounted quotes', src: 'Gong' },
+          { score: 0.86, text: 'Discount approvals: 61% initiated by the rep, not by a buyer request', src: 'Salesforce' },
+          { score: 0.79, text: '22% of first-year discounts persist into the renewal term', src: 'Zuora' },
+        ] },
+      { kind: 'cypher', title: 'Test what the discount actually buys', nodes: ['rv_quote', 'rv_opportunity', 'rv_contract'],
+        cypher: `MATCH (q:Quote)-[:QUOTES]->(o:Opportunity)
+WHERE o.stage IN ['Closed Won','Closed Lost']
+RETURN CASE WHEN q.discount_pct >= 0.20 THEN 'deep' ELSE 'shallow' END AS band,
+       avg(o.won) AS win_rate, percentileCont(o.days_to_close, 0.5) AS median_days,
+       sum(q.list_amount_usd - q.amount_usd) AS given_away`,
+        result: `discount ≥ 20% → win rate 39% · median 47 days to close\ndiscount < 10% → win rate 41% · median 44 days\n→ annualised leak $1.9M · $740K of it issued with no buyer objection on record` },
+    ],
+    answer: [
+      { kind: 'verdict', text: 'About **$1.9M a year**, and $740K of it is given away before the buyer ever asks — deals discounted over 20% do not win more often or close any faster than deals discounted under 10%.' },
+      { kind: 'para', text: "The book-wide average discount is 14.2%, but the dispersion is where the money is: Mid-Market runs 19.4% against Enterprise's 9.8%[1]. Discounting also deepens as deals age, from 11.6% at Proposal to 16.9% at Negotiation — defensible if the buyer were driving it. Mostly they are not." },
+      { kind: 'bullet', text: '**38% of discounted quotes follow a call with no pricing objection on it**[3]. Salesforce agrees from the other side: 61% of discount approvals were initiated by the rep rather than requested by the buyer[3]. That is the $740K — a concession made against an objection that was never raised.' },
+      { kind: 'bullet', text: '**41% of first quotes are already discounted**[1]. List price is being negotiated against before it has been presented, which forfeits the anchor and guarantees the second round starts lower.' },
+      { kind: 'bullet', text: '**The discount buys nothing measurable.** Deals discounted 20% or more win 39% of the time in a median 47 days; deals under 10% win 41% in 44 days[5]. Deeper discounting is marginally *worse* on both dimensions — it is not purchasing speed or certainty.' },
+      { kind: 'bullet', text: '**Rep dispersion runs inverse to attainment.** Daniel Osei averages 24.1% at 84% attainment and Tom Bradley 21.6% at 91%, while Priya Raman discounts 11.2% at 112% and Elena Ruiz 9.4% at 118%[2]. The reps giving the most away are hitting their numbers least, so this is coachable behaviour rather than a market condition.' },
+      { kind: 'para', text: 'Two things compound it. 22% of first-year discounts persist into the renewal term[4] — Quantum Dynamics is currently disputing an Analytics uplift that exists only because the first year was discounted into it. And the segment leaking most is Mid-Market, the same segment where we lose to Atlas on row-level permissions[1] — reps are discounting to cover a capability gap, which is precisely why the money buys no additional wins[5].' },
+      { kind: 'action', text: 'Recommend: (1) require a logged pricing objection before any discount approval — the Gong record already makes this checkable[3]; (2) ban discounts on the first quote so the anchor survives to Negotiation[1]; (3) coach Osei and Bradley on the attainment data rather than the discount policy — the correlation is the argument[2]; (4) price renewals off list rather than off the discounted first year to stop the 22% carry-through[4]; (5) fix the Mid-Market capability gap so price stops being the substitute answer[5].' },
+    ],
+    sources: [
+      { n: 1, node: 'rv_quote', ref: 'QTE-Q3-DISC', detail: 'Avg discount 14.2% · MM 19.4% · Ent 9.8% · 41% discounted on the first quote' },
+      { n: 2, node: 'rv_ae', ref: 'AE-2207', detail: 'Osei 24.1% at 84% attainment · Ruiz 9.4% at 118%' },
+      { n: 3, node: 'rv_activity', ref: 'ACT-GONG-PRC', detail: 'No pricing objection before 38% of discounted quotes · 61% rep-initiated' },
+      { n: 4, node: 'rv_contract', ref: 'CTR-RNW-22', detail: '22% of first-year discounts persist into the renewal term' },
+      { n: 5, node: 'rv_opportunity', ref: 'OPP-DISC-BT', detail: 'Discount ≥20% → 39% win / 47 days vs <10% → 41% / 44 days · $1.9M leak' },
+    ],
+  },
 }
 
 const FALLBACK = {
@@ -967,6 +1588,21 @@ const FALLBACK = {
 
 function matchScript(text) {
   const t = text.toLowerCase()
+  // Revenue Teams — matched first. The retail/network routes below already claim
+  // broad words like "campaign", "spend", "risk" and "predict", so these patterns
+  // are deliberately narrow enough not to catch any of the questions they own.
+  if (/atlas|win.?loss|competitor|lose to|losing deals/.test(t)) return 'competitive_loss'
+  if (/discount|leaking margin|margin leak|pricing pressure/.test(t)) return 'discount_leak'
+  if (/predicts? churn|churn model|health score|health driver|predictive weight/.test(t)) return 'health_drivers'
+  if (/churn/.test(t)) return 'churn_watch'
+  if (/renewal|renew\b|at risk in the next|next 90 days/.test(t)) return 'renewal_risk'
+  if (/whitespace|white space|installed base|product penetration/.test(t)) return 'whitespace'
+  if (/buying signal|expansion|upsell|intent signal|ready to buy/.test(t)) return 'expansion_signals'
+  if (/commit\b|quota|forecast|make the number/.test(t)) return 'forecast_call'
+  if (/slippage|about to slip|deals?[^?]*slip|slip[^?]*deals?|single.?thread|stalled deal/.test(t)) return 'deal_slippage'
+  if (/funnel|stage conversion|stage.to.stage|conversion by segment/.test(t)) return 'stage_conversion'
+  if (/campaigns?[^?]*pipeline|created pipeline|sourced pipeline|multi.?touch|last.?touch/.test(t)) return 'campaign_pipeline'
+  if (/channel mix|spend go|cost per sourced|paid social|\babm\b/.test(t)) return 'channel_mix'
   if (/seattle|new york|nyc|jersey|usmnt/.test(t)) return 'seattle_ny'
   if (/air ?max/.test(t)) return 'airmax_spike'
   if (/pegasus|running|marathon/.test(t)) return 'pegasus_pnw'
@@ -1002,6 +1638,19 @@ let MID = 0
 
 export default function AgentChat({ onBack }) {
   const [agentId, setAgentId] = useState('demand')
+  // Graph filter for the agent rail — derived from the agents themselves.
+  const [graphFilter, setGraphFilter] = useState('All graphs')
+  const [graphOpen, setGraphOpen] = useState(false)
+  const graphRef = useRef(null)
+  const graphOptions = ['All graphs', ...Array.from(new Set(AGENTS.map(a => a.graph)))]
+  const graphCount = g => g === 'All graphs' ? AGENTS.length : AGENTS.filter(a => a.graph === g).length
+  const visibleAgents = graphFilter === 'All graphs' ? AGENTS : AGENTS.filter(a => a.graph === graphFilter)
+  useEffect(() => {
+    if (!graphOpen) return
+    const close = e => { if (graphRef.current && !graphRef.current.contains(e.target)) setGraphOpen(false) }
+    document.addEventListener('mousedown', close)
+    return () => document.removeEventListener('mousedown', close)
+  }, [graphOpen])
   const [messages, setMessages] = useState([])
   const [input, setInput] = useState('')
   const [srcPanel, setSrcPanel] = useState(null) // { sources, focus }
@@ -1043,8 +1692,50 @@ export default function AgentChat({ onBack }) {
           </button>
           <span style={{ fontFamily: 'var(--serif)', fontSize: 17, fontWeight: 500, color: '#1a1a1a' }}>AI Agents</span>
         </div>
+        {/* Graph filter — quiet dropdown, options derived from the agent list */}
+        <div ref={graphRef} style={{ position: 'relative', padding: '0 12px 10px' }}>
+          <button onClick={() => setGraphOpen(o => !o)} style={{
+            display: 'flex', alignItems: 'center', gap: 8, width: '100%', height: 32, padding: '0 9px',
+            boxSizing: 'border-box', borderRadius: 8, border: '1px solid ' + (graphOpen ? '#cfc7b6' : '#e3ddd1'),
+            background: '#fff', cursor: 'pointer', fontFamily: 'inherit', textAlign: 'left',
+          }}>
+            <span style={{ fontFamily: 'var(--mono)', fontSize: 8.5, letterSpacing: '0.6px', color: '#a89e88', flexShrink: 0 }}>GRAPH</span>
+            <span style={{ flex: 1, minWidth: 0, fontSize: 12, fontWeight: 500, color: '#1a1a1a', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {graphFilter === 'All graphs' ? 'All graphs' : graphFilter.replace(/ Context Graph| Network Graph| Retail Context Graph/, '')}
+            </span>
+            <svg width="9" height="9" viewBox="0 0 10 10" fill="none" style={{ flexShrink: 0, transform: graphOpen ? 'rotate(180deg)' : 'none' }}>
+              <path d="M2.5 4L5 6.5 7.5 4" stroke="#a89e88" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          </button>
+          {graphOpen && (
+            <div style={{
+              position: 'absolute', top: 36, left: 12, right: 12, zIndex: 40, background: '#fff',
+              border: '1px solid #e3ddd1', borderRadius: 10, boxShadow: '0 8px 28px rgba(26,26,26,0.10)', padding: 4, overflow: 'hidden',
+            }}>
+              {graphOptions.map(g => {
+                const on = g === graphFilter
+                return (
+                  <button key={g} onClick={() => {
+                    setGraphFilter(g); setGraphOpen(false)
+                    const next = g === 'All graphs' ? AGENTS : AGENTS.filter(a => a.graph === g)
+                    if (next.length && !next.some(a => a.id === agentId)) { setAgentId(next[0].id); newChat() }
+                  }} style={{
+                    display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '7px 8px', textAlign: 'left',
+                    borderRadius: 7, border: 'none', background: on ? '#f4f2ec' : 'transparent', cursor: 'pointer', fontFamily: 'inherit',
+                  }}
+                    onMouseOver={e => { if (!on) e.currentTarget.style.background = '#faf8f3' }}
+                    onMouseOut={e => { if (!on) e.currentTarget.style.background = 'transparent' }}>
+                    <span style={{ flex: 1, minWidth: 0, fontSize: 12, fontWeight: on ? 600 : 500, color: '#1a1a1a', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{g}</span>
+                    <span style={{ fontFamily: 'var(--mono)', fontSize: 10, color: '#a89e88', flexShrink: 0 }}>{graphCount(g)}</span>
+                    {on && <svg width="11" height="11" viewBox="0 0 12 12" fill="none" style={{ flexShrink: 0 }}><path d="M2.5 6.2l2.2 2.2 4.8-4.8" stroke="#16341f" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" /></svg>}
+                  </button>
+                )
+              })}
+            </div>
+          )}
+        </div>
         <div style={{ padding: '4px 10px', flex: 1, overflowY: 'auto' }}>
-          {AGENTS.map(a => {
+          {visibleAgents.map(a => {
             const on = a.id === agentId
             return (
               <button key={a.id} onClick={() => { setAgentId(a.id); newChat() }} style={{

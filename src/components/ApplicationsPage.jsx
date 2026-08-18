@@ -9,6 +9,7 @@ import {
   Chart, AppHeader, LiveBadge, NodeChip, StatusDot, Spark,
 } from './appsKit'
 import { GREIF_APPS } from './GreifApps'
+import { REVENUE_APPS } from './RevenueApps'
 
 // ─── AI APPLICATIONS ─────────────────────────────────────────────────────────
 // Visual applications built on the enterprise context graphs. ChargePoint demo
@@ -242,14 +243,31 @@ function C360Thumb() {
 }
 
 // The four ChargePoint / Revenue apps first, then everything contributed by a
-// domain module (Greif). Merging is generic: each manifest entry brings its own
-// thumbnail and view, so nothing here is hand-wired per app.
-const APPS = [...BASE_APPS, ...GREIF_APPS.map(a => ({ id: a.id, name: a.name, desc: a.desc, stats: a.stats, chips: a.chips, graph: a.graph }))]
+// domain module — Revenue Teams, then Greif. Merging is generic: each manifest
+// entry brings its own thumbnail and view, so nothing here is hand-wired per app.
+const MODULE_APPS = [...REVENUE_APPS, ...GREIF_APPS]
+const appMeta = a => ({ id: a.id, name: a.name, desc: a.desc, stats: a.stats, chips: a.chips, graph: a.graph })
+const APPS = [...BASE_APPS, ...MODULE_APPS.map(appMeta)]
 const THUMBS = {
   c360: C360Thumb, map: AtlasThumb, insights: PulseThumb, fleet: FleetThumb,
-  ...Object.fromEntries(GREIF_APPS.map(a => [a.id, a.Thumb])),
+  ...Object.fromEntries(MODULE_APPS.map(a => [a.id, a.Thumb])),
 }
-const EXTRA_VIEWS = Object.fromEntries(GREIF_APPS.map(a => [a.id, a.View]))
+const EXTRA_VIEWS = Object.fromEntries(MODULE_APPS.map(a => [a.id, a.View]))
+
+// ── Graph switcher. The pill row is derived from the merged manifest, never
+//    hand-listed, and uses the same fallback the card footer prints so the
+//    counts always agree with what the cards say.
+const DEFAULT_GRAPH = 'ChargePoint Network Graph'
+const graphOf = app => app.graph || DEFAULT_GRAPH
+const GRAPHS = APPS.reduce((acc, app) => {
+  const g = graphOf(app)
+  const hit = acc.find(x => x.key === g)
+  if (hit) hit.count += 1
+  else acc.push({ key: g, count: 1 })
+  return acc
+}, [])
+// Drop the "… Context Graph" / "… Network Graph" suffix — the row already says graph.
+const graphLabel = g => g.replace(/\s+(Context|Network)\s+Graph$/, '')
 
 function AppCard({ app, onOpen }) {
   const Thumb = THUMBS[app.id]
@@ -287,7 +305,42 @@ function AppCard({ app, onOpen }) {
   )
 }
 
+// Quiet filter row under the subtitle — All plus one pill per distinct graph.
+function GraphPills({ graph, setGraph }) {
+  const pill = (active, accent) => ({
+    border: `1px solid ${active ? accent : LINE2}`, background: active ? accent : 'transparent',
+    color: active ? '#fff' : '#6b6455', borderRadius: 20, padding: '4px 11px',
+    fontSize: 11.5, fontWeight: active ? 600 : 500, cursor: 'pointer',
+    display: 'inline-flex', alignItems: 'center', gap: 6, transition: 'all .15s',
+    boxShadow: active ? '0 1px 4px rgba(26,26,26,0.08)' : 'none', whiteSpace: 'nowrap',
+  })
+  const items = [{ key: 'all', label: 'All', count: APPS.length }, ...GRAPHS.map(g => ({ ...g, label: graphLabel(g.key) }))]
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', paddingBottom: 18 }}>
+      {items.map(it => {
+        const active = graph === it.key
+        return (
+          <button key={it.key} onClick={() => setGraph(it.key)} style={pill(active, INK)}>
+            {it.key !== 'all' && (
+              <svg width="11" height="11" viewBox="0 0 12 12" fill="none">
+                <circle cx="3" cy="6" r="1.8" stroke={active ? '#fff' : MUTED} strokeWidth="1.1" />
+                <circle cx="9" cy="2.8" r="1.8" stroke={active ? '#fff' : MUTED} strokeWidth="1.1" />
+                <circle cx="9" cy="9.2" r="1.8" stroke={active ? '#fff' : MUTED} strokeWidth="1.1" />
+                <path d="M4.6 5.2L7.4 3.6M4.6 6.8L7.4 8.4" stroke={active ? '#fff' : MUTED} strokeWidth="1.1" />
+              </svg>
+            )}
+            {it.label}
+            <span style={{ ...mono, fontSize: 10, color: active ? 'rgba(255,255,255,0.75)' : MUTED }}>{it.count}</span>
+          </button>
+        )
+      })}
+    </div>
+  )
+}
+
 function AppList({ onOpen }) {
+  const [graph, setGraph] = useState('all')
+  const visible = graph === 'all' ? APPS : APPS.filter(a => graphOf(a) === graph)
   return (
     <>
       <div style={{ padding: '18px 26px 0', flexShrink: 0 }}>
@@ -306,13 +359,14 @@ function AppList({ onOpen }) {
             Build New App
           </button>
         </div>
-        <div style={{ fontSize: 13.5, color: MUTED, paddingBottom: 18 }}>
+        <div style={{ fontSize: 13.5, color: MUTED, paddingBottom: 12 }}>
           Visual applications built on your enterprise context graphs.
         </div>
+        <GraphPills graph={graph} setGraph={setGraph} />
       </div>
       <div style={{ flex: 1, overflowY: 'auto', padding: '0 26px 26px' }}>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 18 }}>
-          {APPS.map(app => <AppCard key={app.id} app={app} onOpen={() => onOpen(app.id)} />)}
+          {visible.map(app => <AppCard key={app.id} app={app} onOpen={() => onOpen(app.id)} />)}
         </div>
       </div>
     </>
